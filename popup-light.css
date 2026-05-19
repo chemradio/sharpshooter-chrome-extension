@@ -1,33 +1,29 @@
 /* ════════════════════════════════════════════════════════════════
-   Sharpshooter — popup UI
-   Visual language lifted from static/embed-dark.html: a black void,
-   navy CRT panels, cyan scan-beam glow, hot-red targeting dot,
-   horizontal scanlines and corner-bracket framing. Cyberpunk /
-   dystopian surveillance-terminal look. This is the DARK half of the
-   pair — popup-light.css is the light half; popup.html loads each
-   under a prefers-color-scheme media query.
+   Sharpshooter — popup UI · LIGHT variant
+   Same surveillance-terminal language as popup.css (scanlines, glass
+   glare, vignette, glitch, breathing, corner brackets) — inverted to a
+   bright clean-room HUD: paper-white panels, navy ink, cyan accent,
+   targeting red. Forced light. To use: point popup.html's stylesheet
+   <link> at this file instead of popup.css.
    ════════════════════════════════════════════════════════════════ */
 
 :root {
-    --void:       #000000;
-    --dark:       #102C44;   /* CRT panel navy */
-    --dark-2:     #0a1c2c;   /* recessed panel */
-    --accent:     #0ECAE3;   /* scan-beam cyan */
-    --accent-dim: #0aaec5;
-    --white:      #FFFFFF;
-    --chrome:     #DEE5EC;   /* bezel hairline */
-    --bg:         #000000;
-    --bg-section: #0d2236;
-    --surface:    #122f48;
-    --border:     #214a68;
-    --text:       #DEE5EC;
-    --text-muted: #5f8ba8;
-    --danger:     #FF0055;   /* targeting red */
-    --danger-dim: #c8003f;
+    --void:       #ffffff;   /* inputs / recessed surfaces */
+    --dark:       #f3f6f9;   /* CRT panel */
+    --dark-2:     #e9eff4;   /* recessed panel / header */
+    --accent:     #0bb4cd;   /* scan-beam cyan */
+    --accent-dim: #0a93a8;
+    --ink:        #0c2236;   /* navy ink — text on bright fills */
+    --chrome:     #aebcc8;   /* bezel hairline */
+    --border:     #bccada;
+    --text:       #15324a;
+    --text-muted: #5d7890;
+    --danger:     #df0039;   /* targeting red */
+    --danger-dim: #b3002e;
     --radius:     3px;
     --radius-sm:  2px;
-    --glow-cyan:  0 0 8px rgba(14, 202, 227, 0.55);
-    --glow-red:   0 0 8px rgba(255, 0, 85, 0.55);
+    --glow-cyan:  0 0 8px rgba(11, 180, 205, 0.38);
+    --glow-red:   0 0 8px rgba(223, 0, 57, 0.32);
 }
 
 *, *::before, *::after {
@@ -41,12 +37,12 @@ body {
     background: var(--void);
     font-size: 13px;
     color: var(--text);
-    color-scheme: dark;
+    color-scheme: light;
 }
 
 /* ── Shell ─────────────────────────────────────────────
-   The popup is a CRT unit floating in black: navy body,
-   chrome hairline bezel, scanline wash, corner rivets. */
+   The popup is a CRT unit: paper panel, chrome hairline bezel,
+   scanline wash, corner rivets. */
 
 .popup {
     position: relative;
@@ -55,12 +51,12 @@ body {
     flex-direction: column;
     background:
         radial-gradient(ellipse 120% 80% at 50% 0%,
-            rgba(14, 202, 227, 0.06) 0%, transparent 60%),
+            rgba(11, 180, 205, 0.08) 0%, transparent 60%),
         var(--dark);
     border: 1px solid var(--chrome);
     box-shadow:
-        inset 0 0 60px rgba(0, 0, 0, 0.55),
-        0 0 0 1px rgba(255, 255, 255, 0.04);
+        inset 0 0 50px rgba(40, 60, 85, 0.1),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
     overflow: hidden;
     /* Faint mains-powered shimmer — keeps the unit feeling alive. */
     animation: crt-flicker 8s linear infinite;
@@ -68,7 +64,9 @@ body {
 
 /* Scanline wash + glass glare over the whole unit. The scanline layer
    drifts slowly toward the top and stutters with the occasional glitch;
-   the diagonal sheen reads as a room light reflecting off curved glass. */
+   the diagonal sheen reads as a room light reflecting off the glass.
+   No blend mode — dark scanlines darken, the white sheen brightens,
+   both straight through normal alpha. */
 .popup::before {
     content: '';
     position: absolute;
@@ -78,30 +76,29 @@ body {
     background:
         repeating-linear-gradient(
             0deg,
-            rgba(14, 202, 227, 0.028) 0px,
-            rgba(14, 202, 227, 0.028) 1.4px,
+            rgba(12, 38, 60, 0.04) 0px,
+            rgba(12, 38, 60, 0.04) 1.4px,
             transparent 1.4px,
             transparent 3px
         ),
         linear-gradient(
             122deg,
-            rgba(255, 255, 255, 0.04)  0%,
-            rgba(255, 255, 255, 0.012) 15%,
+            rgba(255, 255, 255, 0.38) 0%,
+            rgba(255, 255, 255, 0.1)  15%,
             transparent 33%,
             transparent 63%,
-            rgba(255, 255, 255, 0.02)  84%,
-            rgba(255, 255, 255, 0.006) 100%
+            rgba(255, 255, 255, 0.22) 84%,
+            rgba(255, 255, 255, 0.05) 100%
         );
     background-size: 100% 3px, 100% 100%;
     background-position: 0 0, 0 0;
-    mix-blend-mode: screen;
     animation:
         scan-drift  2.4s linear            infinite,
         scan-glitch 9s    steps(1, end)    infinite;
 }
 
-/* Vignette — darkened corners, like the embed's radial fade. Sits behind
-   the body content (z-index 0) so it shades the panel, never the buttons. */
+/* Vignette — softly shaded corners. Sits behind the body content
+   (z-index 0) so it shades the panel, never the buttons. */
 .popup::after {
     content: '';
     position: absolute;
@@ -109,7 +106,7 @@ body {
     pointer-events: none;
     z-index: 0;
     background: radial-gradient(ellipse 82% 72% at 50% 44%,
-        transparent 60%, rgba(0, 0, 0, 0.32) 100%);
+        transparent 60%, rgba(30, 50, 72, 0.1) 100%);
 }
 
 /* Corner brackets — the embed's screen frame motif. */
@@ -122,7 +119,7 @@ body {
     height: 12px;
     z-index: 51;
     pointer-events: none;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .popup > header::before {
@@ -155,12 +152,11 @@ header {
 
 .header-title {
     flex: 1;
-    color: var(--white);
+    color: var(--ink);
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    text-shadow: var(--glow-cyan);
     cursor: default;
     user-select: none;
 }
@@ -176,7 +172,7 @@ header {
     z-index: 52;
     display: block;
     border-radius: 7px;
-    filter: drop-shadow(0 0 6px rgba(14, 202, 227, 0.5));
+    filter: drop-shadow(0 0 6px rgba(11, 180, 205, 0.4));
 }
 
 /* ── Help button — round targeting reticle ─────────────── */
@@ -188,7 +184,7 @@ header {
     padding: 0;
     border-radius: 50%;
     background: transparent;
-    color: var(--accent);
+    color: var(--accent-dim);
     border: 1.5px solid var(--accent);
     font-size: 12px;
     font-weight: 700;
@@ -203,7 +199,7 @@ header {
 .help-toggle:hover,
 .popup.is-helping .help-toggle {
     background: var(--accent);
-    color: var(--void);
+    color: var(--ink);
     box-shadow: var(--glow-cyan);
 }
 
@@ -215,7 +211,7 @@ header {
 .popup.is-expert .help-toggle:hover,
 .popup.is-expert.is-helping .help-toggle {
     background: var(--danger);
-    color: var(--void);
+    color: #ffffff;
     box-shadow: var(--glow-red);
 }
 
@@ -249,7 +245,7 @@ header {
     height: 108px;
     display: block;
     border-radius: 16px;
-    filter: drop-shadow(0 0 16px rgba(14, 202, 227, 0.45));
+    filter: drop-shadow(0 0 16px rgba(11, 180, 205, 0.4));
 }
 
 .help-title {
@@ -257,23 +253,20 @@ header {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--accent);
-    text-shadow: var(--glow-cyan);
+    color: var(--accent-dim);
     margin-bottom: 12px;
 }
 
 .popup.is-expert .help-title {
     color: var(--danger);
-    text-shadow: var(--glow-red);
 }
 
 .help-disclaimer {
     margin-bottom: 14px;
     padding: 8px 10px;
     border-radius: var(--radius);
-    background: var(--dark-2);
+    background: #fdeef1;
     border: 1px solid var(--danger);
-    box-shadow: inset 0 0 16px rgba(255, 0, 85, 0.12);
     color: var(--text);
 }
 
@@ -301,8 +294,8 @@ header {
 .help-view code {
     font-family: 'Consolas', 'Menlo', monospace;
     font-size: 13px;
-    background: var(--void);
-    color: var(--accent);
+    background: #eef3f6;
+    color: var(--accent-dim);
     padding: 1px 4px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
@@ -380,13 +373,8 @@ header {
     animation: header-breathe-red 4.8s ease-in-out infinite;
 }
 
-.popup.is-expert .header-title {
-    text-shadow: var(--glow-red);
-}
-
 .popup.is-expert .expert-header {
     color: var(--danger);
-    text-shadow: var(--glow-red);
 }
 
 /* ── Body (all sections) ───────────────────────────────── */
@@ -459,13 +447,13 @@ section + section { margin-top: 12px; }
 
 .radio-group label:hover {
     border-color: var(--accent);
-    color: var(--accent);
+    color: var(--accent-dim);
 }
 
 .radio-group input[type="radio"]:checked + label {
     background: var(--accent);
     border-color: var(--accent);
-    color: var(--void);
+    color: var(--ink);
     font-weight: 700;
     box-shadow: var(--glow-cyan);
 }
@@ -487,7 +475,7 @@ section + section { margin-top: 12px; }
 #custom:checked + .custom-label {
     background: var(--danger) !important;
     border-color: var(--danger) !important;
-    color: var(--void) !important;
+    color: #ffffff !important;
     box-shadow: var(--glow-red);
 }
 
@@ -508,7 +496,7 @@ section + section { margin-top: 12px; }
     font-family: 'Consolas', 'Menlo', monospace;
     font-size: 13px;
     font-weight: 600;
-    color: var(--accent);
+    color: var(--accent-dim);
     background: var(--void);
     text-align: center;
     transition: border-color 0.12s, box-shadow 0.12s;
@@ -527,7 +515,7 @@ section + section { margin-top: 12px; }
 }
 
 .resolution-row input[type="number"]:disabled {
-    opacity: 0.4;
+    opacity: 0.5;
     color: var(--text-muted);
 }
 
@@ -581,12 +569,12 @@ button:active { opacity: 0.75; }
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: var(--dark-2);
+    background: var(--void);
     color: var(--text);
     border: 2px solid var(--accent);
     /* Flat 2D fill — armed look comes from a borderless inner glow,
        no bevel, no drop shadow. */
-    box-shadow: inset 0 0 20px rgba(14, 202, 227, 0.1);
+    box-shadow: inset 0 0 20px rgba(11, 180, 205, 0.1);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -603,8 +591,8 @@ button:active { opacity: 0.75; }
     pointer-events: none;
     background: repeating-linear-gradient(
         0deg,
-        rgba(14, 202, 227, 0.07) 0px,
-        rgba(14, 202, 227, 0.07) 1px,
+        rgba(12, 38, 60, 0.05) 0px,
+        rgba(12, 38, 60, 0.05) 1px,
         transparent 1px,
         transparent 3px
     );
@@ -612,22 +600,22 @@ button:active { opacity: 0.75; }
 
 .btn-capture:hover {
     background: var(--accent);
-    color: var(--void);
+    color: var(--ink);
     border-color: var(--accent);
-    box-shadow: 0 0 14px rgba(14, 202, 227, 0.6);
+    box-shadow: 0 0 14px rgba(11, 180, 205, 0.55);
 }
 
 .btn-capture .btn-icon {
     width: 18px;
     height: 18px;
-    color: var(--accent);
+    color: var(--accent-dim);
     flex-shrink: 0;
     transition: color 0.12s, transform 0.12s;
     z-index: 1;
 }
 
 .btn-capture:hover .btn-icon {
-    color: var(--void);
+    color: var(--ink);
     transform: scale(1.05);
 }
 
@@ -637,8 +625,8 @@ button:active { opacity: 0.75; }
 .btn-capture--primary {
     border-color: var(--accent);
     box-shadow:
-        inset 0 0 24px rgba(14, 202, 227, 0.2),
-        0 0 10px rgba(14, 202, 227, 0.32);
+        inset 0 0 24px rgba(11, 180, 205, 0.18),
+        0 0 10px rgba(11, 180, 205, 0.28);
 }
 
 /* ── Site-detection prompt ─────────────────────────────── */
@@ -653,7 +641,7 @@ button:active { opacity: 0.75; }
 
 .site-prompt-hint {
     font-size: 11px;
-    color: var(--accent);
+    color: var(--accent-dim);
     text-align: center;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -665,7 +653,7 @@ button:active { opacity: 0.75; }
 
 .btn-ghost {
     background: transparent;
-    color: var(--accent);
+    color: var(--accent-dim);
     border: 2px solid var(--accent);
     padding: 4px 10px;
     font-size: 11px;
@@ -678,7 +666,7 @@ button:active { opacity: 0.75; }
 
 .btn-ghost:hover {
     background: var(--accent);
-    color: var(--void);
+    color: var(--ink);
     box-shadow: var(--glow-cyan);
 }
 
@@ -698,7 +686,7 @@ button:active { opacity: 0.75; }
 
 .btn-helper:hover {
     border-color: var(--accent);
-    color: var(--accent);
+    color: var(--accent-dim);
     box-shadow: var(--glow-cyan);
 }
 
@@ -751,7 +739,7 @@ button:active { opacity: 0.75; }
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--accent);
+    color: var(--accent-dim);
 }
 
 .expert-hint {
@@ -763,7 +751,7 @@ button:active { opacity: 0.75; }
 .filter-preview[hidden] { display: none; }
 
 .filter-host {
-    color: var(--accent);
+    color: var(--accent-dim);
     font-family: 'Consolas', 'Menlo', monospace;
     text-transform: none;
     letter-spacing: 0;
@@ -782,7 +770,7 @@ button:active { opacity: 0.75; }
     border-radius: var(--radius-sm);
     font-family: 'Consolas', 'Menlo', monospace;
     font-size: 12px;
-    color: var(--accent);
+    color: var(--accent-dim);
     background: var(--void);
 }
 
@@ -906,7 +894,7 @@ button:active { opacity: 0.75; }
 
 .filter-list .remove:hover {
     background: var(--danger);
-    color: var(--void);
+    color: #ffffff;
     box-shadow: var(--glow-red);
 }
 
@@ -930,7 +918,7 @@ button:active { opacity: 0.75; }
     color: var(--accent);
 }
 
-.status.ok    { color: var(--accent); }
+.status.ok    { color: var(--accent-dim); }
 .status.error { color: var(--danger); }
 .status.busy  { color: var(--text-muted); }
 
@@ -988,23 +976,22 @@ button:active { opacity: 0.75; }
 }
 
 @keyframes ring-expand {
-    0%   { transform: scale(1);    opacity: 0.7; }
-    100% { transform: scale(2.2);  opacity: 0;   }
+    0%   { transform: scale(1);    opacity: 0.65; }
+    100% { transform: scale(2.2);  opacity: 0;    }
 }
 
 @keyframes dot-pulse {
-    0%, 100% { opacity: 1;   }
+    0%, 100% { opacity: 1;    }
     50%      { opacity: 0.35; }
 }
 
 .capture-label {
     font-size: 11px;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--accent-dim);
     letter-spacing: 0.16em;
     text-transform: uppercase;
     text-align: center;
-    text-shadow: var(--glow-cyan);
 }
 
 .capture-hint {
@@ -1038,21 +1025,21 @@ button:active { opacity: 0.75; }
 /* Faint brightness shimmer — uneven mains power. */
 @keyframes crt-flicker {
     0%, 94%, 100% { filter: brightness(1);    }
-    95%           { filter: brightness(1.06); }
-    96%           { filter: brightness(0.94); }
-    97%           { filter: brightness(1.04); }
-    98%           { filter: brightness(0.98); }
+    95%           { filter: brightness(1.03); }
+    96%           { filter: brightness(0.98); }
+    97%           { filter: brightness(1.02); }
+    98%           { filter: brightness(0.99); }
 }
 
 /* Header underglow swells and fades — a slow, calm "breath". */
 @keyframes header-breathe {
-    0%, 100% { box-shadow: 0 1px 11px rgba(14, 202, 227, 0.16); }
-    50%      { box-shadow: 0 2px 18px rgba(14, 202, 227, 0.36); }
+    0%, 100% { box-shadow: 0 1px 11px rgba(11, 180, 205, 0.16); }
+    50%      { box-shadow: 0 2px 18px rgba(11, 180, 205, 0.34); }
 }
 
 @keyframes header-breathe-red {
-    0%, 100% { box-shadow: 0 1px 11px rgba(255, 0, 85, 0.18); }
-    50%      { box-shadow: 0 2px 18px rgba(255, 0, 85, 0.4);  }
+    0%, 100% { box-shadow: 0 1px 11px rgba(223, 0, 57, 0.16); }
+    50%      { box-shadow: 0 2px 18px rgba(223, 0, 57, 0.34); }
 }
 
 /* Respect the user's wishes — kill the motion, keep the look. */
@@ -1068,10 +1055,10 @@ button:active { opacity: 0.75; }
     }
 }
 
-/* ── Scrollbars — thin cyan tracks ─────────────────────── */
+/* ── Scrollbars — thin tracks ──────────────────────────── */
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--void); }
+::-webkit-scrollbar-track { background: #eef3f6; }
 ::-webkit-scrollbar-thumb {
     background: var(--border);
     border-radius: 0;

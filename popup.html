@@ -3,7 +3,19 @@
     <head>
         <meta charset="UTF-8" />
         <title data-i18n="popupTitle">Sharpshooter</title>
-        <link rel="stylesheet" href="popup.css" />
+        <!-- Theme follows the OS / Chrome color scheme: each stylesheet
+             is gated by a prefers-color-scheme media query, so the
+             browser loads both but applies only the matching one. -->
+        <link
+            rel="stylesheet"
+            href="popup-light.css"
+            media="(prefers-color-scheme: light)"
+        />
+        <link
+            rel="stylesheet"
+            href="popup.css"
+            media="(prefers-color-scheme: dark)"
+        />
         <link
             rel="stylesheet"
             href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300..700;1,300..700&display=swap"
@@ -12,13 +24,21 @@
     <body>
         <div class="popup">
             <header>
-                <img
-                    id="header-icon"
-                    class="header-icon"
-                    src="static/svgs/sharpshooter-light-animated.svg"
-                    alt=""
-                    aria-hidden="true"
-                />
+                <!-- Brand mark also tracks the color scheme: dark SVG
+                     in dark mode, light SVG in light mode. -->
+                <picture>
+                    <source
+                        srcset="static/svgs/sharpshooter-dark-animated.svg"
+                        media="(prefers-color-scheme: dark)"
+                    />
+                    <img
+                        id="header-icon"
+                        class="header-icon"
+                        src="static/svgs/sharpshooter-light-animated.svg"
+                        alt=""
+                        aria-hidden="true"
+                    />
+                </picture>
                 <span class="header-title" id="header-title">Sharpshooter</span>
                 <button
                     type="button"
@@ -441,6 +461,23 @@
             </div>
 
             <div id="view-help" class="help-view" hidden>
+                <!-- Large animated brand mark at the top of the help panel,
+                     theme-switched like the header icon. -->
+                <div class="help-hero">
+                    <picture>
+                        <source
+                            srcset="static/svgs/sharpshooter-dark-animated.svg"
+                            media="(prefers-color-scheme: dark)"
+                        />
+                        <img
+                            class="help-hero-icon"
+                            src="static/svgs/sharpshooter-light-animated.svg"
+                            alt=""
+                            aria-hidden="true"
+                        />
+                    </picture>
+                </div>
+
                 <div id="help-content-normal" class="help-content">
                     <h3 class="help-title" data-i18n="helpTitleNormal">How capture works</h3>
                     <div class="help-disclaimer" data-i18n-html="helpDisclaimer"></div>
