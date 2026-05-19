@@ -11,7 +11,16 @@
       "PowerShell(\"ru OK\")",
       "Bash(ls -R \"\\\\\\\\\\\\\\\\bishkeknas03\\\\\\\\CurrentTimeAsia\\\\\\\\GRAPHICS\\\\\\\\Timur Edit\\\\\\\\cta-chrome-extension\" 2>nul | head -120)",
       "Bash(head -40 \"\\\\\\\\\\\\\\\\bishkeknas03\\\\\\\\CurrentTimeAsia\\\\\\\\GRAPHICS\\\\\\\\Timur Edit\\\\\\\\cta-chrome-extension\\\\\\\\contentScripts\\\\\\\\domKiller.js\")",
-      "Read(///bishkeknas03/CurrentTimeAsia/GRAPHICS/Timur Edit/cta-chrome-extension/contentScripts/**)"
+      "Read(///bishkeknas03/CurrentTimeAsia/GRAPHICS/Timur Edit/cta-chrome-extension/contentScripts/**)",
+      "Bash(ls \"\\\\\\\\bishkeknas03\\\\CurrentTimeAsia\\\\GRAPHICS\\\\Timur Edit\\\\cta-chrome-extension\")",
+      "Bash(cd \"\\\\\\\\bishkeknas03\\\\CurrentTimeAsia\\\\GRAPHICS\\\\Timur Edit\\\\cta-chrome-extension\")",
+      "Bash(file icon.png)",
+      "Bash(ls _locales/en)",
+      "Bash(cat _locales/en/messages.json)",
+      "Bash(cd \"\\\\\\\\bishkeknas03\\\\CurrentTimeAsia\\\\GRAPHICS\\\\Timur Edit\\\\cta-chrome-extension\" && grep -rn \"tab\\\\.url\\\\|tabs\\\\[0\\\\]\\\\.url\\\\|\\\\.url\" backgroundScript.js screenshots/autoCapture.js)",
+      "Read(///bishkeknas03/CurrentTimeAsia/bishkeknas03/CurrentTimeAsia/GRAPHICS/Timur Edit/cta-chrome-extension/**)",
+      "Bash(powershell -NoProfile -Command 'Add-Type -AssemblyName System.Drawing; $src=[System.Drawing.Image]::FromFile\\(\\(Resolve-Path icon.png\\)\\); foreach\\($s in 16,48,128\\){ $bmp=New-Object System.Drawing.Bitmap $s,$s; $g=[System.Drawing.Graphics]::FromImage\\($bmp\\); $g.InterpolationMode='\\\\''HighQualityBicubic'\\\\''; $g.SmoothingMode='\\\\''HighQuality'\\\\''; $g.PixelOffsetMode='\\\\''HighQuality'\\\\''; $g.DrawImage\\($src,0,0,$s,$s\\); $bmp.Save\\(\\(Join-Path \\(Get-Location\\) \\('\\\\''icon'\\\\''+$s+'\\\\''.png'\\\\''\\)\\),[System.Drawing.Imaging.ImageFormat]::Png\\); $g.Dispose\\(\\); $bmp.Dispose\\(\\) }; $src.Dispose\\(\\); '\\\\''done'\\\\''')",
+      "Bash(git rm *)"
     ]
   }
 }

@@ -5,12 +5,30 @@
     --white:      #FFFFFF;
     --bg:         #E8EDF2;
     --bg-section: #F2F5F8;
+    --surface:    #FFFFFF;
     --border:     #C8D3DC;
     --text:       #102C44;
     --text-muted: #5a7a92;
     --danger:     #E8003C;
     --radius:     6px;
     --radius-sm:  4px;
+}
+
+/* Dark mode. The header bar keeps its navy (--dark) in both schemes — it is
+   the brand band — and --white stays literally white for foreground glyphs
+   that sit on the header / accent / danger fills. Only the popup body
+   surfaces flip: --surface (cards, inputs, buttons), --bg / --bg-section
+   (page + recessed areas), --border, and the text tokens. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg:         #141d27;
+        --bg-section: #1c2836;
+        --surface:    #202f3f;
+        --border:     #35495d;
+        --text:       #dce6ef;
+        --text-muted: #8ba2b6;
+        --danger:     #ff4d6d;
+    }
 }
 
 *, *::before, *::after {
@@ -24,6 +42,9 @@ body {
     background: var(--bg);
     font-size: 13px;
     color: var(--text);
+    /* Let UA-rendered widgets (scrollbars, number-input spinners) track the
+       active scheme instead of staying light. */
+    color-scheme: light dark;
 }
 
 /* ── Shell ─────────────────────────────────────────── */
@@ -47,6 +68,17 @@ header {
 
 .header-title {
     flex: 1;
+}
+
+/* Animated brand mark. The header bar is a fixed dark navy surface in both
+   color schemes, so the light-tile SVG variant is always the one that reads
+   on it — it does not switch with the popup's light/dark mode. */
+.header-icon {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    display: block;
+    border-radius: 5px;
 }
 
 /* ── Help button ───────────────────────────────────── */
@@ -296,7 +328,7 @@ section + section {
 .radio-group label {
     flex: 1;
     padding: 5px 4px;
-    background: var(--white);
+    background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
     font-size: 12px;
@@ -366,7 +398,7 @@ section + section {
     font-size: 13px;
     font-weight: 600;
     color: var(--text);
-    background: var(--white);
+    background: var(--surface);
     text-align: center;
     transition: border-color 0.12s;
     -moz-appearance: textfield;
@@ -440,7 +472,7 @@ button:active {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: linear-gradient(180deg, #F2FBFC 0%, var(--white) 100%);
+    background: linear-gradient(180deg, var(--bg-section) 0%, var(--surface) 100%);
     color: var(--text);
     border: 1px solid var(--accent);
     box-shadow: 0 1px 2px rgba(16, 44, 68, 0.04);
@@ -507,7 +539,7 @@ button:active {
 }
 
 .btn-helper {
-    background: var(--white);
+    background: var(--surface);
     color: var(--text);
     border: 1.5px solid var(--border);
     padding: 7px 10px;
@@ -614,7 +646,7 @@ button:active {
     font-family: 'Consolas', 'Menlo', monospace;
     font-size: 12px;
     color: var(--text);
-    background: var(--white);
+    background: var(--surface);
 }
 
 .filter-add-row input[type="text"]:focus {
@@ -705,7 +737,7 @@ button:active {
     align-items: center;
     gap: 6px;
     padding: 4px 6px;
-    background: var(--white);
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     font-family: 'Consolas', 'Menlo', monospace;
