@@ -62,8 +62,6 @@ body {
         inset 0 0 60px rgba(0, 0, 0, 0.55),
         0 0 0 1px rgba(255, 255, 255, 0.04);
     overflow: hidden;
-    /* Faint mains-powered shimmer — keeps the unit feeling alive. */
-    animation: crt-flicker 8s linear infinite;
 }
 
 /* Scanline wash + glass glare over the whole unit. The scanline layer
@@ -78,8 +76,8 @@ body {
     background:
         repeating-linear-gradient(
             0deg,
-            rgba(14, 202, 227, 0.028) 0px,
-            rgba(14, 202, 227, 0.028) 1.4px,
+            rgba(14, 202, 227, 0.014) 0px,
+            rgba(14, 202, 227, 0.014) 1.4px,
             transparent 1.4px,
             transparent 3px
         ),
@@ -100,6 +98,32 @@ body {
         scan-glitch 9s    steps(1, end)    infinite;
 }
 
+/* Decorative sweep beam — a thin bright cyan band that travels from the
+   top of the popup to the bottom on a slow loop. Sits above scanlines
+   (z-index 60) so it reads as a beam pass over the whole unit. */
+.sweep-beam {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -80px;
+    height: 80px;
+    z-index: 60;
+    pointer-events: none;
+    /* Comet-style profile: a long, faint upward tail trailing the
+       brighter leading edge at the bottom. */
+    background: linear-gradient(
+        180deg,
+        transparent                 0%,
+        rgba(14, 202, 227, 0.008)  40%,
+        rgba(14, 202, 227, 0.035)  75%,
+        rgba(14, 202, 227, 0.12)   94%,
+        rgba(14, 202, 227, 0.18)  100%
+    );
+    mix-blend-mode: screen;
+    will-change: transform, opacity;
+    animation: sweep-beam 12s ease-in-out infinite;
+}
+
 /* Vignette — darkened corners, like the embed's radial fade. Sits behind
    the body content (z-index 0) so it shades the panel, never the buttons. */
 .popup::after {
@@ -112,31 +136,6 @@ body {
         transparent 60%, rgba(0, 0, 0, 0.32) 100%);
 }
 
-/* Corner brackets — the embed's screen frame motif. */
-.popup > header::before,
-.popup > header::after {
-    content: '';
-    position: absolute;
-    top: 6px;
-    width: 12px;
-    height: 12px;
-    z-index: 51;
-    pointer-events: none;
-    opacity: 0.7;
-}
-
-.popup > header::before {
-    left: 6px;
-    border-top: 1.5px solid var(--chrome);
-    border-left: 1.5px solid var(--chrome);
-}
-
-.popup > header::after {
-    right: 6px;
-    border-top: 1.5px solid var(--chrome);
-    border-right: 1.5px solid var(--chrome);
-}
-
 /* ── Header ────────────────────────────────────────────
    Status-bar of the terminal. Cyan underglow scanline. */
 
@@ -144,21 +143,21 @@ header {
     position: relative;
     background: var(--dark-2);
     /* Extra left padding reserves room for the oversized, absolutely
-       positioned brand mark. */
-    padding: 11px 16px 11px 74px;
+       positioned brand mark. Symmetric vertical padding anchors the
+       header band to match the logo's top-left corner inset. */
+    padding: 14px 16px 14px 76px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    border-bottom: 1px solid var(--accent);
+    gap: 10px;
     animation: header-breathe 4.8s ease-in-out infinite;
 }
 
 .header-title {
     flex: 1;
     color: var(--white);
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
     text-shadow: var(--glow-cyan);
     cursor: default;
@@ -166,11 +165,12 @@ header {
 }
 
 /* Oversized brand mark — absolutely positioned so it deliberately
-   overshoots the header band into the body below. */
+   overshoots the header band into the body below. Top/left insets
+   match so the logo reads as anchored to the popup's corner. */
 .header-icon {
     position: absolute;
     left: 14px;
-    top: 5px;
+    top: 14px;
     width: 48px;
     height: 48px;
     z-index: 52;
@@ -382,7 +382,6 @@ header {
 /* ── Expert-mode tint — the unit goes red-alert ─────────── */
 
 .popup.is-expert header {
-    border-bottom-color: var(--danger);
     animation: header-breathe-red 4.8s ease-in-out infinite;
 }
 
@@ -400,7 +399,7 @@ header {
 .body {
     position: relative;
     z-index: 1;
-    padding: 12px 14px;
+    padding: 22px 14px 12px;
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -1031,6 +1030,17 @@ button:active { opacity: 0.75; }
     to { background-position: 0 -3px, 0 0; }
 }
 
+/* Decorative beam — one quick smooth pass from top to bottom, then idle
+   for the rest of the cycle. Translates a tall comet-shaped band, so the
+   tail follows the leading edge naturally. */
+@keyframes sweep-beam {
+    0%   { transform: translate3d(0, 0,    0); opacity: 0;   }
+    2%   {                                      opacity: 0.65; }
+    22%  { transform: translate3d(0, 680px, 0); opacity: 0.65; }
+    26%  { transform: translate3d(0, 720px, 0); opacity: 0;   }
+    100% { transform: translate3d(0, 720px, 0); opacity: 0;   }
+}
+
 /* Mostly still, then a brief stutter once every ~9 s — a tracking error
    on a tired CRT. Hard steps, no easing. */
 @keyframes scan-glitch {
@@ -1039,15 +1049,6 @@ button:active { opacity: 0.75; }
     93%                { transform: translate3d(4px, -2px, 0);               opacity: 0.85; }
     94%                { transform: translate3d(-2px, 0, 0)    scaleY(0.95); opacity: 0.62; }
     95%                { transform: translate3d(2px, 1px, 0)   scaleY(1.03); opacity: 0.9;  }
-}
-
-/* Faint brightness shimmer — uneven mains power. */
-@keyframes crt-flicker {
-    0%, 94%, 100% { filter: brightness(1);    }
-    95%           { filter: brightness(1.06); }
-    96%           { filter: brightness(0.94); }
-    97%           { filter: brightness(1.04); }
-    98%           { filter: brightness(0.98); }
 }
 
 /* Header underglow swells and fades — a slow, calm "breath". */
@@ -1065,6 +1066,7 @@ button:active { opacity: 0.75; }
 @media (prefers-reduced-motion: reduce) {
     .popup,
     .popup::before,
+    .sweep-beam,
     header,
     .popup.is-expert header,
     .capture-ring::before,
