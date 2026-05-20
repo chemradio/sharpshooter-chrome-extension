@@ -9,17 +9,18 @@
 
     const STYLE_ID   = "__dk-style";
     const BANNER_ID  = "__dk-banner";
+    const OVERLAY_ID = "__dk-overlay";
     const COLOR      = "#FF0055";
+    const Z          = 2147483646;
 
-    const MOVEMENT_THRESHOLD = 8;
-    const HOVER_DEBOUNCE_MS  = 100;
+    const MOVEMENT_THRESHOLD = 4;
     const SCROLL_LOCK_MS     = 400;
 
     let lastCommittedX    = -9999;
     let lastCommittedY    = -9999;
     let pendingX          = 0;
     let pendingY          = 0;
-    let hoverDebounceTimer = null;
+    let hoverRafId        = null;
     let scrollLockTimer    = null;
     let isScrollLocked     = false;
     let originalWindowOpen = null;
@@ -40,16 +41,81 @@
         const style = document.createElement("style");
         style.id = STYLE_ID;
         style.textContent = `
-            @keyframes __DkGlow {
-                0%   { box-shadow: 0 0 5px 2px ${COLOR}; }
-                50%  { box-shadow: 0 0 18px 6px ${COLOR}; }
-                100% { box-shadow: 0 0 5px 2px ${COLOR}; }
+            #${OVERLAY_ID}, #${OVERLAY_ID} * {
+                pointer-events: none !important;
+                box-sizing: border-box !important;
             }
-            .__dk-highlighted {
-                outline: 2px solid ${COLOR} !important;
-                animation: __DkGlow 1s infinite;
-                cursor: crosshair !important;
+            #${OVERLAY_ID} {
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: ${Z} !important;
+                display: none;
             }
+            #${OVERLAY_ID}.__dk-on { display: block; }
+            @keyframes __dkPulseFrame {
+                0%, 100% { box-shadow: 0 0 6px  ${COLOR}, inset 0 0 6px  rgba(255, 0, 85, 0.18); }
+                50%      { box-shadow: 0 0 18px ${COLOR}, inset 0 0 12px rgba(255, 0, 85, 0.35); }
+            }
+            @keyframes __dkPulseGlow {
+                0%, 100% { box-shadow: 0 0 4px  ${COLOR}; }
+                50%      { box-shadow: 0 0 12px ${COLOR}; }
+            }
+            @keyframes __dkPulseLabel {
+                0%, 100% { box-shadow: 0 0 4px  rgba(255, 0, 85, 0.5); }
+                50%      { box-shadow: 0 0 12px rgba(255, 0, 85, 0.9); }
+            }
+            @keyframes __dkPulseTint {
+                0%, 100% { background: rgba(255, 0, 85, 0.16); }
+                50%      { background: rgba(255, 0, 85, 0.30); }
+            }
+            .__dk-tint {
+                position: absolute !important;
+                animation: __dkPulseTint 1.6s ease-in-out infinite !important;
+                transition: left 140ms ease-out, top 140ms ease-out,
+                            width 140ms ease-out, height 140ms ease-out !important;
+            }
+            .__dk-frame {
+                position: absolute !important;
+                border: 1px solid ${COLOR} !important;
+                animation: __dkPulseFrame 1.6s ease-in-out infinite !important;
+                transition: left 140ms ease-out, top 140ms ease-out,
+                            width 140ms ease-out, height 140ms ease-out !important;
+            }
+            .__dk-corner {
+                position: absolute !important;
+                width: 10px !important;
+                height: 10px !important;
+                border: 1px solid ${COLOR} !important;
+                background: rgba(255, 0, 85, 0.15) !important;
+                animation: __dkPulseGlow 1.6s ease-in-out infinite !important;
+            }
+            .__dk-c-tl { top: -1px;    left: -1px;    border-right: 0 !important; border-bottom: 0 !important; }
+            .__dk-c-tr { top: -1px;    right: -1px;   border-left:  0 !important; border-bottom: 0 !important; }
+            .__dk-c-bl { bottom: -1px; left: -1px;    border-right: 0 !important; border-top:    0 !important; }
+            .__dk-c-br { bottom: -1px; right: -1px;   border-left:  0 !important; border-top:    0 !important; }
+            .__dk-handle {
+                position: absolute !important;
+                background: ${COLOR} !important;
+                animation: __dkPulseGlow 1.6s ease-in-out infinite !important;
+                transition: left 140ms ease-out, top 140ms ease-out,
+                            width 140ms ease-out, height 140ms ease-out !important;
+            }
+            .__dk-label {
+                position: absolute !important;
+                font: 700 10px/1 "Courier New", ui-monospace, monospace !important;
+                color: ${COLOR} !important;
+                text-shadow: 0 0 4px ${COLOR} !important;
+                background: rgba(0, 0, 0, 0.7) !important;
+                padding: 3px 6px !important;
+                letter-spacing: 0.12em !important;
+                white-space: nowrap !important;
+                border: 1px solid ${COLOR} !important;
+                animation: __dkPulseLabel 1.6s ease-in-out infinite !important;
+            }
+            .__dk-l-w { left: 50%; bottom: 100%; transform: translate(-50%, -18px); }
+            .__dk-l-h { top: 50%;  right: 100%;  transform-origin: right center;
+                        transform: translateY(-50%) translateX(-18px) rotate(-90deg); }
+            html.__dk-cursor, html.__dk-cursor * { cursor: crosshair !important; }
             /* Disable iframe interaction so ad clicks bubble to our document
                handlers instead of navigating inside the frame. */
             iframe, frame, object, embed {
@@ -74,6 +140,68 @@
             }
         `;
         document.head.appendChild(style);
+        document.documentElement.classList.add("__dk-cursor");
+    }
+
+    // ─── Overlay (frame + crosshair handles + dimension labels + red tint) ────
+
+    const overlay = document.createElement("div");
+    overlay.id = OVERLAY_ID;
+    overlay.innerHTML = `
+        <div class="__dk-tint" data-tint></div>
+        <div class="__dk-handle" data-handle="top"></div>
+        <div class="__dk-handle" data-handle="bottom"></div>
+        <div class="__dk-handle" data-handle="left"></div>
+        <div class="__dk-handle" data-handle="right"></div>
+        <div class="__dk-frame" data-frame>
+            <div class="__dk-corner __dk-c-tl"></div>
+            <div class="__dk-corner __dk-c-tr"></div>
+            <div class="__dk-corner __dk-c-bl"></div>
+            <div class="__dk-corner __dk-c-br"></div>
+            <div class="__dk-label __dk-l-w" data-label-w></div>
+            <div class="__dk-label __dk-l-h" data-label-h></div>
+        </div>
+    `;
+    document.documentElement.appendChild(overlay);
+
+    const frameEl = overlay.querySelector("[data-frame]");
+    const tintEl  = overlay.querySelector("[data-tint]");
+    const labelW  = overlay.querySelector("[data-label-w]");
+    const labelH  = overlay.querySelector("[data-label-h]");
+    const hTop    = overlay.querySelector('[data-handle="top"]');
+    const hBot    = overlay.querySelector('[data-handle="bottom"]');
+    const hLeft   = overlay.querySelector('[data-handle="left"]');
+    const hRight  = overlay.querySelector('[data-handle="right"]');
+
+    function setRect(el, x, y, w, h) {
+        el.style.left   = `${x}px`;
+        el.style.top    = `${y}px`;
+        el.style.width  = `${w}px`;
+        el.style.height = `${h}px`;
+    }
+
+    function paintOverlay(rect) {
+        if (!rect) {
+            overlay.classList.remove("__dk-on");
+            return;
+        }
+        overlay.classList.add("__dk-on");
+
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        setRect(frameEl, rect.left, rect.top, rect.width, rect.height);
+        setRect(tintEl,  rect.left, rect.top, rect.width, rect.height);
+
+        labelW.textContent = `${Math.round(rect.width)} PX`;
+        labelH.textContent = `${Math.round(rect.height)} PX`;
+
+        const cx = rect.left + rect.width  / 2;
+        const cy = rect.top  + rect.height / 2;
+        setRect(hTop,   cx - 1, 0,           2, Math.max(0, rect.top));
+        setRect(hBot,   cx - 1, rect.bottom, 2, Math.max(0, vh - rect.bottom));
+        setRect(hLeft,  0,           cy - 1, Math.max(0, rect.left),     2);
+        setRect(hRight, rect.right,  cy - 1, Math.max(0, vw - rect.right), 2);
     }
 
     // ─── In-page instruction banner ───────────────────────────────────────────
@@ -88,9 +216,48 @@
     // ─── Highlight ────────────────────────────────────────────────────────────
 
     function highlight(el) {
-        if (currentElement) currentElement.classList.remove("__dk-highlighted");
         currentElement = el;
-        if (currentElement) currentElement.classList.add("__dk-highlighted");
+        paintOverlay(el ? el.getBoundingClientRect() : null);
+    }
+
+    // ─── Same-rect collapsing ─────────────────────────────────────────────────
+    // Nested wrapper divs often share their child's exact bounds. Collapse
+    // those chains so each navigation step yields a visible change and clicks
+    // always commit the topmost element of an equivalent set.
+
+    function sameRect(a, b) {
+        return Math.round(a.left)   === Math.round(b.left)
+            && Math.round(a.top)    === Math.round(b.top)
+            && Math.round(a.width)  === Math.round(b.width)
+            && Math.round(a.height) === Math.round(b.height);
+    }
+
+    function topmostSameRect(el) {
+        if (!el || !el.parentElement) return el;
+        const r = el.getBoundingClientRect();
+        let cur = el;
+        while (cur.parentElement
+               && cur.parentElement !== document.documentElement
+               && cur.parentElement !== document.body
+               && sameRect(cur.parentElement.getBoundingClientRect(), r)) {
+            cur = cur.parentElement;
+        }
+        return cur;
+    }
+
+    function descendDifferent(parent) {
+        const remembered = descentMemory.get(parent);
+        let target = (remembered && remembered.parentElement === parent)
+            ? remembered
+            : parent.firstElementChild;
+        if (!target) return null;
+        const parentRect = parent.getBoundingClientRect();
+        while (sameRect(target.getBoundingClientRect(), parentRect)) {
+            const next = target.firstElementChild;
+            if (!next) break;
+            target = next;
+        }
+        return target;
     }
 
     // ─── Event handlers ───────────────────────────────────────────────────────
@@ -105,15 +272,16 @@
         const dy = e.clientY - lastCommittedY;
         if (Math.sqrt(dx * dx + dy * dy) < MOVEMENT_THRESHOLD) return;
 
-        clearTimeout(hoverDebounceTimer);
-        hoverDebounceTimer = setTimeout(() => {
+        if (hoverRafId !== null) return;
+        hoverRafId = requestAnimationFrame(() => {
+            hoverRafId = null;
             const el = document.elementFromPoint(pendingX, pendingY);
             if (el && el !== document.documentElement && el !== document.body && el.id !== BANNER_ID) {
-                highlight(el);
+                highlight(topmostSameRect(el));
                 lastCommittedX = pendingX;
                 lastCommittedY = pendingY;
             }
-        }, HOVER_DEBOUNCE_MS);
+        });
     }
 
     function onWheel(e) {
@@ -134,14 +302,12 @@
         if (e.deltaY < 0) {
             const parent = currentElement.parentElement;
             if (parent && parent !== document.documentElement) {
-                descentMemory.set(parent, currentElement);
-                highlight(parent);
+                const target = topmostSameRect(parent);
+                descentMemory.set(target, currentElement);
+                highlight(target);
             }
         } else {
-            const remembered = descentMemory.get(currentElement);
-            const target = (remembered && remembered.parentElement === currentElement)
-                ? remembered
-                : currentElement.firstElementChild;
+            const target = descendDifferent(currentElement);
             if (target) highlight(target);
         }
     }
@@ -171,7 +337,7 @@
 
         const element = currentElement;
         currentElement = null;
-        element.classList.remove("__dk-highlighted");
+        paintOverlay(null);
 
         // Walk up to the nearest ancestor <a> and remove that instead so the
         // whole link block disappears, not just the inner node the cursor hit.
@@ -296,7 +462,7 @@
     // ─── Cleanup ──────────────────────────────────────────────────────────────
 
     function destroy() {
-        clearTimeout(hoverDebounceTimer);
+        if (hoverRafId !== null) cancelAnimationFrame(hoverRafId);
         clearTimeout(scrollLockTimer);
         document.removeEventListener("mousemove",   onMouseMove,   true);
         document.removeEventListener("pointerdown", onPointerDown, true);
@@ -318,14 +484,18 @@
             originalWindowOpen = null;
         }
 
-        if (currentElement) {
-            currentElement.classList.remove("__dk-highlighted");
-            currentElement = null;
-        }
-
+        currentElement = null;
+        document.documentElement.classList.remove("__dk-cursor");
+        document.getElementById(OVERLAY_ID)?.remove();
         document.getElementById(STYLE_ID)?.remove();
         document.getElementById(BANNER_ID)?.remove();
+        window.removeEventListener("resize", onViewportChange, true);
+        window.removeEventListener("scroll", onViewportChange, true);
         delete window.__DomKillerDestroy;
+    }
+
+    function onViewportChange() {
+        if (currentElement) paintOverlay(currentElement.getBoundingClientRect());
     }
 
     window.__DomKillerDestroy = destroy;
@@ -346,6 +516,8 @@
     document.addEventListener("submit",      onAuxOrTouch,  { capture: true });
     document.addEventListener("wheel",       onWheel,       { capture: true, passive: false });
     document.addEventListener("keydown",     onKeyDown,     { capture: true });
+    window.addEventListener("resize", onViewportChange, true);
+    window.addEventListener("scroll", onViewportChange, true);
 
     // Stub window.open so any handler that beats us (script registered a
     // capture listener earlier than us) still can't pop a new tab.
