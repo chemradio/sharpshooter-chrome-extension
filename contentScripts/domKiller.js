@@ -68,6 +68,24 @@
                 0%, 100% { background: rgba(255, 0, 85, 0.16); }
                 50%      { background: rgba(255, 0, 85, 0.30); }
             }
+            @keyframes __dkGlitchOut {
+                0%   { filter: none;                                       transform: translate(0, 0);                  opacity: 1; }
+                8%   { filter: hue-rotate(120deg) saturate(2);             transform: translate(-4px, 1px) skewX(-2deg); opacity: 1; }
+                16%  { filter: hue-rotate(-120deg) contrast(1.6);          transform: translate(5px, -2px) skewX(3deg);  opacity: 1; }
+                24%  { filter: invert(0.6) saturate(2) hue-rotate(45deg);  transform: translate(-3px, 2px);              opacity: 1; }
+                32%  { filter: contrast(1.8) brightness(1.3);              transform: translate(2px, 0);                 opacity: 1; }
+                40%  { filter: none;                                       transform: translate(-1px, 0);                opacity: 1; }
+                55%  { filter: brightness(1.4) contrast(1.2);              transform: scaleY(1.02) scaleX(1.01);         opacity: 1; }
+                72%  { filter: brightness(2) blur(0.5px);                  transform: scaleY(0.05) scaleX(1.04);         opacity: 1; }
+                88%  { filter: brightness(3) blur(1px);                    transform: scaleY(0.01) scaleX(1.15);         opacity: 0.7; }
+                100% { filter: brightness(3) blur(1px);                    transform: scaleY(0) scaleX(0);               opacity: 0; }
+            }
+            .__dk-killing {
+                animation: __dkGlitchOut 360ms linear forwards !important;
+                pointer-events: none !important;
+                transform-origin: center center !important;
+                will-change: transform, filter, opacity !important;
+            }
             .__dk-tint {
                 position: absolute !important;
                 animation: __dkPulseTint 1.6s ease-in-out infinite !important;
@@ -355,7 +373,11 @@
             nextSibling: target.nextSibling,
         });
 
-        target.remove();
+        // CRT-glitch animation, then detach. The class stays attached until
+        // undoRemoval() strips it so a re-attached node doesn't replay the
+        // animation and vanish again.
+        target.classList.add("__dk-killing");
+        setTimeout(() => target.remove(), 360);
     }
 
     // ─── Undo ─────────────────────────────────────────────────────────────────
@@ -366,6 +388,10 @@
 
         const { node, parent, nextSibling } = entry;
         if (!parent) return;
+
+        // Strip the glitch class before re-attachment so the browser doesn't
+        // replay the animation (and vanish the node again).
+        node.classList.remove("__dk-killing");
 
         // The original nextSibling may itself have been removed since; if it's
         // no longer a child of parent, fall back to appending at the end.
