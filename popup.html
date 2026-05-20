@@ -24,21 +24,15 @@
     <body>
         <div class="popup">
             <header>
-                <!-- Brand mark also tracks the color scheme: dark SVG
-                     in dark mode, light SVG in light mode. -->
-                <picture>
-                    <source
-                        srcset="static/svgs/sharpshooter-dark-animated.svg"
-                        media="(prefers-color-scheme: dark)"
-                    />
-                    <img
-                        id="header-icon"
-                        class="header-icon"
-                        src="static/svgs/sharpshooter-light-animated.svg"
-                        alt=""
-                        aria-hidden="true"
-                    />
-                </picture>
+                <!-- Brand mark — the SVG is pulled at runtime from
+                     static/embed-{dark,light}.html so edits to those
+                     files propagate to the popup automatically. -->
+                <div
+                    id="header-icon"
+                    class="header-icon"
+                    data-brand-mark
+                    aria-hidden="true"
+                ></div>
                 <span class="header-title" id="header-title">Sharpshooter</span>
                 <button
                     type="button"
@@ -71,7 +65,13 @@
 
             <div id="capture-overlay" class="capture-overlay">
                 <div class="capture-ring"></div>
-                <div id="capture-label" class="capture-label" data-i18n="ovCapturing">Capturing…</div>
+                <div
+                    id="capture-label"
+                    class="capture-label"
+                    data-i18n="ovCapturing"
+                >
+                    Capturing…
+                </div>
                 <div id="capture-hint" class="capture-hint"></div>
             </div>
 
@@ -107,9 +107,15 @@
                                 <path d="M21 9v2" />
                                 <path d="M3 14v1" />
                             </svg>
-                            <span id="capture-site-label" data-i18n="promptPost">Capture this post</span>
+                            <span id="capture-site-label" data-i18n="promptPost"
+                                >Capture this post</span
+                            >
                         </button>
-                        <div class="site-prompt-hint" id="capture-site-hint" data-i18n="promptDetectedHere">
+                        <div
+                            class="site-prompt-hint"
+                            id="capture-site-hint"
+                            data-i18n="promptDetectedHere"
+                        >
                             Detected on this page
                         </div>
                     </section>
@@ -118,7 +124,12 @@
 
                     <!-- Quality multiplier -->
                     <section>
-                        <div class="section-label" data-i18n="qualityMultiplier">Quality multiplier</div>
+                        <div
+                            class="section-label"
+                            data-i18n="qualityMultiplier"
+                        >
+                            Quality multiplier
+                        </div>
                         <div class="radio-group">
                             <input
                                 type="radio"
@@ -208,7 +219,9 @@
                             </svg>
                             <span data-i18n="pageCapture">Page Capture</span>
                         </button>
-                        <div class="section-label" data-i18n="resolution">Resolution</div>
+                        <div class="section-label" data-i18n="resolution">
+                            Resolution
+                        </div>
                         <div class="radio-group" id="layout-group">
                             <input
                                 type="radio"
@@ -217,7 +230,9 @@
                                 value="user"
                                 checked
                             />
-                            <label for="user" data-i18n="presetUser">User</label>
+                            <label for="user" data-i18n="presetUser"
+                                >User</label
+                            >
 
                             <input
                                 type="radio"
@@ -225,7 +240,9 @@
                                 name="layout"
                                 value="fullpage"
                             />
-                            <label for="fullpage" data-i18n="presetFullPage">Full Page</label>
+                            <label for="fullpage" data-i18n="presetFullPage"
+                                >Full Page</label
+                            >
 
                             <input
                                 type="radio"
@@ -233,7 +250,9 @@
                                 name="layout"
                                 value="vertical"
                             />
-                            <label for="vertical" data-i18n="presetVertical">Vertical</label>
+                            <label for="vertical" data-i18n="presetVertical"
+                                >Vertical</label
+                            >
 
                             <input
                                 type="radio"
@@ -316,7 +335,9 @@
                                 <path d="M21 9v2" />
                                 <path d="M3 14v1" />
                             </svg>
-                            <span data-i18n="captureElement">Capture Element</span>
+                            <span data-i18n="captureElement"
+                                >Capture Element</span
+                            >
                         </button>
                     </section>
 
@@ -324,7 +345,9 @@
 
                     <!-- Helpers -->
                     <section>
-                        <div class="section-label" data-i18n="helpers">Helpers</div>
+                        <div class="section-label" data-i18n="helpers">
+                            Helpers
+                        </div>
                         <div class="helpers-row">
                             <button
                                 id="dom-killer"
@@ -333,7 +356,11 @@
                             >
                                 Remove Elements
                             </button>
-                            <button id="manual-cleanup" class="btn-helper" data-i18n="cleanup">
+                            <button
+                                id="manual-cleanup"
+                                class="btn-helper"
+                                data-i18n="cleanup"
+                            >
                                 Cleanup
                             </button>
                         </div>
@@ -342,14 +369,18 @@
 
                 <div id="view-expert" hidden>
                     <section>
-                        <div class="expert-header" data-i18n="expertMode">Expert Mode</div>
+                        <div class="expert-header" data-i18n="expertMode">
+                            Expert Mode
+                        </div>
                     </section>
 
                     <div class="divider"></div>
 
                     <section>
                         <div id="filter-manager" class="filter-manager">
-                            <div class="section-label" data-i18n="addFilter">Add filter</div>
+                            <div class="section-label" data-i18n="addFilter">
+                                Add filter
+                            </div>
                             <div class="filter-scope radio-group">
                                 <input
                                     type="radio"
@@ -358,7 +389,11 @@
                                     value="host"
                                     checked
                                 />
-                                <label for="scope-host" id="scope-host-label" data-i18n="scopeHost">
+                                <label
+                                    for="scope-host"
+                                    id="scope-host-label"
+                                    data-i18n="scopeHost"
+                                >
                                     This host
                                 </label>
                                 <input
@@ -367,7 +402,11 @@
                                     name="filter-scope"
                                     value="global"
                                 />
-                                <label for="scope-global" data-i18n="scopeGlobal">All hosts</label>
+                                <label
+                                    for="scope-global"
+                                    data-i18n="scopeGlobal"
+                                    >All hosts</label
+                                >
                             </div>
                             <div class="filter-add-row">
                                 <input
@@ -378,13 +417,19 @@
                                     spellcheck="false"
                                     autocomplete="off"
                                 />
-                                <button id="filter-add" class="btn-helper" data-i18n="btnAdd">
+                                <button
+                                    id="filter-add"
+                                    class="btn-helper"
+                                    data-i18n="btnAdd"
+                                >
                                     Add
                                 </button>
                             </div>
                             <label class="filter-parent" for="filter-parent">
                                 <input type="checkbox" id="filter-parent" />
-                                <span data-i18n="targetParent">Target parent element</span>
+                                <span data-i18n="targetParent"
+                                    >Target parent element</span
+                                >
                             </label>
                             <div
                                 id="filter-preview"
@@ -403,7 +448,12 @@
                             </div>
 
                             <div class="filter-list-block">
-                                <div class="section-label" data-i18n="scopeGlobal">All hosts</div>
+                                <div
+                                    class="section-label"
+                                    data-i18n="scopeGlobal"
+                                >
+                                    All hosts
+                                </div>
                                 <ul
                                     id="filter-list-global"
                                     class="filter-list"
@@ -424,7 +474,9 @@
                         </button>
                         <label class="filter-parent" for="disable-bundled">
                             <input type="checkbox" id="disable-bundled" />
-                            <span data-i18n="disableBundled">Disable bundled filters</span>
+                            <span data-i18n="disableBundled"
+                                >Disable bundled filters</span
+                            >
                         </label>
                         <button
                             id="clear-domain-filters"
@@ -445,10 +497,14 @@
                     <div class="divider"></div>
 
                     <section>
-                        <div class="section-label" data-i18n="output">Output</div>
+                        <div class="section-label" data-i18n="output">
+                            Output
+                        </div>
                         <label class="filter-parent" for="reencode-opaque">
                             <input type="checkbox" id="reencode-opaque" />
-                            <span data-i18n="reencodeOpaque">Re-encode PNG opaque</span>
+                            <span data-i18n="reencodeOpaque"
+                                >Re-encode PNG opaque</span
+                            >
                         </label>
                         <p class="expert-note" data-i18n="expertNote">
                             Flattens captures onto a white background and strips
@@ -461,46 +517,65 @@
             </div>
 
             <div id="view-help" class="help-view" hidden>
-                <!-- Large animated brand mark at the top of the help panel,
-                     theme-switched like the header icon. -->
-                <div class="help-hero">
-                    <picture>
-                        <source
-                            srcset="static/svgs/sharpshooter-dark-animated.svg"
-                            media="(prefers-color-scheme: dark)"
-                        />
-                        <img
-                            class="help-hero-icon"
-                            src="static/svgs/sharpshooter-light-animated.svg"
-                            alt=""
-                            aria-hidden="true"
-                        />
-                    </picture>
-                </div>
+                <!-- Large animated brand mark at the top of the help
+                     panel — same runtime source as the header icon. -->
+                <!-- <div class="help-hero">
+                    <div
+                        class="help-hero-icon"
+                        data-brand-mark
+                        aria-hidden="true"
+                    ></div>
+                </div> -->
 
                 <div id="help-content-normal" class="help-content">
-                    <h3 class="help-title" data-i18n="helpTitleNormal">How capture works</h3>
-                    <div class="help-disclaimer" data-i18n-html="helpDisclaimer"></div>
-                    <div class="help-block" data-i18n-html="helpCaptureSite"></div>
-                    <div class="help-block" data-i18n-html="helpAutoCapture"></div>
-                    <div class="help-block" data-i18n-html="helpPageCapture"></div>
-                    <div class="help-block" data-i18n-html="helpCaptureElement"></div>
+                    <h3 class="help-title" data-i18n="helpTitleNormal">
+                        How capture works
+                    </h3>
+                    <div
+                        class="help-disclaimer"
+                        data-i18n-html="helpDisclaimer"
+                    ></div>
+                    <div
+                        class="help-block"
+                        data-i18n-html="helpCaptureSite"
+                    ></div>
+                    <div
+                        class="help-block"
+                        data-i18n-html="helpAutoCapture"
+                    ></div>
+                    <div
+                        class="help-block"
+                        data-i18n-html="helpPageCapture"
+                    ></div>
+                    <div
+                        class="help-block"
+                        data-i18n-html="helpCaptureElement"
+                    ></div>
                     <div class="help-block" data-i18n-html="helpQuality"></div>
                     <div class="help-block" data-i18n-html="helpHelpers"></div>
                 </div>
 
                 <div id="help-content-expert" class="help-content" hidden>
-                    <h3 class="help-title" data-i18n="helpTitleExpert">How filters work</h3>
+                    <h3 class="help-title" data-i18n="helpTitleExpert">
+                        How filters work
+                    </h3>
                     <div class="help-block" data-i18n-html="helpTiers"></div>
-                    <div class="help-block" data-i18n-html="helpAddingFilters"></div>
+                    <div
+                        class="help-block"
+                        data-i18n-html="helpAddingFilters"
+                    ></div>
                     <div class="help-block" data-i18n-html="helpManaging"></div>
-                    <div class="help-block" data-i18n-html="helpExporting"></div>
+                    <div
+                        class="help-block"
+                        data-i18n-html="helpExporting"
+                    ></div>
                 </div>
             </div>
 
             <div id="status" class="status"></div>
         </div>
 
+        <script src="brandMark.js"></script>
         <script src="i18n.js"></script>
         <script src="popup.js"></script>
     </body>
