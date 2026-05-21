@@ -145,9 +145,22 @@ function expandedMetricsToFit(metrics, rect) {
     };
 }
 
+// Match captureSession.js: emulate first, give the renderer two rAFs + a
+// short delay to dispatch resize and queue handler work, THEN arm the
+// watcher. Otherwise pre-existing page activity can resolve the watcher
+// before the resize-driven reflow has actually started.
 async function reEmulate(tabId, metrics) {
-    await injectMutationWatcher(tabId);
     await enableEmulation(tabId, metrics);
+    await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () =>
+            new Promise((resolve) => {
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => setTimeout(resolve, 150))
+                );
+            }),
+    });
+    await injectMutationWatcher(tabId);
     await waitForMutationSettle(tabId);
 }
 

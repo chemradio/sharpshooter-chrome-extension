@@ -33,6 +33,10 @@ export const SITE_MODULES = {
     "vk.com": "vk",
     "www.vk.com": "vk",
     "m.vk.com": "vk",
+    "www.threads.com": "threads",
+    "threads.com": "threads",
+    "www.threads.net": "threads",
+    "threads.net": "threads",
 };
 
 const FULL_PAGE_HEIGHT_CAP = 16000; // CDP cap is 16384; leave headroom
@@ -70,6 +74,10 @@ const SITE_URL_PATTERNS = {
         // /wall12345_67, /wall-12345_67, also ?w=wall...
         /\/wall-?\d+_\d+/,
         /[?&]w=wall-?\d+_\d+/,
+    ],
+    threads: [
+        // /@username/post/<id>
+        /^\/@[^/]+\/post\/[^/?#]+/,
     ],
 };
 

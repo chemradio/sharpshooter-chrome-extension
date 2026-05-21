@@ -247,6 +247,7 @@ const SITE_DISPLAY_NAMES = {
     telegram:  "Telegram",
     vk:        "VK",
     x:         "X / Twitter",
+    threads:   "Threads",
 };
 
 function showSitePrompt(module, pageType) {

@@ -341,10 +341,15 @@
     }
 
     function descendDifferent(parent) {
+        // The remembered child may be an indirect descendant: wheel-up stores
+        // the key at topmostSameRect(parent), which can be several wrappers
+        // above the child's direct parentElement. `contains` recovers it;
+        // strict parentElement equality would miss this and snap to firstChild.
         const remembered = descentMemory.get(parent);
-        let target = (remembered && remembered.parentElement === parent)
-            ? remembered
-            : parent.firstElementChild;
+        if (remembered && remembered !== parent && parent.contains(remembered)) {
+            return remembered;
+        }
+        let target = parent.firstElementChild;
         if (!target) return null;
         const parentRect = parent.getBoundingClientRect();
         while (sameRect(target.getBoundingClientRect(), parentRect)) {
