@@ -36,6 +36,7 @@
     let hoverRafId       = null;
     let scrollLockTimer    = null;
     let isScrollLocked     = false;
+    let firstPaint         = true;
 
     // ─── Receive device metrics sent by background after injection ────────────
 
@@ -76,37 +77,58 @@
                 0%, 100% { box-shadow: 0 0 4px  rgba(14, 202, 227, 0.5); }
                 50%      { box-shadow: 0 0 12px rgba(14, 202, 227, 0.9); }
             }
+            @keyframes __hlMarch {
+                to {
+                    background-position:
+                        12.728px 0,
+                        14px 0, -14px 100%,
+                        0 -14px, 100% 14px;
+                }
+            }
             .__hl-dim {
                 position: absolute !important;
                 background: rgba(0, 0, 0, 0.45) !important;
-                transition: left 140ms ease-out, top 140ms ease-out,
-                            width 140ms ease-out, height 140ms ease-out !important;
+                transition: left 240ms ease-out, top 240ms ease-out,
+                            width 240ms ease-out, height 240ms ease-out !important;
             }
             .__hl-frame {
                 position: absolute !important;
                 border: 1px solid ${COLOR} !important;
-                animation: __hlPulseFrame 1.6s ease-in-out infinite !important;
-                transition: left 140ms ease-out, top 140ms ease-out,
-                            width 140ms ease-out, height 140ms ease-out !important;
+                background-image:
+                    repeating-linear-gradient(45deg,
+                        transparent 0 7px,
+                        rgba(14, 202, 227, 0.10) 7px 9px),
+                    linear-gradient(90deg, ${COLOR} 50%, transparent 50%),
+                    linear-gradient(90deg, ${COLOR} 50%, transparent 50%),
+                    linear-gradient(0deg,  ${COLOR} 50%, transparent 50%),
+                    linear-gradient(0deg,  ${COLOR} 50%, transparent 50%) !important;
+                background-position: 0 0, 0 0, 0 100%, 0 0, 100% 0;
+                background-repeat: repeat, repeat-x, repeat-x, repeat-y, repeat-y !important;
+                background-size: auto, 14px 1px, 14px 1px, 1px 14px, 1px 14px !important;
+                animation:
+                    __hlPulseFrame 1.6s ease-in-out infinite,
+                    __hlMarch 700ms linear infinite !important;
+                transition: left 240ms ease-out, top 240ms ease-out,
+                            width 240ms ease-out, height 240ms ease-out !important;
             }
             .__hl-corner {
                 position: absolute !important;
-                width: 10px !important;
-                height: 10px !important;
-                border: 1px solid ${COLOR} !important;
-                background: rgba(14, 202, 227, 0.15) !important;
+                width: 14px !important;
+                height: 14px !important;
+                border: 2px solid ${COLOR} !important;
+                background: rgba(14, 202, 227, 0.18) !important;
                 animation: __hlPulseGlow 1.6s ease-in-out infinite !important;
             }
-            .__hl-c-tl { top: -1px;    left: -1px;    border-right: 0 !important; border-bottom: 0 !important; }
-            .__hl-c-tr { top: -1px;    right: -1px;   border-left:  0 !important; border-bottom: 0 !important; }
-            .__hl-c-bl { bottom: -1px; left: -1px;    border-right: 0 !important; border-top:    0 !important; }
-            .__hl-c-br { bottom: -1px; right: -1px;   border-left:  0 !important; border-top:    0 !important; }
+            .__hl-c-tl { top: -2px;    left: -2px;    border-right: 0 !important; border-bottom: 0 !important; }
+            .__hl-c-tr { top: -2px;    right: -2px;   border-left:  0 !important; border-bottom: 0 !important; }
+            .__hl-c-bl { bottom: -2px; left: -2px;    border-right: 0 !important; border-top:    0 !important; }
+            .__hl-c-br { bottom: -2px; right: -2px;   border-left:  0 !important; border-top:    0 !important; }
             .__hl-handle {
                 position: absolute !important;
                 background: ${COLOR} !important;
                 animation: __hlPulseGlow 1.6s ease-in-out infinite !important;
-                transition: left 140ms ease-out, top 140ms ease-out,
-                            width 140ms ease-out, height 140ms ease-out !important;
+                transition: left 240ms ease-out, top 240ms ease-out,
+                            width 240ms ease-out, height 240ms ease-out !important;
             }
             .__hl-label {
                 position: absolute !important;
@@ -168,9 +190,31 @@
     function paintOverlay(rect) {
         if (!rect) {
             overlay.classList.remove("__hl-on");
+            firstPaint = true;
             return;
         }
         overlay.classList.add("__hl-on");
+
+        // First-detect intro: snap frame to viewport with no transition,
+        // flush layout, then enable a 320ms transition so the next rect
+        // assignment shrinks the frame inward toward the target.
+        if (firstPaint) {
+            firstPaint = false;
+            const vw0 = window.innerWidth;
+            const vh0 = window.innerHeight;
+            const intro = "left 560ms cubic-bezier(.2,.7,.2,1),"
+                + " top 560ms cubic-bezier(.2,.7,.2,1),"
+                + " width 560ms cubic-bezier(.2,.7,.2,1),"
+                + " height 560ms cubic-bezier(.2,.7,.2,1)";
+            frameEl.style.transition = "none";
+            frameEl.style.left   = "0px";
+            frameEl.style.top    = "0px";
+            frameEl.style.width  = `${vw0}px`;
+            frameEl.style.height = `${vh0}px`;
+            void frameEl.offsetWidth;
+            frameEl.style.transition = intro;
+            setTimeout(() => { frameEl.style.transition = ""; }, 620);
+        }
 
         const vw = window.innerWidth;
         const vh = window.innerHeight;

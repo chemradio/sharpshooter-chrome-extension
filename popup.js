@@ -52,17 +52,54 @@ function stopCapturing() {
 // ─── Status helper ────────────────────────────────────────────────────────────
 
 let statusTimer = null;
+let statusTypeTimer = null;
 
+const STATUS_CARET = '<span class="status-caret">_</span>';
+
+function escapeStatus(s) {
+    return String(s).replace(/[&<>]/g, (c) => (
+        c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"
+    ));
+}
+
+// Typewriter readout — characters land one at a time and a blinking
+// underscore trails the cursor like an old terminal.
 function setStatus(msg, type = "busy", autoClear = 0) {
-    statusEl.textContent = msg;
-    statusEl.className = `status ${type}`;
     clearTimeout(statusTimer);
-    if (autoClear > 0) {
-        statusTimer = setTimeout(() => {
-            statusEl.textContent = "";
-            statusEl.className = "status";
-        }, autoClear);
+    clearInterval(statusTypeTimer);
+    statusTypeTimer = null;
+    statusEl.className = `status ${type}`;
+
+    if (!msg) {
+        statusEl.innerHTML = "";
+        return;
     }
+
+    const total = msg.length;
+    // Speed scales with length so short toasts stay snappy and long
+    // sentences still finish within ~600 ms.
+    const stepMs = Math.max(12, Math.min(28, Math.round(520 / total)));
+    let i = 0;
+
+    const render = () => {
+        statusEl.innerHTML = escapeStatus(msg.slice(0, i)) + STATUS_CARET;
+    };
+
+    render();
+    statusTypeTimer = setInterval(() => {
+        i += 1;
+        render();
+        if (i >= total) {
+            clearInterval(statusTypeTimer);
+            statusTypeTimer = null;
+            if (autoClear > 0) {
+                statusTimer = setTimeout(() => {
+                    statusEl.innerHTML = "";
+                    statusEl.className = "status";
+                }, autoClear);
+            }
+        }
+    }, stepMs);
 }
 
 // ─── Resolution ───────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@
     let scrollLockTimer    = null;
     let isScrollLocked     = false;
     let originalWindowOpen = null;
+    let firstPaint         = true;
 
     // Remembers, per parent element, which child the user ascended from — so a
     // later wheel-down returns to that child instead of always firstElementChild.
@@ -68,23 +69,58 @@
                 0%, 100% { background: rgba(255, 0, 85, 0.16); }
                 50%      { background: rgba(255, 0, 85, 0.30); }
             }
-            @keyframes __dkGlitchOut {
-                0%   { filter: none;                                       transform: translate(0, 0);                  opacity: 1; }
-                8%   { filter: hue-rotate(120deg) saturate(2);             transform: translate(-4px, 1px) skewX(-2deg); opacity: 1; }
-                16%  { filter: hue-rotate(-120deg) contrast(1.6);          transform: translate(5px, -2px) skewX(3deg);  opacity: 1; }
-                24%  { filter: invert(0.6) saturate(2) hue-rotate(45deg);  transform: translate(-3px, 2px);              opacity: 1; }
-                32%  { filter: contrast(1.8) brightness(1.3);              transform: translate(2px, 0);                 opacity: 1; }
-                40%  { filter: none;                                       transform: translate(-1px, 0);                opacity: 1; }
-                55%  { filter: brightness(1.4) contrast(1.2);              transform: scaleY(1.02) scaleX(1.01);         opacity: 1; }
-                72%  { filter: brightness(2) blur(0.5px);                  transform: scaleY(0.05) scaleX(1.04);         opacity: 1; }
-                88%  { filter: brightness(3) blur(1px);                    transform: scaleY(0.01) scaleX(1.15);         opacity: 0.7; }
-                100% { filter: brightness(3) blur(1px);                    transform: scaleY(0) scaleX(0);               opacity: 0; }
+            @keyframes __dkMarch {
+                to {
+                    background-position:
+                        12.728px 0,
+                        14px 0, -14px 100%,
+                        0 -14px, 100% 14px;
+                }
             }
-            .__dk-killing {
-                animation: __dkGlitchOut 360ms linear forwards !important;
+            @keyframes __dkKillFill {
+                0%   { height: 0%;   }
+                100% { height: 100%; }
+            }
+            @keyframes __dkScanline {
+                0%   { top: 0%;   opacity: 1; }
+                100% { top: 100%; opacity: 1; }
+            }
+            @keyframes __dkKillFade {
+                0%   { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            .__dk-killframe.__dk-fading {
+                animation: __dkKillFade 180ms ease-out forwards !important;
+            }
+            .__dk-killframe {
+                position: fixed !important;
+                z-index: ${Z} !important;
                 pointer-events: none !important;
-                transform-origin: center center !important;
-                will-change: transform, filter, opacity !important;
+                border: 1px solid ${COLOR} !important;
+                box-shadow: 0 0 12px ${COLOR}, inset 0 0 12px rgba(255, 0, 85, 0.4) !important;
+                overflow: hidden !important;
+            }
+            .__dk-killfill {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: 0%;
+                background: linear-gradient(to bottom,
+                    rgba(255, 0, 85, 0.85),
+                    rgba(180, 0, 40, 0.85)) !important;
+                animation: __dkKillFill 320ms ease-in forwards !important;
+            }
+            .__dk-scanline {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0%;
+                width: 100% !important;
+                height: 3px !important;
+                margin-top: -1px !important;
+                background: #fff !important;
+                box-shadow: 0 0 10px #fff, 0 0 18px ${COLOR} !important;
+                animation: __dkScanline 320ms ease-in forwards !important;
             }
             .__dk-tint {
                 position: absolute !important;
@@ -95,22 +131,35 @@
             .__dk-frame {
                 position: absolute !important;
                 border: 1px solid ${COLOR} !important;
-                animation: __dkPulseFrame 1.6s ease-in-out infinite !important;
+                background-image:
+                    repeating-linear-gradient(45deg,
+                        transparent 0 7px,
+                        rgba(255, 0, 85, 0.12) 7px 9px),
+                    linear-gradient(90deg, ${COLOR} 50%, transparent 50%),
+                    linear-gradient(90deg, ${COLOR} 50%, transparent 50%),
+                    linear-gradient(0deg,  ${COLOR} 50%, transparent 50%),
+                    linear-gradient(0deg,  ${COLOR} 50%, transparent 50%) !important;
+                background-position: 0 0, 0 0, 0 100%, 0 0, 100% 0;
+                background-repeat: repeat, repeat-x, repeat-x, repeat-y, repeat-y !important;
+                background-size: auto, 14px 1px, 14px 1px, 1px 14px, 1px 14px !important;
+                animation:
+                    __dkPulseFrame 1.6s ease-in-out infinite,
+                    __dkMarch 700ms linear infinite !important;
                 transition: left 140ms ease-out, top 140ms ease-out,
                             width 140ms ease-out, height 140ms ease-out !important;
             }
             .__dk-corner {
                 position: absolute !important;
-                width: 10px !important;
-                height: 10px !important;
-                border: 1px solid ${COLOR} !important;
-                background: rgba(255, 0, 85, 0.15) !important;
+                width: 14px !important;
+                height: 14px !important;
+                border: 2px solid ${COLOR} !important;
+                background: rgba(255, 0, 85, 0.20) !important;
                 animation: __dkPulseGlow 1.6s ease-in-out infinite !important;
             }
-            .__dk-c-tl { top: -1px;    left: -1px;    border-right: 0 !important; border-bottom: 0 !important; }
-            .__dk-c-tr { top: -1px;    right: -1px;   border-left:  0 !important; border-bottom: 0 !important; }
-            .__dk-c-bl { bottom: -1px; left: -1px;    border-right: 0 !important; border-top:    0 !important; }
-            .__dk-c-br { bottom: -1px; right: -1px;   border-left:  0 !important; border-top:    0 !important; }
+            .__dk-c-tl { top: -2px;    left: -2px;    border-right: 0 !important; border-bottom: 0 !important; }
+            .__dk-c-tr { top: -2px;    right: -2px;   border-left:  0 !important; border-bottom: 0 !important; }
+            .__dk-c-bl { bottom: -2px; left: -2px;    border-right: 0 !important; border-top:    0 !important; }
+            .__dk-c-br { bottom: -2px; right: -2px;   border-left:  0 !important; border-top:    0 !important; }
             .__dk-handle {
                 position: absolute !important;
                 background: ${COLOR} !important;
@@ -201,9 +250,37 @@
     function paintOverlay(rect) {
         if (!rect) {
             overlay.classList.remove("__dk-on");
+            firstPaint = true;
             return;
         }
         overlay.classList.add("__dk-on");
+
+        // First-detect intro: snap frame + tint to viewport (tint at opacity 0)
+        // with no transition, flush layout, then enable a 320ms transition so
+        // the next rect assignment shrinks them inward — and the tint fades in.
+        if (firstPaint) {
+            firstPaint = false;
+            const vw0 = window.innerWidth;
+            const vh0 = window.innerHeight;
+            const intro = "left 560ms cubic-bezier(.2,.7,.2,1),"
+                + " top 560ms cubic-bezier(.2,.7,.2,1),"
+                + " width 560ms cubic-bezier(.2,.7,.2,1),"
+                + " height 560ms cubic-bezier(.2,.7,.2,1)";
+            frameEl.style.transition = "none";
+            tintEl.style.transition  = "none";
+            tintEl.style.opacity     = "0";
+            setRect(frameEl, 0, 0, vw0, vh0);
+            setRect(tintEl,  0, 0, vw0, vh0);
+            void frameEl.offsetWidth;
+            frameEl.style.transition = intro;
+            tintEl.style.transition  = `${intro}, opacity 560ms ease-out`;
+            tintEl.style.opacity     = "1";
+            setTimeout(() => {
+                frameEl.style.transition = "";
+                tintEl.style.transition  = "";
+                tintEl.style.opacity     = "";
+            }, 620);
+        }
 
         const vw = window.innerWidth;
         const vh = window.innerHeight;
@@ -373,11 +450,33 @@
             nextSibling: target.nextSibling,
         });
 
-        // CRT-glitch animation, then detach. The class stays attached until
-        // undoRemoval() strips it so a re-attached node doesn't replay the
-        // animation and vanish again.
-        target.classList.add("__dk-killing");
-        setTimeout(() => target.remove(), 360);
+        // Spawn a kill-frame over the target's rect that fills top-to-bottom
+        // with red, then detach the node. The overlay is independent of the
+        // element so undo can splice the node back without replaying anything.
+        const rect = target.getBoundingClientRect();
+        const killFrame = document.createElement("div");
+        killFrame.className = "__dk-killframe";
+        killFrame.style.left   = `${rect.left}px`;
+        killFrame.style.top    = `${rect.top}px`;
+        killFrame.style.width  = `${rect.width}px`;
+        killFrame.style.height = `${rect.height}px`;
+        killFrame.innerHTML = `
+            <div class="__dk-killfill"></div>
+            <div class="__dk-scanline"></div>
+        `;
+        document.documentElement.appendChild(killFrame);
+
+        // Phase 1: scanline sweeps top→bottom over the still-visible element.
+        // Phase 2 (after fill completes): hide the element and fade the frame.
+        setTimeout(() => {
+            target.style.visibility = "hidden";
+            killFrame.classList.add("__dk-fading");
+        }, 320);
+        setTimeout(() => {
+            target.style.visibility = "";
+            target.remove();
+            killFrame.remove();
+        }, 520);
     }
 
     // ─── Undo ─────────────────────────────────────────────────────────────────
@@ -388,10 +487,6 @@
 
         const { node, parent, nextSibling } = entry;
         if (!parent) return;
-
-        // Strip the glitch class before re-attachment so the browser doesn't
-        // replay the animation (and vanish the node again).
-        node.classList.remove("__dk-killing");
 
         // The original nextSibling may itself have been removed since; if it's
         // no longer a child of parent, fall back to appending at the end.
