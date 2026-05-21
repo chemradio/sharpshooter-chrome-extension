@@ -21,25 +21,27 @@
         </header>
 
         <main class="stage" id="stage">
-            <div class="canvas-wrap" id="canvasWrap">
-                <canvas id="image"></canvas>
-                <div class="overlay" id="overlay">
-                    <div class="crop-box" id="cropBox">
-                        <div class="handle h-nw" data-handle="nw"></div>
-                        <div class="handle h-n"  data-handle="n"></div>
-                        <div class="handle h-ne" data-handle="ne"></div>
-                        <div class="handle h-e"  data-handle="e"></div>
-                        <div class="handle h-se" data-handle="se"></div>
-                        <div class="handle h-s"  data-handle="s"></div>
-                        <div class="handle h-sw" data-handle="sw"></div>
-                        <div class="handle h-w"  data-handle="w"></div>
+            <div class="canvas-area" id="canvasArea">
+                <div class="canvas-wrap" id="canvasWrap">
+                    <canvas id="image"></canvas>
+                    <div class="overlay" id="overlay">
+                        <div class="crop-box" id="cropBox">
+                            <div class="handle h-nw" data-handle="nw"></div>
+                            <div class="handle h-n"  data-handle="n"></div>
+                            <div class="handle h-ne" data-handle="ne"></div>
+                            <div class="handle h-e"  data-handle="e"></div>
+                            <div class="handle h-se" data-handle="se"></div>
+                            <div class="handle h-s"  data-handle="s"></div>
+                            <div class="handle h-sw" data-handle="sw"></div>
+                            <div class="handle h-w"  data-handle="w"></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </main>
 
         <footer class="hint" id="hint">
-            Drag inside the box to move. Drag a handle to resize. Scroll to zoom at the cursor. Middle-click + drag to pan. Esc to cancel.
+            Drag inside the box to move. Drag a handle to resize (hold Alt for symmetric resize from center). Scroll to zoom at the cursor. Middle-click + drag to pan. Esc to cancel.
         </footer>
 
         <script src="cropEditor.js"></script>

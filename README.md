@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="static/icon-animated.svg" alt="Sharpshooter logo" width="160" height="160">
+</p>
+
 # Sharpshooter
 
 Chrome MV3 extension for high-resolution, clean screenshots of web pages and

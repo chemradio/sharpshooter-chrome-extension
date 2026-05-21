@@ -135,6 +135,17 @@
         applyDisplayScale();
     }
 
+    // Center the canvas-wrap in the visible stage viewport. The .canvas-area
+    // sibling is oversized (see CSS) so middle-click pan can carry the image
+    // past the viewport edges; without recentering, the initial scroll
+    // position would land the user in the empty slack area.
+    function centerView() {
+        const sr = stage.getBoundingClientRect();
+        const wr = wrap.getBoundingClientRect();
+        stage.scrollLeft += (wr.left + wr.width  / 2) - (sr.left + sr.width  / 2);
+        stage.scrollTop  += (wr.top  + wr.height / 2) - (sr.top  + sr.height / 2);
+    }
+
     function rescaleBoxAfterFit(oldScale, newScale) {
         if (!oldScale || oldScale === newScale) return;
         const k = newScale / oldScale;
@@ -194,13 +205,29 @@
             box.x = drag.startBox.x + dx;
             box.y = drag.startBox.y + dy;
         } else {
-            // resize — adjust the edges named by the handle
+            // resize — adjust the edges named by the handle. Hold Alt to
+            // resize symmetrically around the box center: dragging one
+            // edge by dx moves the opposite edge by -dx so the center
+            // stays fixed.
             const s = drag.startBox;
+            const sym = ev.altKey;
             let x1 = s.x, y1 = s.y, x2 = s.x + s.w, y2 = s.y + s.h;
-            if (drag.handle.includes("w")) x1 = s.x + dx;
-            if (drag.handle.includes("e")) x2 = s.x + s.w + dx;
-            if (drag.handle.includes("n")) y1 = s.y + dy;
-            if (drag.handle.includes("s")) y2 = s.y + s.h + dy;
+            if (drag.handle.includes("w")) {
+                x1 = s.x + dx;
+                if (sym) x2 = s.x + s.w - dx;
+            }
+            if (drag.handle.includes("e")) {
+                x2 = s.x + s.w + dx;
+                if (sym) x1 = s.x - dx;
+            }
+            if (drag.handle.includes("n")) {
+                y1 = s.y + dy;
+                if (sym) y2 = s.y + s.h - dy;
+            }
+            if (drag.handle.includes("s")) {
+                y2 = s.y + s.h + dy;
+                if (sym) y1 = s.y - dy;
+            }
             // Allow inversion: if user drags past the opposite edge, swap.
             box.x = Math.min(x1, x2);
             box.y = Math.min(y1, y2);
@@ -218,12 +245,14 @@
     }
 
     cropBox.addEventListener("pointerdown", (ev) => {
+        if (ev.button !== 0) return;
         if (ev.target !== cropBox) return;
         startDrag("move", null, ev);
     });
 
     handles.forEach((h) => {
         h.addEventListener("pointerdown", (ev) => {
+            if (ev.button !== 0) return;
             startDrag("resize", h.dataset.handle, ev);
         });
     });
@@ -413,11 +442,13 @@
 
         fitCanvas();
         resetBox();
+        centerView();
 
         window.addEventListener("resize", () => {
             const old = displayScale;
             fitCanvas();
             rescaleBoxAfterFit(old, displayScale);
+            centerView();
         });
     }
 

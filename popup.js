@@ -674,10 +674,26 @@ chrome.runtime.onMessage.addListener((msg) => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 layoutInputs.forEach((input) =>
-    input.addEventListener("change", updateResolutionInputs)
+    input.addEventListener("change", () => {
+        updateResolutionInputs();
+        chrome.storage.local.set({ layoutPreset: getSelectedLayout() });
+    })
 );
 widthInput.addEventListener("input",  checkCustomResolution);
 heightInput.addEventListener("input", checkCustomResolution);
+
+// Persist custom width/height so the user's last numeric entry is restored.
+// Only meaningful when the active preset is "custom"; for other presets these
+// inputs are derived from the preset itself.
+function persistCustomDimensions() {
+    if (getSelectedLayout() !== "custom") return;
+    chrome.storage.local.set({
+        customWidth:  parseInt(widthInput.value)  || null,
+        customHeight: parseInt(heightInput.value) || null,
+    });
+}
+widthInput.addEventListener("change",  persistCustomDimensions);
+heightInput.addEventListener("change", persistCustomDimensions);
 
 // Persist the user's scale-factor choice across popup opens. Default stays 2×
 // (set via `checked` in popup.html); a stored value just overrides the default.
@@ -694,6 +710,23 @@ for (const s of document.getElementsByName("scale")) {
 }
 
 updateResolutionInputs();
+
+// Restore the user's previously chosen resolution preset. Async — the initial
+// updateResolutionInputs() call above runs with the HTML default ("user"); once
+// storage resolves we switch the radio and re-derive the inputs.
+chrome.storage.local
+    .get(["layoutPreset", "customWidth", "customHeight"])
+    .then(({ layoutPreset, customWidth, customHeight }) => {
+        if (!layoutPreset) return;
+        const radio = document.querySelector(`input[name="layout"][value="${layoutPreset}"]`);
+        if (!radio) return;
+        radio.checked = true;
+        updateResolutionInputs();
+        if (layoutPreset === "custom") {
+            if (customWidth)  widthInput.value  = customWidth;
+            if (customHeight) heightInput.value = customHeight;
+        }
+    });
 
 // Pull the active tab's viewport size and refresh the user/fullpage/vertical
 // presets. Best-effort: on restricted URLs (chrome://, store) the background

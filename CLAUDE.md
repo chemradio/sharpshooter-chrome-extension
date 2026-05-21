@@ -50,13 +50,12 @@ Click commits the selection. The extension then:
 
 ### Auto Mode
 
-One-click full-page capture with cleanup. The popup's **Auto Capture** button dispatches to `runAutoCapture` in [screenshots/autoCapture.js](screenshots/autoCapture.js) which:
+One-click full-page capture. The popup's **Auto Capture** button dispatches to `runAutoCapture` in [screenshots/autoCapture.js](screenshots/autoCapture.js) which:
 
 1. Runs AdRemover (lazy-refreshes filter cache, injects `contentScripts/adRemover.js`).
-2. Injects [contentScripts/cleanup.js](contentScripts/cleanup.js) — small hand-curated per-host selectors for screenshot framing.
-3. Measures page height and captures full-page (1920 × measured height, capped at 16000 px) at the user-selected scale.
+2. Measures page height and captures full-page (1920 × measured height, capped at 16000 px) at the user-selected scale.
 
-Auto Mode does **not** dispatch to element capture or run any site module. Site-aware element capture lives in the popup's site-detection prompt (next section).
+Auto Mode does **not** run [contentScripts/cleanup.js](contentScripts/cleanup.js) — that runs only via the dedicated **Cleanup** helper button. Auto Mode also does **not** dispatch to element capture or run any site module. Site-aware element capture lives in the popup's site-detection prompt (next section).
 
 ### Site-detection prompt (Capture this post/story)
 

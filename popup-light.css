@@ -472,24 +472,6 @@ section + section { margin-top: 12px; }
 #layout-group { flex-wrap: wrap; }
 #layout-group label { flex: 1 1 30%; }
 
-/* Custom preset — armed in red. */
-.custom-label {
-    color: var(--danger) !important;
-    border-color: var(--border) !important;
-}
-
-.custom-label:hover {
-    border-color: var(--danger) !important;
-    color: var(--danger) !important;
-}
-
-#custom:checked + .custom-label {
-    background: var(--danger) !important;
-    border-color: var(--danger) !important;
-    color: #ffffff !important;
-    box-shadow: var(--glow-red);
-}
-
 /* ── Resolution inputs ─────────────────────────────────── */
 
 .resolution-row {
@@ -746,8 +728,9 @@ button:active { opacity: 0.75; }
 }
 
 .btn-helper:hover {
+    background: var(--accent);
     border-color: var(--accent);
-    color: var(--accent-dim);
+    color: #ffffff;
     box-shadow: var(--glow-cyan);
 }
 
@@ -757,8 +740,9 @@ button:active { opacity: 0.75; }
 }
 
 .btn-helper--danger:hover {
+    background: var(--danger);
     border-color: var(--danger);
-    color: var(--danger);
+    color: #ffffff;
     box-shadow: var(--glow-red);
 }
 

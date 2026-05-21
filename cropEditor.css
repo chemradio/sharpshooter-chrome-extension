@@ -108,9 +108,17 @@ body {
     overflow: auto;
     background:
         repeating-conic-gradient(#0a0a0a 0% 25%, #050505 0% 50%) 50% / 24px 24px;
-    padding: 24px;
+}
+
+/* An oversized inner box gives the stage scrollable slack on all sides so
+   middle-click pan can carry the image past the viewport edges. The wrap
+   is flex-centered inside this area, and we set initial scroll position
+   in JS so the image sits in the middle of the viewport on load. */
+.canvas-area {
+    min-width: 300vw;
+    min-height: 300vh;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
 }
 

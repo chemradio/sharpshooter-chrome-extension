@@ -2,9 +2,10 @@
 //
 // Three entry points:
 //
-//   runAutoCapture        — Auto Capture button. AdRemover + cleanup.js +
-//                           full-page capture. No site-module dispatch, no
-//                           element-capture fallback.
+//   runAutoCapture        — Auto Capture button. AdRemover + full-page
+//                           capture. No site-module dispatch, no
+//                           element-capture fallback. Cleanup is only
+//                           reachable via the dedicated Cleanup button.
 //   detectSite            — Called by the popup on open. Injects the site
 //                           module in detect-only mode and reports
 //                           { module, pageType }. Non-destructive: the
@@ -183,14 +184,6 @@ export async function runAutoCapture({ tabId, url, settings, screenshotSuffix })
     const scale = settings.deviceScaleFactor || 2;
 
     await runAdRemover(tabId);
-    try {
-        await chrome.scripting.executeScript({
-            target: { tabId },
-            files: ["contentScripts/cleanup.js"],
-        });
-    } catch (e) {
-        console.warn("Auto: cleanup.js injection failed:", e);
-    }
 
     const host = new URL(url).hostname;
     await captureFullPage(tabId, scale, `auto-${screenshotSuffix}`, {
