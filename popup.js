@@ -164,12 +164,13 @@ function getScaleFactor() {
     return 2;
 }
 
-function getSettings() {
+function getSettings(extras = {}) {
     return {
         layout:            getSelectedLayout(),
         width:             parseInt(widthInput.value)  || 1920,
         height:            parseInt(heightInput.value) || 1080,
         deviceScaleFactor: getScaleFactor(),
+        ...extras,
     };
 }
 
@@ -190,34 +191,43 @@ const sendMessage = (message) =>
 
 // ─── Button handlers ──────────────────────────────────────────────────────────
 
-document.getElementById("capture-page").addEventListener("click", () => {
+function runPageCapture(manualCrop) {
     showCapturing(t("stCapturingPage"));
-    sendMessage({ action: "capturePage", settings: getSettings() })
-        .then(() => { stopCapturing(); setStatus(t("stDone"), "ok", 4000); })
+    sendMessage({ action: "capturePage", settings: getSettings({ manualCrop }) })
+        .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stDone"), "ok", 4000); })
         .catch((e) => { stopCapturing(); setStatus(e.message ?? t("stError"), "error", 5000); });
-});
+}
 
-document.getElementById("capture-element").addEventListener("click", async () => {
+async function runElementCapture(manualCrop) {
     showCapturing(t("ovSelectElement"), t("ovSelectElementHint"));
     try {
         // Await injection so the highlighter is listening before we close the popup.
         // Closing immediately afterward avoids the two-click trap: if the popup is
         // open when the user clicks the page, Chrome dismisses the popup and swallows
         // that first click — it never reaches the highlighter's listener.
-        await sendMessage({ action: "captureElement", settings: getSettings() });
+        await sendMessage({ action: "captureElement", settings: getSettings({ manualCrop }) });
         window.close();
     } catch (e) {
         stopCapturing();
         setStatus(e.message ?? t("stError"), "error", 5000);
     }
-});
+}
 
-document.getElementById("capture-auto").addEventListener("click", () => {
+function runAutoCapture(manualCrop) {
     showCapturing(t("stAutoCapturing"));
-    sendMessage({ action: "autoCapture", settings: getSettings() })
-        .then(() => { stopCapturing(); setStatus(t("stAutoDone"), "ok", 4000); })
+    sendMessage({ action: "autoCapture", settings: getSettings({ manualCrop }) })
+        .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stAutoDone"), "ok", 4000); })
         .catch((e) => { stopCapturing(); setStatus(e.message ?? t("stError"), "error", 5000); });
-});
+}
+
+document.getElementById("capture-page").addEventListener("click", () => runPageCapture(false));
+document.getElementById("capture-page-crop").addEventListener("click", () => runPageCapture(true));
+
+document.getElementById("capture-element").addEventListener("click", () => runElementCapture(false));
+document.getElementById("capture-element-crop").addEventListener("click", () => runElementCapture(true));
+
+document.getElementById("capture-auto").addEventListener("click", () => runAutoCapture(false));
+document.getElementById("capture-auto-crop").addEventListener("click", () => runAutoCapture(true));
 
 // ─── Site-detection prompt ────────────────────────────────────────────────────
 //
@@ -266,12 +276,15 @@ sendMessage({ action: "detectSite" })
     })
     .catch(() => { /* detection is best-effort — silent on failure */ });
 
-captureSiteBtn.addEventListener("click", () => {
+function runSiteCapture(manualCrop) {
     showCapturing(t("ovCapturing"));
-    sendMessage({ action: "captureSiteElement", settings: getSettings() })
-        .then(() => { stopCapturing(); setStatus(t("stDone"), "ok", 4000); })
+    sendMessage({ action: "captureSiteElement", settings: getSettings({ manualCrop }) })
+        .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stDone"), "ok", 4000); })
         .catch((e) => { stopCapturing(); setStatus(e.message ?? t("stError"), "error", 5000); });
-});
+}
+
+captureSiteBtn.addEventListener("click", () => runSiteCapture(false));
+document.getElementById("capture-site-crop").addEventListener("click", () => runSiteCapture(true));
 
 // Element capture result — fires if the popup is still open when capture ends.
 chrome.runtime.onMessage.addListener((msg) => {

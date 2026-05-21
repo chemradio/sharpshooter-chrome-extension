@@ -12,9 +12,10 @@ const DEFAULT_METRICS = {
 export const emulateCaptureViewport = (
     tabId,
     deviceMetrics = DEFAULT_METRICS,
-    screenshotSuffix = ""
+    screenshotSuffix = "",
+    deliveryOptions = {}
 ) =>
     withEmulatedCapture(tabId, deviceMetrics, async () => {
         const screenshot = await takeScreenshotClip(tabId);
-        await downloadScreenshot(screenshot, `page-${screenshotSuffix}`);
+        await downloadScreenshot(screenshot, `page-${screenshotSuffix}`, deliveryOptions);
     });

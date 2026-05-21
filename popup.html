@@ -86,37 +86,61 @@
                     <!-- Site detection prompt (shown only when a supported
                          site exposes a capturable target — post / story / etc.) -->
                     <section id="site-prompt" class="site-prompt" hidden>
-                        <button
-                            id="capture-site"
-                            class="btn-capture btn-capture--primary"
-                        >
-                            <svg
-                                class="btn-icon"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.75"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
+                        <div class="capture-segmented">
+                            <button
+                                id="capture-site"
+                                class="btn-capture btn-capture--primary btn-capture--main"
                             >
-                                <path
-                                    d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"
-                                />
-                                <path d="M5 3a2 2 0 0 0-2 2" />
-                                <path d="M19 3a2 2 0 0 1 2 2" />
-                                <path d="M5 21a2 2 0 0 1-2-2" />
-                                <path d="M9 3h1" />
-                                <path d="M9 21h2" />
-                                <path d="M14 3h1" />
-                                <path d="M3 9v1" />
-                                <path d="M21 9v2" />
-                                <path d="M3 14v1" />
-                            </svg>
-                            <span id="capture-site-label" data-i18n="promptPost"
-                                >Capture this post</span
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"
+                                    />
+                                    <path d="M5 3a2 2 0 0 0-2 2" />
+                                    <path d="M19 3a2 2 0 0 1 2 2" />
+                                    <path d="M5 21a2 2 0 0 1-2-2" />
+                                    <path d="M9 3h1" />
+                                    <path d="M9 21h2" />
+                                    <path d="M14 3h1" />
+                                    <path d="M3 9v1" />
+                                    <path d="M21 9v2" />
+                                    <path d="M3 14v1" />
+                                </svg>
+                                <span id="capture-site-label" data-i18n="promptPost"
+                                    >Capture this post</span
+                                >
+                            </button>
+                            <button
+                                id="capture-site-crop"
+                                class="btn-capture btn-capture--primary btn-capture--crop"
+                                title="Capture, then manually crop"
+                                data-i18n-title="cropSegmentTitle"
+                                aria-label="With manual crop"
                             >
-                        </button>
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+                                    <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+                                </svg>
+                                <span class="crop-segment-label" data-i18n="cropSegmentLabel">with crop</span>
+                            </button>
+                        </div>
                         <div
                             class="site-prompt-hint"
                             id="capture-site-hint"
@@ -176,55 +200,103 @@
 
                     <!-- Auto Capture -->
                     <section>
-                        <button id="capture-auto" class="btn-capture">
-                            <svg
-                                class="btn-icon"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.75"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
+                        <div class="capture-segmented">
+                            <button id="capture-auto" class="btn-capture btn-capture--main">
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"
+                                    />
+                                </svg>
+                                <span data-i18n="autoCapture">Auto Capture</span>
+                            </button>
+                            <button
+                                id="capture-auto-crop"
+                                class="btn-capture btn-capture--crop"
+                                title="Capture, then manually crop"
+                                data-i18n-title="cropSegmentTitle"
+                                aria-label="With manual crop"
                             >
-                                <path
-                                    d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"
-                                />
-                            </svg>
-                            <span data-i18n="autoCapture">Auto Capture</span>
-                        </button>
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+                                    <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+                                </svg>
+                                <span class="crop-segment-label" data-i18n="cropSegmentLabel">with crop</span>
+                            </button>
+                        </div>
                     </section>
 
                     <div class="divider"></div>
 
                     <!-- Page Capture + resolution -->
                     <section>
-                        <button
-                            id="capture-page"
-                            class="btn-capture btn-capture--primary"
-                        >
-                            <svg
-                                class="btn-icon"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.75"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
+                        <div class="capture-segmented">
+                            <button
+                                id="capture-page"
+                                class="btn-capture btn-capture--primary btn-capture--main"
                             >
-                                <rect
-                                    width="20"
-                                    height="14"
-                                    x="2"
-                                    y="3"
-                                    rx="2"
-                                />
-                                <line x1="8" x2="16" y1="21" y2="21" />
-                                <line x1="12" x2="12" y1="17" y2="21" />
-                            </svg>
-                            <span data-i18n="pageCapture">Page Capture</span>
-                        </button>
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <rect
+                                        width="20"
+                                        height="14"
+                                        x="2"
+                                        y="3"
+                                        rx="2"
+                                    />
+                                    <line x1="8" x2="16" y1="21" y2="21" />
+                                    <line x1="12" x2="12" y1="17" y2="21" />
+                                </svg>
+                                <span data-i18n="pageCapture">Page Capture</span>
+                            </button>
+                            <button
+                                id="capture-page-crop"
+                                class="btn-capture btn-capture--primary btn-capture--crop"
+                                title="Capture, then manually crop"
+                                data-i18n-title="cropSegmentTitle"
+                                aria-label="With manual crop"
+                            >
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+                                    <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+                                </svg>
+                                <span class="crop-segment-label" data-i18n="cropSegmentLabel">with crop</span>
+                            </button>
+                        </div>
                         <div class="section-label" data-i18n="resolution">
                             Resolution
                         </div>
@@ -317,34 +389,58 @@
 
                     <!-- Capture Element -->
                     <section>
-                        <button id="capture-element" class="btn-capture">
-                            <svg
-                                class="btn-icon"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.75"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
+                        <div class="capture-segmented">
+                            <button id="capture-element" class="btn-capture btn-capture--main">
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"
+                                    />
+                                    <path d="M5 3a2 2 0 0 0-2 2" />
+                                    <path d="M19 3a2 2 0 0 1 2 2" />
+                                    <path d="M5 21a2 2 0 0 1-2-2" />
+                                    <path d="M9 3h1" />
+                                    <path d="M9 21h2" />
+                                    <path d="M14 3h1" />
+                                    <path d="M3 9v1" />
+                                    <path d="M21 9v2" />
+                                    <path d="M3 14v1" />
+                                </svg>
+                                <span data-i18n="captureElement"
+                                    >Capture Element</span
+                                >
+                            </button>
+                            <button
+                                id="capture-element-crop"
+                                class="btn-capture btn-capture--crop"
+                                title="Capture, then manually crop"
+                                data-i18n-title="cropSegmentTitle"
+                                aria-label="With manual crop"
                             >
-                                <path
-                                    d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"
-                                />
-                                <path d="M5 3a2 2 0 0 0-2 2" />
-                                <path d="M19 3a2 2 0 0 1 2 2" />
-                                <path d="M5 21a2 2 0 0 1-2-2" />
-                                <path d="M9 3h1" />
-                                <path d="M9 21h2" />
-                                <path d="M14 3h1" />
-                                <path d="M3 9v1" />
-                                <path d="M21 9v2" />
-                                <path d="M3 14v1" />
-                            </svg>
-                            <span data-i18n="captureElement"
-                                >Capture Element</span
-                            >
-                        </button>
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+                                    <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+                                </svg>
+                                <span class="crop-segment-label" data-i18n="cropSegmentLabel">with crop</span>
+                            </button>
+                        </div>
                     </section>
 
                     <div class="divider"></div>

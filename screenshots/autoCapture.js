@@ -158,7 +158,7 @@ async function injectSiteModule(tabId, moduleName, options) {
     return plan;
 }
 
-async function captureFullPage(tabId, scale, screenshotSuffix) {
+async function captureFullPage(tabId, scale, screenshotSuffix, deliveryOptions = {}) {
     const zoom = await chrome.tabs.getZoom(tabId).catch(() => 1);
     // pageHeight is measured in live-viewport CSS pixels, which already
     // reflect the user's zoom (the layout viewport narrows under zoom,
@@ -174,7 +174,8 @@ async function captureFullPage(tabId, scale, screenshotSuffix) {
             deviceScaleFactor: scale * zoom,
             mobile: false,
         },
-        screenshotSuffix
+        screenshotSuffix,
+        deliveryOptions
     );
 }
 
@@ -192,7 +193,9 @@ export async function runAutoCapture({ tabId, url, settings, screenshotSuffix })
     }
 
     const host = new URL(url).hostname;
-    await captureFullPage(tabId, scale, `auto-${screenshotSuffix}`);
+    await captureFullPage(tabId, scale, `auto-${screenshotSuffix}`, {
+        manualCrop: !!settings.manualCrop,
+    });
     return { mode: "page", host };
 }
 
@@ -253,6 +256,7 @@ export async function captureSiteElement({ tabId, url, settings, screenshotSuffi
         xpath: plan.xpath,
         deviceMetrics,
         screenshotSuffix: `${moduleName}-${screenshotSuffix}`,
+        manualCrop: !!settings.manualCrop,
     });
     return { mode: "element", module: moduleName };
 }

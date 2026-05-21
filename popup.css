@@ -653,6 +653,64 @@ button:active { opacity: 0.75; }
         0 0 10px rgba(14, 202, 227, 0.32);
 }
 
+/* ── Segmented capture button ─────────────────────────────
+   Two siblings rendered as one big control: a main capture
+   action on the left + a narrow "crop" segment on the right
+   that triggers the same action but routes through the manual
+   crop editor. They sit flush — borders collapse via negative
+   margin so the divider reads as a single hairline. */
+
+.capture-segmented {
+    display: flex;
+    align-items: stretch;
+}
+
+.capture-segmented .btn-capture--main {
+    flex: 1;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-width: 1px;
+}
+
+.capture-segmented .btn-capture--crop {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 11px 10px;
+    gap: 5px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left-width: 1px;
+    margin-left: -1px;
+}
+
+.btn-capture--crop .btn-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.btn-capture--crop .crop-segment-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    opacity: 0.85;
+}
+
+/* Linked hover — asymmetric. Hovering the CROP segment lights up the
+   main button too (the crop variant is "do the same capture, then crop",
+   so highlighting both reads as one combined action). Hovering the MAIN
+   button does NOT light up the crop segment — it's a distinct action and
+   should look unarmed when not the target. */
+.capture-segmented:has(.btn-capture--crop:hover) .btn-capture--main {
+    background: var(--accent);
+    color: var(--void);
+    border-color: var(--accent);
+    box-shadow: 0 0 14px rgba(14, 202, 227, 0.6);
+}
+
+.capture-segmented:has(.btn-capture--crop:hover) .btn-capture--main .btn-icon {
+    color: var(--void);
+    transform: scale(1.05);
+}
+
 /* ── Site-detection prompt ─────────────────────────────── */
 
 .site-prompt {

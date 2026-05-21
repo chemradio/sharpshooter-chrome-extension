@@ -9,6 +9,7 @@
 
     let deviceMetrics = null;
     let screenshotSuffix = null;
+    let manualCrop = false;
     let currentElement = null;
 
     const STYLE_ID   = "__hl-style";
@@ -44,6 +45,7 @@
         if (message.action === "sendDeviceMetrics") {
             deviceMetrics = message.deviceMetrics;
             screenshotSuffix = message.screenshotSuffix;
+            manualCrop = !!message.manualCrop;
         }
     };
     chrome.runtime.onMessage.addListener(metricsListener);
@@ -418,6 +420,7 @@
             xpath,
             deviceMetrics,
             screenshotSuffix,
+            manualCrop,
         });
     }
 

@@ -1,3 +1,5 @@
+import { handoffToCropEditor } from "./cropHandoff.js";
+
 const CHUNK = 0x8000;
 
 // Chunked btoa — large canvases overflow String.fromCharCode otherwise.
@@ -30,7 +32,7 @@ async function reencodeOpaque(base64) {
     return base64FromBytes(new Uint8Array(await outBlob.arrayBuffer()));
 }
 
-export const downloadScreenshot = async (base64Data, screenshotName) => {
+export const downloadScreenshot = async (base64Data, screenshotName, options = {}) => {
     if (!base64Data) {
         throw new Error("Empty screenshot data");
     }
@@ -43,6 +45,14 @@ export const downloadScreenshot = async (base64Data, screenshotName) => {
     } catch (e) {
         // Re-encode is a compatibility nicety — never fail the download over it.
         console.warn("opaque PNG re-encode failed, using original:", e);
+    }
+
+    // Manual-crop branch: hand the encoded bytes to the crop editor instead
+    // of triggering a download. The editor will run its own download on
+    // confirm; on cancel, nothing leaves the browser.
+    if (options.manualCrop) {
+        await handoffToCropEditor(data, `${screenshotName}.png`);
+        return null;
     }
 
     return new Promise((resolve, reject) => {

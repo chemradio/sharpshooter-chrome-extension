@@ -259,6 +259,7 @@ export async function captureElement({
     xpath,
     deviceMetrics,
     screenshotSuffix,
+    manualCrop = false,
 }) {
     const dpr = deviceMetrics?.deviceScaleFactor ?? 1;
 
@@ -299,7 +300,7 @@ export async function captureElement({
         );
 
         const cropped = await cropBase64Png(fullshot, cx, cy, cw, ch);
-        await downloadScreenshot(cropped, `element-${screenshotSuffix}`);
+        await downloadScreenshot(cropped, `element-${screenshotSuffix}`, { manualCrop });
     }));
 }
 
@@ -327,6 +328,7 @@ export const addElementClickedListener = () => {
             xpath: request.xpath,
             deviceMetrics: request.deviceMetrics,
             screenshotSuffix: request.screenshotSuffix,
+            manualCrop: !!request.manualCrop,
         })
             .then(() => finish({ ok: true }))
             .catch((error) => {

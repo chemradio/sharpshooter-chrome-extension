@@ -285,7 +285,8 @@ async function handleAction(request) {
             await emulateCaptureViewport(
                 tab.id,
                 deviceMetrics,
-                screenshotSuffix
+                screenshotSuffix,
+                { manualCrop: !!settings.manualCrop }
             );
             return {};
         }
@@ -302,6 +303,7 @@ async function handleAction(request) {
                 action: "sendDeviceMetrics",
                 deviceMetrics: baseMetrics,
                 screenshotSuffix,
+                manualCrop: !!settings.manualCrop,
             });
             return {};
         }

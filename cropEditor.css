@@ -1,0 +1,196 @@
+/* Sharpshooter — manual crop editor.
+   Keep the visual language consistent with the popup: black void,
+   navy panels, cyan accent, red danger. */
+
+:root {
+    --void:       #000000;
+    --dark:       #102C44;
+    --dark-2:     #0a1c2c;
+    --accent:     #0ECAE3;
+    --accent-dim: #0aaec5;
+    --danger:     #FF0055;
+    --text:       #DEE5EC;
+    --text-muted: #5f8ba8;
+    --border:     #214a68;
+    --glow-cyan:  0 0 8px rgba(14, 202, 227, 0.55);
+    --glow-red:   0 0 8px rgba(255, 0, 85, 0.55);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%;
+    background: var(--void);
+    color: var(--text);
+    font-family: 'Roboto Condensed', 'Arial Narrow', sans-serif;
+    overflow: hidden;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+.topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px;
+    background: var(--dark-2);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+}
+
+.brand {
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    text-shadow: var(--glow-cyan);
+}
+
+.readout {
+    flex: 1;
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-radius: 3px;
+    border: 1.5px solid var(--border);
+    background: var(--void);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+
+.btn-ghost:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: var(--glow-cyan);
+}
+
+.btn-primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(14, 202, 227, 0.08);
+    box-shadow: inset 0 0 14px rgba(14, 202, 227, 0.16);
+}
+
+.btn-primary:hover {
+    background: var(--accent);
+    color: var(--void);
+    box-shadow: var(--glow-cyan);
+}
+
+#cancel:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    box-shadow: var(--glow-red);
+}
+
+.stage {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: auto;
+    background:
+        repeating-conic-gradient(#0a0a0a 0% 25%, #050505 0% 50%) 50% / 24px 24px;
+    padding: 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.canvas-wrap {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+#image {
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.crop-box {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dashed var(--accent);
+    background: transparent;
+    pointer-events: auto;
+    cursor: move;
+    box-shadow:
+        0 0 0 9999px rgba(0, 0, 0, 0.55),
+        inset 0 0 0 1px rgba(14, 202, 227, 0.2);
+}
+
+/* Rule-of-thirds guides */
+.crop-box::before,
+.crop-box::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.crop-box::before {
+    background:
+        linear-gradient(to right, transparent 33.33%, rgba(14,202,227,0.25) 33.33%, rgba(14,202,227,0.25) 33.5%, transparent 33.5%,
+                                  transparent 66.5%, rgba(14,202,227,0.25) 66.5%, rgba(14,202,227,0.25) 66.66%, transparent 66.66%);
+}
+.crop-box::after {
+    background:
+        linear-gradient(to bottom, transparent 33.33%, rgba(14,202,227,0.25) 33.33%, rgba(14,202,227,0.25) 33.5%, transparent 33.5%,
+                                   transparent 66.5%, rgba(14,202,227,0.25) 66.5%, rgba(14,202,227,0.25) 66.66%, transparent 66.66%);
+}
+
+.handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    border: 1px solid var(--void);
+    box-shadow: var(--glow-cyan);
+    pointer-events: auto;
+}
+
+.h-nw { top: -6px;  left: -6px;  cursor: nwse-resize; }
+.h-n  { top: -6px;  left: 50%;   transform: translateX(-50%); cursor: ns-resize; }
+.h-ne { top: -6px;  right: -6px; cursor: nesw-resize; }
+.h-e  { top: 50%;   right: -6px; transform: translateY(-50%); cursor: ew-resize; }
+.h-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.h-s  { bottom: -6px; left: 50%;  transform: translateX(-50%); cursor: ns-resize; }
+.h-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.h-w  { top: 50%;   left: -6px;  transform: translateY(-50%); cursor: ew-resize; }
+
+.hint {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    background: var(--dark-2);
+    border-top: 1px solid var(--border);
+    font-family: 'Consolas', 'Menlo', monospace;
+    letter-spacing: 0.04em;
+}
