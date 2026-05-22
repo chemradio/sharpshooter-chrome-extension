@@ -11,7 +11,7 @@ This document describes the current implementation. Aspirational features are sp
 > pre-freeze design and no longer run. "Expert mode" is now a **Settings**
 > panel (gear icon) — output format (PNG/JPEG + quality), opaque PNG re-encode
 > (on by default), skip-save-dialog, filename prefix, default-crop, full-page
-> height cap, and theme / language overrides.
+> height cap, navigation-hint toggle, and theme / language overrides.
 
 ---
 

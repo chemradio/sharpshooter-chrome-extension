@@ -147,6 +147,22 @@
             .__hl-l-w { left: 50%; bottom: 100%; transform: translate(-50%, -18px); }
             .__hl-l-h { top: 50%;  right: 100%;  transform-origin: right center;
                         transform: translateY(-50%) translateX(-18px) rotate(-90deg); }
+            .__hl-tip {
+                position: absolute !important;
+                display: none;
+                max-width: 300px !important;
+                font: 600 11.5px/1.45 -apple-system, "Segoe UI", Arial, sans-serif !important;
+                color: #fff !important;
+                background: rgba(0, 0, 0, 0.86) !important;
+                border: 1px solid ${COLOR} !important;
+                border-radius: 5px !important;
+                padding: 7px 10px !important;
+                box-shadow: 0 0 12px rgba(14, 202, 227, 0.65) !important;
+                white-space: normal !important;
+                transition: left 240ms ease-out, top 240ms ease-out !important;
+            }
+            .__hl-tip.__hl-tip-on { display: block; }
+            .__hl-tip b { color: ${COLOR} !important; font-weight: 700 !important; }
             html.__hl-cursor, html.__hl-cursor * { cursor: crosshair !important; }
         `;
         document.head.appendChild(style);
@@ -174,6 +190,10 @@
             <div class="__hl-label __hl-l-w" data-label-w></div>
             <div class="__hl-label __hl-l-h" data-label-h></div>
         </div>
+        <div class="__hl-tip" data-tip>
+            <b>Scroll wheel</b> to walk the DOM — up = parent, down = child.<br>
+            <b>Click</b> to capture the highlighted element · <b>Esc</b> to cancel.
+        </div>
     `;
     document.documentElement.appendChild(overlay);
 
@@ -188,10 +208,48 @@
     const hBot     = overlay.querySelector('[data-handle="bottom"]');
     const hLeft    = overlay.querySelector('[data-handle="left"]');
     const hRight   = overlay.querySelector('[data-handle="right"]');
+    const tipEl    = overlay.querySelector("[data-tip]");
+
+    // The navigation hint is opt-out via Settings; default on. Read async —
+    // until it resolves the tip stays hidden, then a repaint reveals it.
+    let tooltipEnabled = false;
+    chrome.storage.local.get("showNavTooltip").then((s) => {
+        tooltipEnabled = s.showNavTooltip !== false;
+        if (currentElement) paintOverlay(currentElement.getBoundingClientRect());
+    });
+
+    // Pin the hint to the frame without covering the targeted element: prefer
+    // below the frame, flip above when there's no room, and clamp horizontally
+    // so it stays fully on-screen.
+    function placeTooltip(rect) {
+        if (!tooltipEnabled) {
+            tipEl.classList.remove("__hl-tip-on");
+            return;
+        }
+        tipEl.classList.add("__hl-tip-on");
+
+        const vw  = window.innerWidth;
+        const vh  = window.innerHeight;
+        const tw  = tipEl.offsetWidth;
+        const th  = tipEl.offsetHeight;
+        const GAP = 14;
+
+        let top;
+        if (rect.bottom + GAP + th <= vh)      top = rect.bottom + GAP;
+        else if (rect.top - GAP - th >= 0)     top = rect.top - GAP - th;
+        else                                   top = vh - th - GAP;
+
+        let left = rect.left + rect.width / 2 - tw / 2;
+        left = Math.max(GAP, Math.min(left, vw - tw - GAP));
+
+        tipEl.style.top  = `${Math.max(GAP, top)}px`;
+        tipEl.style.left = `${left}px`;
+    }
 
     function paintOverlay(rect) {
         if (!rect) {
             overlay.classList.remove("__hl-on");
+            tipEl.classList.remove("__hl-tip-on");
             firstPaint = true;
             return;
         }
@@ -244,6 +302,8 @@
         setRect(hBot,   cx - 1, rect.bottom, 2, Math.max(0, vh - rect.bottom));
         setRect(hLeft,  0,           cy - 1, Math.max(0, rect.left),     2);
         setRect(hRight, rect.right,  cy - 1, Math.max(0, vw - rect.right), 2);
+
+        placeTooltip(rect);
     }
 
     function setRect(el, x, y, w, h) {

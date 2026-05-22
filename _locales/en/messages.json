@@ -55,6 +55,8 @@
     "defaultCropNote":    { "message": "Every capture goes straight to the crop editor. The separate \"with crop\" buttons are hidden while this is on." },
     "fullPageCap":        { "message": "Full-page height limit (px)" },
     "fullPageCapNote":    { "message": "Caps the Full Page preset and Auto Capture height. Hard maximum is 16384 px (Chrome's limit)." },
+    "navTooltip":         { "message": "Show the navigation hint" },
+    "navTooltipNote":     { "message": "Shows a small tip next to the highlight frame in Capture Element and Remove Elements, explaining how to walk the DOM with the scroll wheel and mouse." },
 
     "appearance":         { "message": "Appearance" },
     "theme":              { "message": "Theme" },

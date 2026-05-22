@@ -349,6 +349,7 @@ const skipSaveCb       = document.getElementById("skip-save-dialog");
 const filenamePrefixIn = document.getElementById("filename-prefix");
 const defaultCropCb    = document.getElementById("default-crop");
 const fullpageCapIn    = document.getElementById("fullpage-cap");
+const navTooltipCb     = document.getElementById("nav-tooltip");
 const themeInputs      = document.getElementsByName("theme");
 const langInputs       = document.getElementsByName("lang");
 
@@ -392,7 +393,7 @@ function setRadio(inputs, value) {
 chrome.storage.local.get([
     "reencodeOpaquePng", "outputFormat", "jpegQuality", "skipSaveDialog",
     "filenamePrefix", "defaultCrop", "fullPageHeightCap", "themeOverride",
-    "langOverride",
+    "langOverride", "showNavTooltip",
 ]).then((s) => {
     reencodeOpaqueCb.checked = s.reencodeOpaquePng !== false;
 
@@ -413,6 +414,8 @@ chrome.storage.local.get([
     const cap = Number(s.fullPageHeightCap);
     if (Number.isFinite(cap) && cap > 0) fullPageCap = Math.min(cap, 16384);
     fullpageCapIn.value = fullPageCap;
+
+    navTooltipCb.checked = s.showNavTooltip !== false;
 
     setRadio(themeInputs, s.themeOverride || "auto");
     setRadio(langInputs,  s.langOverride  || "auto");
@@ -460,6 +463,11 @@ filenamePrefixIn.addEventListener("change", () => {
 defaultCropCb.addEventListener("change", () => {
     applyCropDefault(defaultCropCb.checked);
     chrome.storage.local.set({ defaultCrop: cropDefault });
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+navTooltipCb.addEventListener("change", () => {
+    chrome.storage.local.set({ showNavTooltip: navTooltipCb.checked });
     setStatus(t("stSettingSaved"), "ok", 1500);
 });
 
