@@ -6,11 +6,19 @@ const popupEl        = document.querySelector(".popup");
 const captureLabelEl = document.getElementById("capture-label");
 const captureHintEl  = document.getElementById("capture-hint");
 
-// Localized-string helper. Pulls from _locales/<lang>/messages.json via the
-// browser UI language; positional substitutions ($1…$9) map to extra args.
-// Falls back to the key itself if a message is missing.
+// Localized-string helper. Resolves through window.__i18n (see localize.js),
+// which honors the Settings language override; positional substitutions
+// ($1…$9) map to extra args. Falls back to the key if a message is missing.
 const t = (key, ...subs) =>
-    chrome.i18n.getMessage(key, subs.length ? subs.map(String) : undefined) || key;
+    window.__i18n.get(key, subs.length ? subs.map(String) : undefined);
+
+// User-configurable full-page height cap (Settings). Loaded from storage
+// below; the built-in default keeps the UI sane before storage resolves.
+let fullPageCap = 16000;
+
+// Whether every capture should route to the crop editor (Settings →
+// "Always open the crop editor"). Updated from storage on load.
+let cropDefault = false;
 
 // "User" / "Full Page" / "Vertical" presets size to the active tab's viewport
 // (CSS pixels at the user's current zoom — what they actually see). The
@@ -125,11 +133,11 @@ function updateResolutionInputs() {
         setStatus(t("stMeasuringHeight"));
         chrome.runtime.sendMessage({ action: "getPageHeight" }, (response) => {
             if (chrome.runtime.lastError || !response || response.ok === false) {
-                heightInput.value = 16000;
+                heightInput.value = fullPageCap;
                 setStatus(t("stMeasureFailed"), "error", 3000);
                 return;
             }
-            heightInput.value = Math.min(response.pageHeight ?? 16000, 16000);
+            heightInput.value = Math.min(response.pageHeight ?? fullPageCap, fullPageCap);
             setStatus("");
         });
         return;
@@ -220,13 +228,16 @@ function runAutoCapture(manualCrop) {
         .catch((e) => { stopCapturing(); setStatus(e.message ?? t("stError"), "error", 5000); });
 }
 
-document.getElementById("capture-page").addEventListener("click", () => runPageCapture(false));
+// The "main" capture buttons route to the crop editor when the Settings
+// "Always open the crop editor" option is on (cropDefault). The dedicated
+// "-crop" buttons always crop; they are hidden by CSS when cropDefault is on.
+document.getElementById("capture-page").addEventListener("click", () => runPageCapture(cropDefault));
 document.getElementById("capture-page-crop").addEventListener("click", () => runPageCapture(true));
 
-document.getElementById("capture-element").addEventListener("click", () => runElementCapture(false));
+document.getElementById("capture-element").addEventListener("click", () => runElementCapture(cropDefault));
 document.getElementById("capture-element-crop").addEventListener("click", () => runElementCapture(true));
 
-document.getElementById("capture-auto").addEventListener("click", () => runAutoCapture(false));
+document.getElementById("capture-auto").addEventListener("click", () => runAutoCapture(cropDefault));
 document.getElementById("capture-auto-crop").addEventListener("click", () => runAutoCapture(true));
 
 // ─── Site-detection prompt ────────────────────────────────────────────────────
@@ -244,12 +255,9 @@ const captureSiteLabel  = document.getElementById("capture-site-label");
 const captureSiteHint   = document.getElementById("capture-site-hint");
 
 // Page-type → button label. Types not listed (profile, unknown) don't get
-// a prompt — those pages should fall through to Auto/Page Capture.
-const PROMPT_LABELS = {
-    post:      t("promptPost"),
-    story:     t("promptStory"),
-    groupPost: t("promptPost"),
-};
+// a prompt — those pages should fall through to Auto/Page Capture. Populated
+// once __i18n is ready so a language override is honored.
+let PROMPT_LABELS = {};
 
 const SITE_DISPLAY_NAMES = {
     facebook:  "Facebook",
@@ -268,13 +276,22 @@ function showSitePrompt(module, pageType) {
     sitePromptDivider.hidden = false;
 }
 
-sendMessage({ action: "detectSite" })
-    .then((res) => {
-        if (res?.module && PROMPT_LABELS[res.pageType]) {
-            showSitePrompt(res.module, res.pageType);
-        }
-    })
-    .catch(() => { /* detection is best-effort — silent on failure */ });
+// Wait for __i18n so the prompt labels reflect any language override, then
+// run the non-destructive site detection pass.
+window.__i18n.ready.then(() => {
+    PROMPT_LABELS = {
+        post:      t("promptPost"),
+        story:     t("promptStory"),
+        groupPost: t("promptPost"),
+    };
+    sendMessage({ action: "detectSite" })
+        .then((res) => {
+            if (res?.module && PROMPT_LABELS[res.pageType]) {
+                showSitePrompt(res.module, res.pageType);
+            }
+        })
+        .catch(() => { /* detection is best-effort — silent on failure */ });
+});
 
 function runSiteCapture(manualCrop) {
     showCapturing(t("ovCapturing"));
@@ -298,26 +315,6 @@ chrome.runtime.onMessage.addListener((msg) => {
     return false;
 });
 
-document.getElementById("manual-cleanup").addEventListener("click", () => {
-    setStatus(t("stCleaningUp"));
-    sendMessage({ action: "manualCleanup" })
-        .then((res) => {
-            const s = res?.stats;
-            if (!s) {
-                setStatus(t("stCleanupDone"), "ok", 3000);
-                return;
-            }
-            const { removed = 0, sources = {} } = s;
-            const breakdown =
-                `easylist:${sources.easylist ?? 0} ` +
-                `bundled:${sources.bundled ?? 0} ` +
-                `user:${sources.user ?? 0} ` +
-                `user-global:${sources.userGlobal ?? 0}`;
-            setStatus(t("stRemovedNodes", removed, breakdown), "ok", 5000);
-        })
-        .catch((e) => setStatus(e.message ?? t("stError"), "error", 5000));
-});
-
 document.getElementById("dom-killer").addEventListener("click", async () => {
     showCapturing(t("ovManualRemoval"), t("ovManualRemovalHint"));
     try {
@@ -332,78 +329,199 @@ document.getElementById("dom-killer").addEventListener("click", async () => {
     }
 });
 
-// ─── Hidden expert UI: triple-click the header to reveal Export ──────────────
+// ─── Settings view ────────────────────────────────────────────────────────────
+//
+// The former "Expert mode" view is now a plain Settings panel, opened from
+// the gear icon in the header. Filter management and the Cleanup feature were
+// obsoleted — see FROZEN-CLEANUP.md.
 
-const exportBtn        = document.getElementById("export-filters");
-const clearDomainBtn   = document.getElementById("clear-domain-filters");
-const clearGlobalBtn   = document.getElementById("clear-global-filters");
-const disableBundledCb = document.getElementById("disable-bundled");
+const viewNormal       = document.getElementById("view-normal");
+const viewSettings     = document.getElementById("view-settings");
+const settingsToggle   = document.getElementById("settings-toggle");
 
-chrome.storage.local.get("bundledFiltersDisabled").then(({ bundledFiltersDisabled }) => {
-    disableBundledCb.checked = !!bundledFiltersDisabled;
-});
-
-disableBundledCb.addEventListener("change", () => {
-    const disabled = disableBundledCb.checked;
-    chrome.storage.local.set({ bundledFiltersDisabled: disabled });
-    setStatus(
-        disabled ? t("stBundledDisabled") : t("stBundledEnabled"),
-        "ok",
-        2000
-    );
-});
-// Re-encode PNG opaque — off by default; the stored value sticks across opens.
 const reencodeOpaqueCb = document.getElementById("reencode-opaque");
+const reencodeBlock    = document.getElementById("reencode-block");
+const formatInputs     = document.getElementsByName("output-format");
+const jpegQualityRow   = document.getElementById("jpeg-quality-row");
+const jpegQualityInput = document.getElementById("jpeg-quality");
+const jpegQualityValue = document.getElementById("jpeg-quality-value");
+const skipSaveCb       = document.getElementById("skip-save-dialog");
+const filenamePrefixIn = document.getElementById("filename-prefix");
+const defaultCropCb    = document.getElementById("default-crop");
+const fullpageCapIn    = document.getElementById("fullpage-cap");
+const themeInputs      = document.getElementsByName("theme");
+const langInputs       = document.getElementsByName("lang");
 
-chrome.storage.local.get("reencodeOpaquePng").then(({ reencodeOpaquePng }) => {
-    reencodeOpaqueCb.checked = !!reencodeOpaquePng;
+const cssLight = document.getElementById("css-light");
+const cssDark  = document.getElementById("css-dark");
+
+// Theme override — flip the media attribute on the two gated stylesheets so
+// exactly one applies. "auto" restores the prefers-color-scheme queries.
+function applyTheme(theme) {
+    if (theme === "light") {
+        cssLight.media = "all";
+        cssDark.media  = "not all";
+    } else if (theme === "dark") {
+        cssLight.media = "not all";
+        cssDark.media  = "all";
+    } else {
+        cssLight.media = "(prefers-color-scheme: light)";
+        cssDark.media  = "(prefers-color-scheme: dark)";
+    }
+}
+
+// "Always open the crop editor" — also hides the dedicated "-crop" buttons.
+function applyCropDefault(on) {
+    cropDefault = !!on;
+    popupEl.classList.toggle("crop-default", cropDefault);
+}
+
+function setFormatUi(format) {
+    const jpeg = format === "jpeg";
+    // JPEG carries a quality slider; the opaque-PNG re-encode is meaningless
+    // for it (JPEG has no alpha channel), so that block is hidden in JPEG mode.
+    jpegQualityRow.hidden = !jpeg;
+    reencodeBlock.hidden = jpeg;
+}
+
+function setRadio(inputs, value) {
+    for (const r of inputs) r.checked = r.value === value;
+}
+
+// Load every persisted setting and reflect it into the controls.
+chrome.storage.local.get([
+    "reencodeOpaquePng", "outputFormat", "jpegQuality", "skipSaveDialog",
+    "filenamePrefix", "defaultCrop", "fullPageHeightCap", "themeOverride",
+    "langOverride",
+]).then((s) => {
+    reencodeOpaqueCb.checked = s.reencodeOpaquePng !== false;
+
+    const format = s.outputFormat === "jpeg" ? "jpeg" : "png";
+    setRadio(formatInputs, format);
+    setFormatUi(format);
+
+    const q = typeof s.jpegQuality === "number" ? s.jpegQuality : 0.92;
+    jpegQualityInput.value = Math.round(q * 100);
+    jpegQualityValue.textContent = `${Math.round(q * 100)}%`;
+
+    skipSaveCb.checked = s.skipSaveDialog === true;
+    filenamePrefixIn.value = s.filenamePrefix || "";
+
+    applyCropDefault(s.defaultCrop === true);
+    defaultCropCb.checked = cropDefault;
+
+    const cap = Number(s.fullPageHeightCap);
+    if (Number.isFinite(cap) && cap > 0) fullPageCap = Math.min(cap, 16384);
+    fullpageCapIn.value = fullPageCap;
+
+    setRadio(themeInputs, s.themeOverride || "auto");
+    setRadio(langInputs,  s.langOverride  || "auto");
+    applyTheme(s.themeOverride || "auto");
 });
 
 reencodeOpaqueCb.addEventListener("change", () => {
     const enabled = reencodeOpaqueCb.checked;
     chrome.storage.local.set({ reencodeOpaquePng: enabled });
-    setStatus(
-        enabled ? t("stOpaqueOn") : t("stOpaqueOff"),
-        "ok",
-        2000
-    );
+    setStatus(enabled ? t("stOpaqueOn") : t("stOpaqueOff"), "ok", 2000);
 });
 
-const viewNormal       = document.getElementById("view-normal");
-const viewExpert       = document.getElementById("view-expert");
-const filterHostEl     = document.getElementById("filter-host");
-const filterInput      = document.getElementById("filter-input");
-const filterAddBtn     = document.getElementById("filter-add");
-const filterListEl     = document.getElementById("filter-list");
-const filterListGlobal = document.getElementById("filter-list-global");
-const filterPreview    = document.getElementById("filter-preview");
-const filterParentCb   = document.getElementById("filter-parent");
-const scopeInputs      = document.getElementsByName("filter-scope");
-
-function getScope() {
-    for (const r of scopeInputs) if (r.checked) return r.value;
-    return "host";
+for (const r of formatInputs) {
+    r.addEventListener("change", () => {
+        if (!r.checked) return;
+        chrome.storage.local.set({ outputFormat: r.value });
+        setFormatUi(r.value);
+        setStatus(t("stSettingSaved"), "ok", 1500);
+    });
 }
-const modeToggleInput  = document.getElementById("mode-toggle-input");
-const modeToggleLabel  = document.getElementById("mode-toggle-label");
 
-function setMode(expert) {
-    viewExpert.hidden = !expert;
-    viewNormal.hidden = expert;
-    modeToggleInput.checked = expert;
-    modeToggleLabel.textContent = expert ? t("modeExpert") : t("modeNormal");
-    popupEl.classList.toggle("is-expert", expert);
-    helpContentNormal.hidden = expert;
-    helpContentExpert.hidden = !expert;
-    if (expert) refreshFilterList();
+jpegQualityInput.addEventListener("input", () => {
+    jpegQualityValue.textContent = `${jpegQualityInput.value}%`;
+});
+jpegQualityInput.addEventListener("change", () => {
+    chrome.storage.local.set({
+        jpegQuality: parseInt(jpegQualityInput.value, 10) / 100,
+    });
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+skipSaveCb.addEventListener("change", () => {
+    chrome.storage.local.set({ skipSaveDialog: skipSaveCb.checked });
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+filenamePrefixIn.addEventListener("change", () => {
+    // Strip characters illegal in download filenames.
+    const clean = filenamePrefixIn.value.trim().replace(/[\\/:*?"<>|]+/g, "");
+    filenamePrefixIn.value = clean;
+    chrome.storage.local.set({ filenamePrefix: clean });
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+defaultCropCb.addEventListener("change", () => {
+    applyCropDefault(defaultCropCb.checked);
+    chrome.storage.local.set({ defaultCrop: cropDefault });
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+fullpageCapIn.addEventListener("change", () => {
+    let v = parseInt(fullpageCapIn.value, 10);
+    if (!Number.isFinite(v) || v <= 0) v = 16000;
+    v = Math.min(Math.max(v, 1000), 16384);
+    fullpageCapIn.value = v;
+    fullPageCap = v;
+    chrome.storage.local.set({ fullPageHeightCap: v });
+    if (getSelectedLayout() === "fullpage") updateResolutionInputs();
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+for (const r of themeInputs) {
+    r.addEventListener("change", () => {
+        if (!r.checked) return;
+        applyTheme(r.value);
+        chrome.storage.local.set({ themeOverride: r.value });
+        setStatus(t("stSettingSaved"), "ok", 1500);
+    });
 }
+
+for (const r of langInputs) {
+    r.addEventListener("change", () => {
+        if (!r.checked) return;
+        chrome.storage.local.set({ langOverride: r.value });
+        // Re-localize the whole popup in place.
+        window.__i18n.reload(r.value).then(() => {
+            window.__applyI18n();
+            refreshDynamicStrings();
+            setStatus(t("stSettingSaved"), "ok", 1500);
+        });
+    });
+}
+
+// Strings the markup can't carry as data-i18n (toggle titles set in JS).
+// Re-applied after a runtime language change.
+function refreshDynamicStrings() {
+    settingsToggle.title = popupEl.classList.contains("is-settings")
+        ? t("settingsBtnTitleClose") : t("settingsBtnTitle");
+    helpToggleBtn.title = popupEl.classList.contains("is-helping")
+        ? t("helpBtnTitleClose") : t("helpBtnTitle");
+}
+
+function setSettings(open) {
+    viewSettings.hidden = !open;
+    viewNormal.hidden = open;
+    popupEl.classList.toggle("is-settings", open);
+    settingsToggle.title = open ? t("settingsBtnTitleClose") : t("settingsBtnTitle");
+}
+
+settingsToggle.addEventListener("click", () => {
+    // Leaving help open while switching views would be confusing — close it.
+    if (popupEl.classList.contains("is-helping")) setHelp(false);
+    setSettings(!popupEl.classList.contains("is-settings"));
+});
 
 // ─── Help view ────────────────────────────────────────────────────────────────
 
-const helpToggleBtn      = document.getElementById("help-toggle");
-const helpView           = document.getElementById("view-help");
-const helpContentNormal  = document.getElementById("help-content-normal");
-const helpContentExpert  = document.getElementById("help-content-expert");
+const helpToggleBtn = document.getElementById("help-toggle");
+const helpView      = document.getElementById("view-help");
 
 function setHelp(open) {
     popupEl.classList.toggle("is-helping", open);
@@ -414,254 +532,6 @@ function setHelp(open) {
 
 helpToggleBtn.addEventListener("click", () => {
     setHelp(!popupEl.classList.contains("is-helping"));
-});
-
-modeToggleInput.addEventListener("change", () => {
-    const expert = modeToggleInput.checked;
-    setMode(expert);
-    setStatus(expert ? t("stExpertOn") : t("stExpertOff"), "ok", 1500);
-});
-
-// ─── Manual user-filter management ────────────────────────────────────────────
-
-function isValidCssSelector(sel) {
-    try {
-        document.createDocumentFragment().querySelector(sel);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-const cssEsc = (s) =>
-    CSS && CSS.escape ? CSS.escape(s) : String(s).replace(/(["\\\]])/g, "\\$1");
-
-// Accepts a CSS selector OR an HTML-fragment shape and returns a CSS selector.
-// Recognized fragment shapes:
-//   class="foo bar"          → .foo.bar
-//   id="main"                → #main
-//   data-testid="tweet"      → [data-testid="tweet"]
-//   <div class="foo" data-x="y">  → div.foo[data-x="y"]
-//   div class="foo"          → div.foo
-// Anything that doesn't look like a fragment (no angle brackets, no name="value")
-// is passed through untouched so plain CSS selectors keep working.
-function normalizeSelector(raw) {
-    const s = String(raw ?? "").trim();
-    if (!s) return "";
-
-    const hasAngle = /^</.test(s) || />\s*$/.test(s);
-    const hasAttrPair = /([a-zA-Z_:][\w:.-]*)\s*=\s*"[^"]*"/.test(s);
-    if (!hasAngle && !hasAttrPair) return s;
-
-    let body = s.replace(/^<\s*/, "").replace(/\s*\/?>\s*$/, "").trim();
-
-    let tag = "";
-    const tagMatch = body.match(/^([a-zA-Z][\w-]*)(?=\s|$)/);
-    if (tagMatch) {
-        tag = tagMatch[1].toLowerCase();
-        body = body.slice(tagMatch[0].length).trim();
-    }
-
-    const attrs = {};
-    for (const m of body.matchAll(/([a-zA-Z_:][\w:.-]*)\s*=\s*"([^"]*)"/g)) {
-        attrs[m[1]] = m[2];
-    }
-
-    let out = tag;
-    if (attrs.id) {
-        out += `#${cssEsc(attrs.id)}`;
-        delete attrs.id;
-    }
-    if (attrs.class) {
-        for (const c of attrs.class.split(/\s+/).filter(Boolean)) {
-            out += `.${cssEsc(c)}`;
-        }
-        delete attrs.class;
-    }
-    for (const [k, v] of Object.entries(attrs)) {
-        out += `[${k}="${v.replace(/(["\\])/g, "\\$1")}"]`;
-    }
-
-    return out || s;
-}
-
-function wrapParent(sel) {
-    return filterParentCb.checked && sel ? `*:has(> ${sel})` : sel;
-}
-
-function updatePreview() {
-    const raw = filterInput.value;
-    const normalized = wrapParent(normalizeSelector(raw));
-    const differs = normalized && normalized !== raw.trim();
-    const valid = normalized ? isValidCssSelector(normalized) : true;
-
-    if (!raw.trim()) {
-        filterPreview.hidden = true;
-        filterPreview.classList.remove("invalid");
-        filterInput.classList.remove("invalid");
-        return;
-    }
-
-    filterInput.classList.toggle("invalid", !valid);
-    filterPreview.classList.toggle("invalid", !valid);
-
-    if (!valid) {
-        filterPreview.hidden = false;
-        filterPreview.textContent = t("invalidPreview");
-        return;
-    }
-    if (differs) {
-        filterPreview.hidden = false;
-        filterPreview.innerHTML = "";
-        const arrow = document.createElement("span");
-        arrow.className = "arrow";
-        arrow.textContent = "→";
-        const sel = document.createElement("span");
-        sel.textContent = normalized;
-        filterPreview.append(arrow, sel);
-    } else {
-        filterPreview.hidden = true;
-    }
-}
-
-function renderListInto(ulEl, selectors, scope) {
-    ulEl.innerHTML = "";
-    for (const sel of selectors) {
-        const li = document.createElement("li");
-        const span = document.createElement("span");
-        span.className = "sel";
-        span.textContent = sel;
-        span.title = sel;
-        const btn = document.createElement("button");
-        btn.className = "remove";
-        btn.type = "button";
-        btn.textContent = "×";
-        btn.title = t("removeTitle");
-        btn.addEventListener("click", () => removeFilter(sel, scope));
-        li.append(span, btn);
-        ulEl.appendChild(li);
-    }
-}
-
-function renderFilterList(host, selectors, globalSelectors) {
-    filterHostEl.textContent = host || t("noHost");
-    renderListInto(filterListEl,     selectors,       "host");
-    renderListInto(filterListGlobal, globalSelectors, "global");
-}
-
-function refreshFilterList() {
-    sendMessage({ action: "listUserFilters" })
-        .then((res) =>
-            renderFilterList(
-                res?.host,
-                res?.selectors ?? [],
-                res?.globalSelectors ?? []
-            )
-        )
-        .catch((e) => setStatus(e.message ?? t("stError"), "error", 4000));
-}
-
-function addFilter() {
-    const sel = wrapParent(normalizeSelector(filterInput.value));
-    if (!sel) return;
-    if (!isValidCssSelector(sel)) {
-        filterInput.classList.add("invalid");
-        setStatus(t("stInvalidSelector"), "error", 3000);
-        return;
-    }
-    filterInput.classList.remove("invalid");
-    const scope = getScope();
-    sendMessage({ action: "addUserFilter", selector: sel, scope })
-        .then((res) => {
-            renderFilterList(
-                res?.host,
-                res?.selectors ?? [],
-                res?.globalSelectors ?? []
-            );
-            filterInput.value = "";
-            updatePreview();
-            const where = scope === "global" ? t("scopeAllHosts") : t("scopeThisHost");
-            setStatus(
-                res?.added ? t("stAddedTo", where, sel) : t("stAlreadyPresent"),
-                "ok",
-                2500
-            );
-        })
-        .catch((e) => setStatus(e.message ?? t("stError"), "error", 4000));
-}
-
-function removeFilter(sel, scope) {
-    sendMessage({ action: "removeUserFilter", selector: sel, scope })
-        .then((res) => {
-            renderFilterList(
-                res?.host,
-                res?.selectors ?? [],
-                res?.globalSelectors ?? []
-            );
-            setStatus(t("stRemovedSel", sel), "ok", 2500);
-        })
-        .catch((e) => setStatus(e.message ?? t("stError"), "error", 4000));
-}
-
-filterAddBtn.addEventListener("click", addFilter);
-filterInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") addFilter();
-});
-filterInput.addEventListener("input", updatePreview);
-filterParentCb.addEventListener("change", updatePreview);
-
-clearDomainBtn.addEventListener("click", () => {
-    const ok = confirm(t("confirmClearDomain"));
-    if (!ok) return;
-    setStatus(t("stClearing"));
-    sendMessage({ action: "clearDomainFilters" })
-        .then((res) => {
-            const n = res?.selectorCount ?? 0;
-            const h = res?.hostCount ?? 0;
-            setStatus(
-                n === 0
-                    ? t("stNoDomainFilters")
-                    : t("stClearedDomain", n, h),
-                "ok",
-                4000
-            );
-            refreshFilterList();
-        })
-        .catch((e) => setStatus(e.message ?? t("stError"), "error", 5000));
-});
-
-clearGlobalBtn.addEventListener("click", () => {
-    const ok = confirm(t("confirmClearGlobal"));
-    if (!ok) return;
-    setStatus(t("stClearing"));
-    sendMessage({ action: "clearGlobalFilters" })
-        .then((res) => {
-            const n = res?.selectorCount ?? 0;
-            setStatus(
-                n === 0
-                    ? t("stNoGlobalFilters")
-                    : t("stClearedGlobal", n),
-                "ok",
-                4000
-            );
-            refreshFilterList();
-        })
-        .catch((e) => setStatus(e.message ?? t("stError"), "error", 5000));
-});
-
-exportBtn.addEventListener("click", () => {
-    setStatus(t("stExporting"));
-    sendMessage({ action: "exportFilters" })
-        .then((res) => {
-            const n = res?.selectorCount ?? 0;
-            const h = res?.hostCount ?? 0;
-            if (n === 0) {
-                setStatus(t("stNoExport"), "ok", 3000);
-            } else {
-                setStatus(t("stExported", n, h), "ok", 4000);
-            }
-        })
-        .catch((e) => setStatus(e.message ?? t("stError"), "error", 5000));
 });
 
 chrome.runtime.onMessage.addListener((msg) => {

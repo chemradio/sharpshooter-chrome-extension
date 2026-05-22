@@ -4,11 +4,22 @@ Chrome MV3 extension for high-resolution page and element screenshots. Used for 
 
 This document describes the current implementation. Aspirational features are split into a "Planned" section at the end; do not assume they exist.
 
+> **Frozen:** the **Cleanup / Filters** feature (EasyList fetching, bundled +
+> user filters, AdRemover, the Expert-mode filter manager) is obsoleted and
+> disabled. The code is left intact but unwired — see [FROZEN-CLEANUP.md](FROZEN-CLEANUP.md).
+> Sections below that describe Cleanup / AdRemover / Expert mode reflect the
+> pre-freeze design and no longer run. "Expert mode" is now a **Settings**
+> panel (gear icon) — output format (PNG/JPEG + quality), opaque PNG re-encode
+> (on by default), skip-save-dialog, filename prefix, default-crop, full-page
+> height cap, and theme / language overrides.
+
 ---
 
 ## Entry points
 
-All captures are triggered from the **toolbar popup** ([popup.html](popup.html) / [popup.js](popup.js)) — main UI with quality multiplier (scale), resolution presets, and the capture buttons: **Auto Capture**, **Page Capture**, and **Capture Element**. A **Helpers** row holds **Remove Elements** (interactive DOM killer) and **Cleanup**. When opened on a supported site (Facebook, Instagram, Telegram, X, VK) the popup also runs a non-destructive site-detection pass and surfaces a "Capture this <post/story>" button at the top if a target is recognized. A header **?** button opens an in-popup help panel, and an **Expert** toggle reveals the filter-management UI.
+All captures are triggered from the **toolbar popup** ([popup.html](popup.html) / [popup.js](popup.js)) — main UI with quality multiplier (scale), resolution presets, and the capture buttons: **Auto Capture**, **Page Capture**, and **Capture Element**. Each capture control is a **segmented button**: a wide main segment that captures and saves directly, plus a narrow **with crop** segment (`.btn-capture--crop`) that routes the shot through the crop editor. When the **Always open the crop editor** setting is on, every capture goes to the editor and the crop segments are hidden via the `.crop-default` class on `.popup`. A **Helpers** row holds **Remove Elements** (interactive DOM killer). When opened on a supported site (Facebook, Instagram, Telegram, X, VK) the popup also runs a non-destructive site-detection pass and surfaces a "Capture this <post/story>" button at the top if a target is recognized. A header **?** button opens an in-popup help panel, and a header **gear** button opens the **Settings** panel.
+
+The radio chips (quality multiplier, resolution presets, settings radio groups) get a prominent hover state — accent border, tinted fill, and cyan glow (`.radio-group label:hover`). The resolution row shows just the two number inputs and a `×` separator (no "px" suffix).
 
 ---
 

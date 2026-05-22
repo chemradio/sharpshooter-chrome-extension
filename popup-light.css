@@ -181,44 +181,38 @@ header {
     display: block;
 }
 
-/* ── Help button — round targeting reticle ─────────────── */
+/* ── Header icon buttons (Help · Settings) ─────────────── */
 
-.help-toggle {
+.help-toggle,
+.settings-toggle {
     flex: 0 0 auto;
-    width: 20px;
-    height: 20px;
+    width: 26px;
+    height: 26px;
     padding: 0;
+    border: 0;
     border-radius: 50%;
     background: transparent;
     color: var(--accent-dim);
-    border: 1.5px solid var(--accent);
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1;
     cursor: pointer;
+    line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background 0.12s, color 0.12s, box-shadow 0.12s;
 }
 
+.help-toggle {
+    font-size: 18px;
+    font-weight: 800;
+}
+
 .help-toggle:hover,
-.popup.is-helping .help-toggle {
+.popup.is-helping .help-toggle,
+.settings-toggle:hover,
+.popup.is-settings .settings-toggle {
     background: var(--accent);
     color: var(--ink);
     box-shadow: var(--glow-cyan);
-}
-
-.popup.is-expert .help-toggle {
-    color: var(--danger);
-    border-color: var(--danger);
-}
-
-.popup.is-expert .help-toggle:hover,
-.popup.is-expert.is-helping .help-toggle {
-    background: var(--danger);
-    color: #ffffff;
-    box-shadow: var(--glow-red);
 }
 
 /* ── Help view ─────────────────────────────────────────── */
@@ -309,77 +303,17 @@ header {
 
 .help-content[hidden] { display: none; }
 
-/* ── Mode toggle (Normal ↔ Expert) ─────────────────────── */
+/* ── Settings button — gear icon ───────────────────────── */
 
-.mode-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    user-select: none;
+.settings-toggle svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    transition: transform 0.2s;
 }
 
-.mode-toggle input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.mode-toggle-track {
-    position: relative;
-    width: 28px;
-    height: 16px;
-    background: var(--void);
-    border: 1px solid var(--accent);
-    border-radius: 999px;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    flex-shrink: 0;
-}
-
-.mode-toggle-thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 10px;
-    height: 10px;
-    background: var(--accent);
-    box-shadow: var(--glow-cyan);
-    border-radius: 50%;
-    transition: transform 0.15s, background 0.15s;
-}
-
-.mode-toggle input:checked + .mode-toggle-track {
-    border-color: var(--danger);
-    box-shadow: var(--glow-red);
-}
-
-.mode-toggle input:checked + .mode-toggle-track .mode-toggle-thumb {
-    transform: translateX(12px);
-    background: var(--danger);
-    box-shadow: var(--glow-red);
-}
-
-.mode-toggle input:focus-visible + .mode-toggle-track {
-    box-shadow: 0 0 0 2px var(--accent-dim);
-}
-
-.mode-toggle-label {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    color: var(--text-muted);
-    min-width: 42px;
-    text-align: right;
-}
-
-/* ── Expert-mode tint — the unit goes red-alert ─────────── */
-
-.popup.is-expert header {
-    animation: header-breathe-red 4.8s ease-in-out infinite;
-}
-
-.popup.is-expert .expert-header {
-    color: var(--danger);
+.popup.is-settings .settings-toggle svg {
+    transform: rotate(60deg);
 }
 
 /* ── Body (all sections) ───────────────────────────────── */
@@ -459,6 +393,8 @@ section + section { margin-top: 12px; }
 .radio-group label:hover {
     border-color: var(--accent);
     color: var(--accent-dim);
+    background: color-mix(in srgb, var(--accent) 14%, #fff);
+    box-shadow: var(--glow-cyan);
 }
 
 .radio-group input[type="radio"]:checked + label {
@@ -467,6 +403,11 @@ section + section { margin-top: 12px; }
     color: var(--ink);
     font-weight: 700;
     box-shadow: var(--glow-cyan);
+}
+
+.radio-group input[type="radio"]:checked + label:hover {
+    color: var(--ink);
+    background: var(--accent);
 }
 
 #layout-group { flex-wrap: wrap; }
@@ -771,20 +712,114 @@ button:active { opacity: 0.75; }
 }
 
 #view-normal,
-#view-expert {
+#view-settings {
     display: flex;
     flex-direction: column;
 }
 
 #view-normal[hidden],
-#view-expert[hidden] { display: none; }
+#view-settings[hidden] { display: none; }
 
-.expert-header {
+.settings-header {
     font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--accent-dim);
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    padding: 0 2px;
+}
+
+.setting-row input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+.setting-note {
+    margin: 4px 2px 0;
+    font-size: 10px;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.setting-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+
+.setting-text {
+    width: 100%;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--void);
+    color: var(--accent-dim);
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 12px;
+}
+
+.setting-text:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--glow-cyan);
+}
+
+.setting-number { width: 130px; }
+
+.setting-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 2px;
+}
+
+.setting-slider[hidden] { display: none; }
+
+.setting-slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+#jpeg-quality-value { color: var(--accent-dim); }
+
+.setting-slider input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+/* Hairline between individual settings inside a section. */
+.setting-divider {
+    height: 1px;
+    margin: 5px 0;
+    background: var(--border);
+    opacity: 0.55;
+}
+
+#reencode-block[hidden] { display: none; }
+
+
+.popup.crop-default .btn-capture--crop { display: none; }
+
+.popup.crop-default .capture-segmented .btn-capture--main {
+    border-radius: var(--radius);
+    border-right-width: 2px;
 }
 
 .expert-hint {

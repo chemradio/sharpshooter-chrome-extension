@@ -7,11 +7,13 @@
              is gated by a prefers-color-scheme media query, so the
              browser loads both but applies only the matching one. -->
         <link
+            id="css-light"
             rel="stylesheet"
             href="popup-light.css"
             media="(prefers-color-scheme: light)"
         />
         <link
+            id="css-dark"
             rel="stylesheet"
             href="popup.css"
             media="(prefers-color-scheme: dark)"
@@ -26,6 +28,7 @@
             <!-- Decorative CRT scan beam — a thin horizontal line that
                  sweeps top-to-bottom across the whole unit. Purely visual. -->
             <div class="sweep-beam" aria-hidden="true"></div>
+
             <header>
                 <!-- Brand mark — the SVG is pulled at runtime from
                      static/embed-{dark,light}.html so edits to those
@@ -47,23 +50,29 @@
                 >
                     ?
                 </button>
-                <label
-                    class="mode-toggle"
-                    for="mode-toggle-input"
-                    title="Toggle expert mode"
-                    data-i18n-title="modeToggleTitle"
+                <button
+                    type="button"
+                    id="settings-toggle"
+                    class="settings-toggle"
+                    title="Settings"
+                    data-i18n-title="settingsBtnTitle"
+                    aria-label="Settings"
                 >
-                    <input type="checkbox" id="mode-toggle-input" />
-                    <span class="mode-toggle-track">
-                        <span class="mode-toggle-thumb"></span>
-                    </span>
-                    <span
-                        class="mode-toggle-label"
-                        id="mode-toggle-label"
-                        data-i18n="modeNormal"
-                        >NORMAL</span
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
                     >
-                </label>
+                        <path
+                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+                        />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                </button>
             </header>
 
             <div id="capture-overlay" class="capture-overlay">
@@ -381,7 +390,6 @@
                                 max="16384"
                                 value="7000"
                             />
-                            <span class="resolution-px">px</span>
                         </div>
                     </section>
 
@@ -458,161 +466,220 @@
                             >
                                 Remove Elements
                             </button>
-                            <button
-                                id="manual-cleanup"
-                                class="btn-helper"
-                                data-i18n="cleanup"
-                            >
-                                Cleanup
-                            </button>
                         </div>
                     </section>
                 </div>
 
-                <div id="view-expert" hidden>
+                <div id="view-settings" hidden>
                     <section>
-                        <div class="expert-header" data-i18n="expertMode">
-                            Expert Mode
+                        <div class="settings-header" data-i18n="settingsTitle">
+                            Settings
                         </div>
                     </section>
 
                     <div class="divider"></div>
 
-                    <section>
-                        <div id="filter-manager" class="filter-manager">
-                            <div class="section-label" data-i18n="addFilter">
-                                Add filter
-                            </div>
-                            <div class="filter-scope radio-group">
-                                <input
-                                    type="radio"
-                                    id="scope-host"
-                                    name="filter-scope"
-                                    value="host"
-                                    checked
-                                />
-                                <label
-                                    for="scope-host"
-                                    id="scope-host-label"
-                                    data-i18n="scopeHost"
-                                >
-                                    This host
-                                </label>
-                                <input
-                                    type="radio"
-                                    id="scope-global"
-                                    name="filter-scope"
-                                    value="global"
-                                />
-                                <label
-                                    for="scope-global"
-                                    data-i18n="scopeGlobal"
-                                    >All hosts</label
-                                >
-                            </div>
-                            <div class="filter-add-row">
-                                <input
-                                    type="text"
-                                    id="filter-input"
-                                    placeholder='CSS selector, or paste class="…" / <div …>'
-                                    data-i18n-ph="phFilterInput"
-                                    spellcheck="false"
-                                    autocomplete="off"
-                                />
-                                <button
-                                    id="filter-add"
-                                    class="btn-helper"
-                                    data-i18n="btnAdd"
-                                >
-                                    Add
-                                </button>
-                            </div>
-                            <label class="filter-parent" for="filter-parent">
-                                <input type="checkbox" id="filter-parent" />
-                                <span data-i18n="targetParent"
-                                    >Target parent element</span
-                                >
-                            </label>
-                            <div
-                                id="filter-preview"
-                                class="filter-preview"
-                                hidden
-                            ></div>
-
-                            <div class="filter-list-block">
-                                <div class="section-label">
-                                    <span data-i18n="filterListFor">For</span>
-                                    <span id="filter-host" class="filter-host"
-                                        >…</span
-                                    >
-                                </div>
-                                <ul id="filter-list" class="filter-list"></ul>
-                            </div>
-
-                            <div class="filter-list-block">
-                                <div
-                                    class="section-label"
-                                    data-i18n="scopeGlobal"
-                                >
-                                    All hosts
-                                </div>
-                                <ul
-                                    id="filter-list-global"
-                                    class="filter-list"
-                                ></ul>
-                            </div>
-                        </div>
-                    </section>
-
-                    <div class="divider"></div>
-
-                    <section>
-                        <button
-                            id="export-filters"
-                            class="btn-helper btn-helper--expert"
-                            data-i18n="exportFilters"
-                        >
-                            Export Filters
-                        </button>
-                        <label class="filter-parent" for="disable-bundled">
-                            <input type="checkbox" id="disable-bundled" />
-                            <span data-i18n="disableBundled"
-                                >Disable bundled filters</span
-                            >
-                        </label>
-                        <button
-                            id="clear-domain-filters"
-                            class="btn-helper btn-helper--expert"
-                            data-i18n="clearDomainFilters"
-                        >
-                            Clear Domain Filters
-                        </button>
-                        <button
-                            id="clear-global-filters"
-                            class="btn-helper btn-helper--expert"
-                            data-i18n="clearGlobalFilters"
-                        >
-                            Clear Global Filters
-                        </button>
-                    </section>
-
-                    <div class="divider"></div>
-
+                    <!-- Output -->
                     <section>
                         <div class="section-label" data-i18n="output">
                             Output
                         </div>
-                        <label class="filter-parent" for="reencode-opaque">
-                            <input type="checkbox" id="reencode-opaque" />
-                            <span data-i18n="reencodeOpaque"
-                                >Re-encode PNG opaque</span
+                        <div class="radio-group" id="format-group">
+                            <input
+                                type="radio"
+                                id="fmt-png"
+                                name="output-format"
+                                value="png"
+                                checked
+                            />
+                            <label for="fmt-png" data-i18n="fmtPng">PNG</label>
+                            <input
+                                type="radio"
+                                id="fmt-jpeg"
+                                name="output-format"
+                                value="jpeg"
+                            />
+                            <label for="fmt-jpeg" data-i18n="fmtJpeg"
+                                >JPEG</label
+                            >
+                        </div>
+                        <div class="setting-slider" id="jpeg-quality-row" hidden>
+                            <span class="setting-slider-label">
+                                <span data-i18n="jpegQuality">JPEG quality</span>
+                                <span id="jpeg-quality-value">92%</span>
+                            </span>
+                            <input
+                                type="range"
+                                id="jpeg-quality"
+                                min="50"
+                                max="100"
+                                step="1"
+                                value="92"
+                            />
+                        </div>
+                        <!-- Re-encode is meaningless for JPEG (no alpha) —
+                             popup.js hides this block in JPEG mode. -->
+                        <div id="reencode-block">
+                            <div class="setting-divider"></div>
+                            <label class="setting-row" for="reencode-opaque">
+                                <input type="checkbox" id="reencode-opaque" />
+                                <span data-i18n="reencodeOpaque"
+                                    >Re-encode PNG opaque</span
+                                >
+                            </label>
+                            <p class="setting-note" data-i18n="reencodeNote">
+                                Flattens captures onto a white background and
+                                strips the alpha channel and colour-profile
+                                chunks. Fixes Adobe ScriptUI / Direct2D drawbot
+                                panels that reject the screenshots (HRESULT
+                                0x80070057).
+                            </p>
+                        </div>
+                    </section>
+
+                    <div class="divider"></div>
+
+                    <!-- Downloads -->
+                    <section>
+                        <div class="section-label" data-i18n="downloads">
+                            Downloads
+                        </div>
+                        <label class="setting-row" for="skip-save-dialog">
+                            <input type="checkbox" id="skip-save-dialog" />
+                            <span data-i18n="skipSaveDialog"
+                                >Skip the "Save as" dialog</span
                             >
                         </label>
-                        <p class="expert-note" data-i18n="expertNote">
-                            Flattens captures onto a white background and strips
-                            the alpha channel and colour-profile chunks. Fixes
-                            Adobe ScriptUI / Direct2D drawbot panels that reject
-                            the screenshots (HRESULT 0x80070057).
+                        <p class="setting-note" data-i18n="skipSaveNote">
+                            Downloads land straight in your default Downloads
+                            folder without a save prompt.
+                        </p>
+                        <div class="setting-divider"></div>
+                        <div class="setting-label" data-i18n="filenamePrefix">
+                            Filename prefix
+                        </div>
+                        <input
+                            type="text"
+                            id="filename-prefix"
+                            class="setting-text"
+                            placeholder="e.g. project-name"
+                            data-i18n-ph="phFilenamePrefix"
+                            spellcheck="false"
+                            autocomplete="off"
+                        />
+                        <p class="setting-note" data-i18n="filenamePrefixNote">
+                            Prepended to every saved file:
+                            prefix-domain-timestamp.png
+                        </p>
+                    </section>
+
+                    <div class="divider"></div>
+
+                    <!-- Capture -->
+                    <section>
+                        <div class="section-label" data-i18n="captureSection">
+                            Capture
+                        </div>
+                        <label class="setting-row" for="default-crop">
+                            <input type="checkbox" id="default-crop" />
+                            <span data-i18n="defaultCrop"
+                                >Always open the crop editor</span
+                            >
+                        </label>
+                        <p class="setting-note" data-i18n="defaultCropNote">
+                            Every capture goes straight to the crop editor. The
+                            separate "with crop" buttons are hidden while this is
+                            on.
+                        </p>
+                        <div class="setting-divider"></div>
+                        <div class="setting-label" data-i18n="fullPageCap">
+                            Full-page height limit (px)
+                        </div>
+                        <input
+                            type="number"
+                            id="fullpage-cap"
+                            class="setting-text setting-number"
+                            min="1000"
+                            max="16384"
+                            step="100"
+                            value="16000"
+                        />
+                        <p class="setting-note" data-i18n="fullPageCapNote">
+                            Caps the Full Page preset and Auto Capture height.
+                            Hard maximum is 16384 px (Chrome's limit).
+                        </p>
+                    </section>
+
+                    <div class="divider"></div>
+
+                    <!-- Appearance -->
+                    <section>
+                        <div class="section-label" data-i18n="appearance">
+                            Appearance
+                        </div>
+                        <div class="setting-label" data-i18n="theme">Theme</div>
+                        <div class="radio-group" id="theme-group">
+                            <input
+                                type="radio"
+                                id="theme-auto"
+                                name="theme"
+                                value="auto"
+                                checked
+                            />
+                            <label for="theme-auto" data-i18n="themeAuto"
+                                >Auto</label
+                            >
+                            <input
+                                type="radio"
+                                id="theme-light"
+                                name="theme"
+                                value="light"
+                            />
+                            <label for="theme-light" data-i18n="themeLight"
+                                >Light</label
+                            >
+                            <input
+                                type="radio"
+                                id="theme-dark"
+                                name="theme"
+                                value="dark"
+                            />
+                            <label for="theme-dark" data-i18n="themeDark"
+                                >Dark</label
+                            >
+                        </div>
+                        <div class="setting-divider"></div>
+                        <div class="setting-label" data-i18n="language">
+                            Language
+                        </div>
+                        <div class="radio-group" id="lang-group">
+                            <input
+                                type="radio"
+                                id="lang-auto"
+                                name="lang"
+                                value="auto"
+                                checked
+                            />
+                            <label for="lang-auto" data-i18n="langAuto"
+                                >Auto</label
+                            >
+                            <input
+                                type="radio"
+                                id="lang-en"
+                                name="lang"
+                                value="en"
+                            />
+                            <label for="lang-en">English</label>
+                            <input
+                                type="radio"
+                                id="lang-ru"
+                                name="lang"
+                                value="ru"
+                            />
+                            <label for="lang-ru">Русский</label>
+                        </div>
+                        <p class="setting-note" data-i18n="langNote">
+                            Overrides the browser language for this popup.
                         </p>
                     </section>
                 </div>
@@ -656,28 +723,13 @@
                     <div class="help-block" data-i18n-html="helpQuality"></div>
                     <div class="help-block" data-i18n-html="helpHelpers"></div>
                 </div>
-
-                <div id="help-content-expert" class="help-content" hidden>
-                    <h3 class="help-title" data-i18n="helpTitleExpert">
-                        How filters work
-                    </h3>
-                    <div class="help-block" data-i18n-html="helpTiers"></div>
-                    <div
-                        class="help-block"
-                        data-i18n-html="helpAddingFilters"
-                    ></div>
-                    <div class="help-block" data-i18n-html="helpManaging"></div>
-                    <div
-                        class="help-block"
-                        data-i18n-html="helpExporting"
-                    ></div>
-                </div>
             </div>
 
             <div id="status" class="status"></div>
         </div>
 
         <script src="brandMark.js"></script>
+        <script src="localize.js"></script>
         <script src="i18n.js"></script>
         <script src="popup.js"></script>
     </body>

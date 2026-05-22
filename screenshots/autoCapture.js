@@ -41,6 +41,17 @@ export const SITE_MODULES = {
 };
 
 const FULL_PAGE_HEIGHT_CAP = 16000; // CDP cap is 16384; leave headroom
+const CDP_MAX_DIMENSION   = 16384; // hard CDP limit on Page.captureScreenshot
+
+// User-configurable full-page height cap (Settings panel). Falls back to the
+// built-in default; always clamped to the CDP hard limit.
+async function getFullPageHeightCap() {
+    const { fullPageHeightCap } =
+        await chrome.storage.local.get("fullPageHeightCap");
+    const cap = Number(fullPageHeightCap);
+    if (!Number.isFinite(cap) || cap <= 0) return FULL_PAGE_HEIGHT_CAP;
+    return Math.min(cap, CDP_MAX_DIMENSION);
+}
 
 // URL gates for the popup's detect prompt. Without these, DOM selectors
 // like `article` (Instagram), `[data-pagelet="GroupFeed"]` (Facebook), or
@@ -123,6 +134,9 @@ function measurePageHeight(tabId) {
     });
 }
 
+// FROZEN: the AdRemover / cleanup feature is obsoleted. runAdRemover is no
+// longer called by the capture flows below. Code kept intact — to re-enable,
+// see FROZEN-CLEANUP.md. (Function retained so re-enabling is a one-line change.)
 async function runAdRemover(tabId) {
     try {
         await refreshIfStale();
@@ -167,11 +181,12 @@ async function captureFullPage(tabId, scale, screenshotSuffix, deliveryOptions =
     // narrowed width keeps that layout intact, so the measured height
     // still applies directly.
     const pageHeight = await measurePageHeight(tabId);
+    const heightCap = await getFullPageHeightCap();
     await emulateCaptureViewport(
         tabId,
         {
             width: Math.round(1920 / zoom),
-            height: Math.min(pageHeight, FULL_PAGE_HEIGHT_CAP),
+            height: Math.min(pageHeight, heightCap),
             deviceScaleFactor: scale * zoom,
             mobile: false,
         },
@@ -183,7 +198,7 @@ async function captureFullPage(tabId, scale, screenshotSuffix, deliveryOptions =
 export async function runAutoCapture({ tabId, url, settings, screenshotSuffix }) {
     const scale = settings.deviceScaleFactor || 2;
 
-    await runAdRemover(tabId);
+    // FROZEN: await runAdRemover(tabId);  — see FROZEN-CLEANUP.md
 
     const host = new URL(url).hostname;
     await captureFullPage(tabId, scale, `auto-${screenshotSuffix}`, {
@@ -225,7 +240,7 @@ export async function captureSiteElement({ tabId, url, settings, screenshotSuffi
     const moduleName = pickModule(host);
     if (!moduleName) throw new Error(`No site module for ${host}`);
 
-    await runAdRemover(tabId);
+    // FROZEN: await runAdRemover(tabId);  — see FROZEN-CLEANUP.md
     const plan = await injectSiteModule(tabId, moduleName, { detectOnly: false });
 
     if (plan?.mode !== "element" || !plan.xpath) {

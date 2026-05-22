@@ -30,11 +30,6 @@
         "scripting",
         "storage"
     ],
-    "host_permissions": [
-        "https://easylist.to/*",
-        "https://raw.githubusercontent.com/*",
-        "https://cdn.jsdelivr.net/*"
-    ],
     "content_security_policy": {
         "extension_pages": "script-src 'self'; object-src 'self';"
     }

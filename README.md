@@ -26,14 +26,20 @@ All captures start from the toolbar popup.
 - **Capture this post / story** — appears at the top of the popup only when the
   active tab is a single post or story on a supported social site. One click
   cleans up the page and captures just that post/story element.
-- **Auto Capture** — one-click full-page capture: removes ads, runs per-host
-  cleanup, then captures the full page at the selected scale.
+- **Auto Capture** — one-click full-page capture at the selected scale.
 - **Page Capture** — captures the page at a chosen resolution preset and scale.
 - **Capture Element** — interactively pick any DOM element: hover to highlight
   (cyan glow), scroll wheel to walk the DOM tree (up = parent, down = child),
   click to capture.
 
-PNGs download as `page-…` / `element-…` named with the domain and a timestamp.
+Each capture button is split: the main button captures and saves directly,
+the narrow **with crop** segment routes the shot through the crop editor
+first. When **Always open the crop editor** is enabled in Settings, every
+capture goes to the editor and the separate segments are hidden.
+
+Captures download as `page-…` / `element-…` named with the domain and a
+timestamp (and an optional filename prefix set in Settings). Output format is
+PNG by default, or JPEG — both configurable in Settings.
 
 ## Resolution presets (Page Capture)
 
@@ -65,29 +71,29 @@ Capture.
 
 ## Helpers
 
-- **Cleanup** — runs the cleanup pipeline (ad removal + per-host framing
-  cleanup) on the current page without capturing.
 - **Remove Elements** — interactive click-to-remove tool. Hover + scroll wheel
   to target, click to delete an element; **Ctrl/Cmd+Z** undoes the last
-  removal. Each removal is also saved as a reusable selector for that host.
+  removal.
 
-## Expert mode
+## Settings
 
-Toggle **Expert** in the header to manage filters:
+The header **gear** icon opens the Settings panel:
 
-- Add / remove user filter selectors, per-host or global.
-- Export collected filters as JSON, clear domain or global filters.
-- Disable the bundled filter list; optionally re-encode captures as opaque PNG.
+- **Output** — PNG or JPEG; JPEG quality slider; re-encode PNG as opaque
+  (flattens onto white and strips alpha / colour-profile chunks, fixing Adobe
+  ScriptUI / Direct2D panels that reject the screenshots — on by default,
+  hidden in JPEG mode).
+- **Downloads** — skip the "Save as" dialog; filename prefix prepended to
+  every saved file.
+- **Capture** — always open the crop editor; full-page height limit
+  (capped at Chrome's 16384 px maximum).
+- **Appearance** — theme override (Auto / Light / Dark) and language override
+  (Auto / English / Русский) for the popup.
 
-## Cleanup & ad removal
-
-Cleanup merges three filter tiers — upstream **EasyList**, a **bundled**
-curated list shipped with the extension, and **user** selectors collected via
-Remove Elements — and applies them as CSS-selector node removal, plus a small
-hand-curated per-host pass for screenshot framing.
-
-MV3-safe: only filter *lists* (CSS selectors / URL patterns) are fetched at
-runtime — never remote JavaScript.
+> The **Cleanup / Filters** feature (EasyList ad removal, the bundled + user
+> filter lists, the Expert-mode filter manager) is frozen and disabled. The
+> code is left intact but unwired — see [FROZEN-CLEANUP.md](FROZEN-CLEANUP.md)
+> to re-enable it.
 
 ## How it works
 
@@ -95,7 +101,7 @@ runtime — never remote JavaScript.
 2. Emulate device metrics (`Emulation.setDeviceMetricsOverride`).
 3. Wait for the page to settle (MutationObserver-based).
 4. Capture with `Page.captureScreenshot`.
-5. Detach and download the PNG. Element captures are cropped from the
-   viewport shot in JS (`OffscreenCanvas`) for accuracy.
+5. Detach and download the image (PNG/JPEG per Settings). Element captures are
+   cropped from the viewport shot in JS (`OffscreenCanvas`) for accuracy.
 
 See [CLAUDE.md](CLAUDE.md) for the full architecture reference.

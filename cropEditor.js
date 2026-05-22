@@ -428,15 +428,45 @@
         const sw = Math.round(box.w / displayScale);
         const sh = Math.round(box.h / displayScale);
 
+        // Output settings — shared with the popup's Settings panel.
+        const {
+            outputFormat,
+            jpegQuality,
+            skipSaveDialog,
+            reencodeOpaquePng,
+        } = await chrome.storage.local.get([
+            "outputFormat",
+            "jpegQuality",
+            "skipSaveDialog",
+            "reencodeOpaquePng",
+        ]);
+        const jpeg = outputFormat === "jpeg";
+        // JPEG has no alpha; opaque PNG re-encode also wants a flat white
+        // backing. Either way: drop alpha and paint white before drawing.
+        const opaque = jpeg || reencodeOpaquePng !== false;
+
         const out = new OffscreenCanvas(sw, sh);
-        const octx = out.getContext("2d");
+        const octx = out.getContext("2d", { alpha: !opaque });
+        if (opaque) {
+            octx.fillStyle = "#ffffff";
+            octx.fillRect(0, 0, sw, sh);
+        }
         octx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
-        const blob = await out.convertToBlob({ type: "image/png" });
+        const blob = await out.convertToBlob(
+            jpeg
+                ? {
+                      type: "image/jpeg",
+                      quality:
+                          typeof jpegQuality === "number" ? jpegQuality : 0.92,
+                  }
+                : { type: "image/png" }
+        );
+        const outName = jpeg ? filename.replace(/\.png$/i, ".jpg") : filename;
         const url = URL.createObjectURL(blob);
         try {
             await new Promise((resolve, reject) => {
                 chrome.downloads.download(
-                    { url, filename, saveAs: true },
+                    { url, filename: outName, saveAs: skipSaveDialog !== true },
                     (id) => {
                         const err = chrome.runtime.lastError;
                         if (err) return reject(new Error(err.message));

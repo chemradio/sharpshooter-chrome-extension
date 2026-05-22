@@ -9,21 +9,24 @@ import {
 
 addElementClickedListener();
 
-// Hydrate adblock filters on browser start and on install/update. These
-// are the two events that fire predictably across a service-worker lifetime;
-// "Remove ADs" itself lazily refreshes via refreshIfStale() as a fallback.
-const logRefreshFailure = (where) => (e) =>
-    console.error(`filter refresh on ${where} failed:`, e);
-
-chrome.runtime.onStartup.addListener(() => {
-    refreshFilters().catch(logRefreshFailure("startup"));
-});
-chrome.runtime.onInstalled.addListener(() => {
-    refreshFilters().catch(logRefreshFailure("install"));
-    loadBundledFilters().catch((e) =>
-        console.error("bundled-filter load failed:", e)
-    );
-});
+// ─── FROZEN: Cleanup / AdRemover feature ──────────────────────────────────────
+// The cleanup feature (EasyList fetching, bundled + user filters) is obsoleted.
+// The hydration listeners below are disabled so the extension makes no network
+// requests and needs no host_permissions. The code is left intact — see
+// FROZEN-CLEANUP.md for how to re-enable it.
+//
+// const logRefreshFailure = (where) => (e) =>
+//     console.error(`filter refresh on ${where} failed:`, e);
+//
+// chrome.runtime.onStartup.addListener(() => {
+//     refreshFilters().catch(logRefreshFailure("startup"));
+// });
+// chrome.runtime.onInstalled.addListener(() => {
+//     refreshFilters().catch(logRefreshFailure("install"));
+//     loadBundledFilters().catch((e) =>
+//         console.error("bundled-filter load failed:", e)
+//     );
+// });
 
 // Pull the in-repo curated filter list into storage so adRemover can read it
 // alongside EasyList + userFilters. Runs on install AND every extension update
