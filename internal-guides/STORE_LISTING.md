@@ -19,13 +19,15 @@ page, a chosen resolution, or a single element you click on.
   FullHD, 4K) or a custom size, at up to 4× pixel density.
 - **Capture Element** — hover any element, scroll to change depth, click to
   capture just that part of the page.
-- **Auto Capture** — one-click full-page capture with ad and clutter removal.
+- **Auto Capture** — one-click full-page capture.
 - **Post / story capture** — on Facebook, Instagram, Telegram, X and VK,
   detects a post or story and captures it without surrounding clutter.
-- **Cleanup helpers** — remove ads and distracting elements before capturing.
+- **Crop editor** — optionally route any capture through a built-in crop editor.
+- **Remove Elements** — manually click to remove distracting elements from the
+  page before capturing.
 
-All processing happens locally in your browser. No data is collected or sent
-anywhere.
+All processing happens locally in your browser. No data is collected, and the
+extension makes no network requests.
 
 ## Permission justifications
 
@@ -43,12 +45,11 @@ detached immediately after.
 Used to save the captured screenshot image file to the user's Downloads folder.
 
 **scripting**
-Used to inject the extension's own bundled scripts (element highlighter, page
-cleanup, and page-height measurement) into the tab being captured.
+Used to inject the extension's own bundled scripts (element highlighter and
+page-height measurement) into the tab being captured.
 
 **storage**
-Used to store cosmetic filter lists and the user's capture preferences locally
-on the user's device.
+Used to store the user's capture preferences locally on the user's device.
 
 **activeTab**
 Screenshot capture acts on the tab the user explicitly invokes the extension
@@ -56,17 +57,12 @@ on. activeTab grants access to that single tab only when the user opens the
 popup or clicks a capture button — the extension does not request standing
 access to all websites.
 
-**Host permissions (easylist.to, raw.githubusercontent.com, cdn.jsdelivr.net)**
-The extension downloads a public plain-text cosmetic filter list (CSS
-selectors) used to remove ads and clutter before a screenshot. These three
-hosts are the source and mirrors for that list. Host access is limited to
-exactly these domains; page capture itself relies on activeTab, not host
-permissions.
+**Host permissions**
+None. The extension requests no host permissions.
 
 **Remote code use**
-The extension does not execute remote code. It downloads a public plain-text
-cosmetic filter list (CSS selectors) from easylist.to and applies those
-selectors locally. No JavaScript is fetched or evaluated from any remote source.
+The extension does not execute remote code and makes no network requests. All
+scripts are bundled with the extension.
 
 ## Data usage disclosures (Privacy tab — check these)
 

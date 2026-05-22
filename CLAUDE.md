@@ -6,7 +6,7 @@ This document describes the current implementation. Aspirational features are sp
 
 > **Frozen:** the **Cleanup / Filters** feature (EasyList fetching, bundled +
 > user filters, AdRemover, the Expert-mode filter manager) is obsoleted and
-> disabled. The code is left intact but unwired — see [FROZEN-CLEANUP.md](FROZEN-CLEANUP.md).
+> disabled. The code is left intact but unwired — see [FROZEN-CLEANUP.md](internal-guides/FROZEN-CLEANUP.md).
 > Sections below that describe Cleanup / AdRemover / Expert mode reflect the
 > pre-freeze design and no longer run. "Expert mode" is now a **Settings**
 > panel (gear icon) — output format (PNG/JPEG + quality), opaque PNG re-encode

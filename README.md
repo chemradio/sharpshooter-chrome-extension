@@ -92,7 +92,7 @@ The header **gear** icon opens the Settings panel:
 
 > The **Cleanup / Filters** feature (EasyList ad removal, the bundled + user
 > filter lists, the Expert-mode filter manager) is frozen and disabled. The
-> code is left intact but unwired — see [FROZEN-CLEANUP.md](FROZEN-CLEANUP.md)
+> code is left intact but unwired — see [FROZEN-CLEANUP.md](internal-guides/FROZEN-CLEANUP.md)
 > to re-enable it.
 
 ## How it works
