@@ -636,8 +636,10 @@
         }
 
         // Ctrl+Z (Win/Linux) / Cmd+Z (Mac) — reinsert the last removed element.
+        // Match on e.code (physical key) so it works on non-Latin layouts —
+        // e.key would be "я" on a Russian layout and never match "z".
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey &&
-            (e.key === "z" || e.key === "Z")) {
+            e.code === "KeyZ") {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
