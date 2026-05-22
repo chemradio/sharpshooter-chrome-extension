@@ -146,6 +146,71 @@
         stage.scrollTop  += (wr.top  + wr.height / 2) - (sr.top  + sr.height / 2);
     }
 
+    // Scroll the stage so the crop box is centered in the visible viewport.
+    function centerViewOnBox() {
+        const boxCenterX = wrap.offsetLeft + box.x + box.w / 2;
+        const boxCenterY = wrap.offsetTop  + box.y + box.h / 2;
+        stage.scrollLeft = boxCenterX - stage.clientWidth  / 2;
+        stage.scrollTop  = boxCenterY - stage.clientHeight / 2;
+    }
+
+    // Animate userZoom → targetUserZoom over a short ease, keeping the crop
+    // box centered in the viewport throughout. cancelZoomAnim() stops any
+    // in-flight animation so a fresh gesture (wheel, drag) takes over cleanly.
+    let zoomAnim = null;
+
+    function cancelZoomAnim() {
+        if (zoomAnim != null) {
+            cancelAnimationFrame(zoomAnim);
+            zoomAnim = null;
+        }
+    }
+
+    function animateZoomTo(targetUserZoom) {
+        cancelZoomAnim();
+        const startZoom = userZoom;
+        const startTime = performance.now();
+        const DURATION  = 220;   // ms
+        function frame(now) {
+            const t = Math.min(1, (now - startTime) / DURATION);
+            // easeInOutQuad
+            const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            const oldScale = displayScale;
+            userZoom = startZoom + (targetUserZoom - startZoom) * e;
+            applyDisplayScale();
+            rescaleBoxAfterFit(oldScale, displayScale);
+            centerViewOnBox();
+            zoomAnim = t < 1 ? requestAnimationFrame(frame) : null;
+        }
+        zoomAnim = requestAnimationFrame(frame);
+    }
+
+    // Auto-zoom so the crop box fills ~75% of the stage (≈12% slack on each
+    // side), leaving room for the user to keep resizing comfortably. Called
+    // after a resize drag finishes — a tiny crop on a huge page is awkward
+    // to fine-tune at fit scale.
+    function zoomToFitBox() {
+        if (!bitmap || box.w < MIN_BOX || box.h < MIN_BOX) return;
+        const imgW = box.w / displayScale;
+        const imgH = box.h / displayScale;
+        if (imgW < 1 || imgH < 1) return;
+
+        const FILL = 0.75;   // crop box target fraction of the stage
+        const target = Math.min(
+            (stage.clientWidth  * FILL) / imgW,
+            (stage.clientHeight * FILL) / imgH
+        );
+        const newUserZoom = Math.max(
+            MIN_USER_ZOOM, Math.min(MAX_USER_ZOOM, target / fitScale)
+        );
+        // Only zoom IN. If the user is already zoomed in past what the fit
+        // would set, they're finessing crop points — leave their zoom and
+        // scroll position untouched.
+        if (newUserZoom <= userZoom + 1e-3) return;
+
+        animateZoomTo(newUserZoom);
+    }
+
     function rescaleBoxAfterFit(oldScale, newScale) {
         if (!oldScale || oldScale === newScale) return;
         const k = newScale / oldScale;
@@ -186,6 +251,7 @@
     function startDrag(kind, handle, ev) {
         ev.preventDefault();
         ev.stopPropagation();
+        cancelZoomAnim();
         drag = {
             kind,
             handle,
@@ -240,8 +306,10 @@
 
     function endDrag() {
         if (!drag) return;
+        const wasResize = drag.kind === "resize";
         drag = null;
         document.body.style.userSelect = "";
+        if (wasResize) zoomToFitBox();
     }
 
     cropBox.addEventListener("pointerdown", (ev) => {
@@ -272,6 +340,7 @@
     stage.addEventListener("wheel", (ev) => {
         if (ev.ctrlKey) return;
         ev.preventDefault();
+        cancelZoomAnim();
 
         const stageRect = stage.getBoundingClientRect();
         const cursorStageX = ev.clientX - stageRect.left + stage.scrollLeft;
