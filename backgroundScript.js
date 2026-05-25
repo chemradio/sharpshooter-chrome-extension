@@ -1,5 +1,6 @@
 import { emulateCaptureViewport } from "./screenshots/emulatedViewportCapture.js";
 import { addElementClickedListener } from "./screenshots/elementSelect/elementClickListener.js";
+import { withZoomReset } from "./support/zoomReset.js";
 import { refreshFilters, refreshIfStale } from "./adRemover/refreshFilters.js";
 import {
     runAutoCapture,
@@ -258,10 +259,16 @@ async function handleAction(request) {
 
         case "getViewportSize": {
             if (isRestrictedUrl(tab.url)) return { width: null, height: null };
+            // Report CSS-pixel viewport (window.innerWidth/Height). This is
+            // the actual layout width the page is using at the user's current
+            // zoom — at 175% zoom on a 2560px monitor that's 1462. The User
+            // preset captures this exact layout, so the popup number reflects
+            // the layout pixels available. Output pixel size = this × the
+            // quality multiplier.
             const [{ result } = {}] = await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 func: () => ({
-                    width: window.innerWidth,
+                    width:  window.innerWidth,
                     height: window.innerHeight,
                 }),
             });
@@ -269,27 +276,22 @@ async function handleAction(request) {
         }
 
         case "capturePage": {
-            const zoom = await chrome.tabs.getZoom(tab.id).catch(() => 1);
-            // Honor the user's browser zoom: emulate a CSS viewport narrower
-            // by `zoom`, and bump deviceScaleFactor by the same factor so the
-            // output pixel size matches the user-selected resolution. For the
-            // Full Page preset the height was already measured at the user's
-            // current zoom (CSS-pixel scrollHeight in the live viewport),
-            // so dividing it again would cut the bottom of the page off.
-            const isFullPage = settings.layout === "fullpage";
-            const deviceMetrics = {
-                ...baseMetrics,
-                width: Math.round(baseMetrics.width / zoom),
-                height: isFullPage
-                    ? baseMetrics.height
-                    : Math.round(baseMetrics.height / zoom),
-                deviceScaleFactor: baseMetrics.deviceScaleFactor * zoom,
-            };
-            await emulateCaptureViewport(
-                tab.id,
-                deviceMetrics,
-                screenshotSuffix,
-                { manualCrop: !!settings.manualCrop }
+            // Zoom is reset to 1 during capture (renderer otherwise fights
+            // Chrome's browser-zoom transform and produces wrong layouts).
+            // Emulate the literal requested CSS-px width — for the User /
+            // Full Page / Vertical presets the popup sourced this from
+            // innerWidth, so it matches the layout the user actually sees;
+            // for FullHD / 4K / Custom the user picked a fixed CSS-px target
+            // (desktop layout, regardless of their zoom). deviceScaleFactor
+            // is the quality multiplier only — output size depends solely on
+            // scale, not on the user's zoom.
+            await withZoomReset(tab.id, () =>
+                emulateCaptureViewport(
+                    tab.id,
+                    baseMetrics,
+                    screenshotSuffix,
+                    { manualCrop: !!settings.manualCrop }
+                )
             );
             return {};
         }

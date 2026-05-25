@@ -4,6 +4,7 @@ import {
     injectMutationWatcher,
     waitForMutationSettle,
 } from "../../support/mutationObserver.js";
+import { withZoomReset } from "../../support/zoomReset.js";
 import { takeScreenshotClip } from "../capture/captureScreenshot.js";
 import { downloadScreenshot } from "../capture/downloadScreenshot.js";
 
@@ -162,46 +163,6 @@ async function reEmulate(tabId, metrics) {
     });
     await injectMutationWatcher(tabId);
     await waitForMutationSettle(tabId);
-}
-
-// ─── Zoom reset ──────────────────────────────────────────────────────────
-//
-// Page.captureScreenshot renders at emulatedDPR × browserZoom pixels, but
-// getBoundingClientRect returns CSS coords that only account for emulatedDPR.
-// At 110% zoom the screenshot is 10% wider/taller than expected and the crop
-// misses. Fix: reset zoom to 1 before capture, restore after.
-
-const getZoom = (tabId) =>
-    new Promise((resolve, reject) =>
-        chrome.tabs.getZoom(tabId, (z) => {
-            const err = chrome.runtime.lastError;
-            if (err) return reject(new Error(err.message));
-            resolve(z);
-        })
-    );
-
-const setZoom = (tabId, zoom) =>
-    new Promise((resolve, reject) =>
-        chrome.tabs.setZoom(tabId, zoom, () => {
-            const err = chrome.runtime.lastError;
-            if (err) return reject(new Error(err.message));
-            resolve();
-        })
-    );
-
-async function withZoomReset(tabId, fn) {
-    const originalZoom = await getZoom(tabId);
-    const needsReset = Math.abs(originalZoom - 1) > 0.001;
-    if (needsReset) {
-        await setZoom(tabId, 1);
-    }
-    try {
-        return await fn();
-    } finally {
-        if (needsReset) {
-            await setZoom(tabId, originalZoom).catch(() => {});
-        }
-    }
 }
 
 // ─── Crop ────────────────────────────────────────────────────────────────────

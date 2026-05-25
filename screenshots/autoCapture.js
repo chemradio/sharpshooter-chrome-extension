@@ -18,6 +18,7 @@
 import { emulateCaptureViewport } from "./emulatedViewportCapture.js";
 import { captureElement } from "./elementSelect/elementClickListener.js";
 import { refreshIfStale } from "../adRemover/refreshFilters.js";
+import { withZoomReset } from "../support/zoomReset.js";
 
 // hostname → site module file (under contentScripts/sites/<name>.js)
 export const SITE_MODULES = {
@@ -134,6 +135,22 @@ function measurePageHeight(tabId) {
     });
 }
 
+function measureInnerWidth(tabId) {
+    return new Promise((resolve, reject) => {
+        chrome.scripting.executeScript(
+            {
+                target: { tabId },
+                func: () => window.innerWidth,
+            },
+            (results) => {
+                if (chrome.runtime.lastError)
+                    return reject(new Error(chrome.runtime.lastError.message));
+                resolve(results?.[0]?.result ?? 1920);
+            }
+        );
+    });
+}
+
 // FROZEN: the AdRemover / cleanup feature is obsoleted. runAdRemover is no
 // longer called by the capture flows below. Code kept intact — to re-enable,
 // see FROZEN-CLEANUP.md. (Function retained so re-enabling is a one-line change.)
@@ -174,24 +191,28 @@ async function injectSiteModule(tabId, moduleName, options) {
 }
 
 async function captureFullPage(tabId, scale, screenshotSuffix, deliveryOptions = {}) {
-    const zoom = await chrome.tabs.getZoom(tabId).catch(() => 1);
-    // pageHeight is measured in live-viewport CSS pixels, which already
-    // reflect the user's zoom (the layout viewport narrows under zoom,
-    // and scrollHeight is reported in that frame). Emulating the same
-    // narrowed width keeps that layout intact, so the measured height
-    // still applies directly.
+    // Use the user's actual innerWidth so the captured layout matches what
+    // the user sees in their browser (at high zoom this is narrower than
+    // 1920; at low zoom on a wide monitor it could be wider). Both
+    // measurements are taken at the user's current zoom; layout is a
+    // function of CSS-pixel width so they transfer to the zoom=1 emulated
+    // session. deviceScaleFactor is the quality multiplier only — output
+    // size depends solely on scale, not on zoom.
+    const innerWidth = await measureInnerWidth(tabId);
     const pageHeight = await measurePageHeight(tabId);
     const heightCap = await getFullPageHeightCap();
-    await emulateCaptureViewport(
-        tabId,
-        {
-            width: Math.round(1920 / zoom),
-            height: Math.min(pageHeight, heightCap),
-            deviceScaleFactor: scale * zoom,
-            mobile: false,
-        },
-        screenshotSuffix,
-        deliveryOptions
+    await withZoomReset(tabId, () =>
+        emulateCaptureViewport(
+            tabId,
+            {
+                width: innerWidth,
+                height: Math.min(pageHeight, heightCap),
+                deviceScaleFactor: scale,
+                mobile: false,
+            },
+            screenshotSuffix,
+            deliveryOptions
+        )
     );
 }
 
@@ -248,11 +269,16 @@ export async function captureSiteElement({ tabId, url, settings, screenshotSuffi
     }
 
     // A site module may attach a `viewport` hint to its element plan when
-    // the default 1920×7000 capture frame is wrong for the target (e.g. a
-    // fixed-aspect Instagram story card). The element pipeline still
-    // auto-expands the viewport if the element exceeds it.
+    // the default capture frame is wrong for the target (e.g. a fixed-aspect
+    // Instagram story card). The element pipeline still auto-expands the
+    // viewport if the element exceeds it.
+    //
+    // Default width = the user's actual innerWidth so the captured layout
+    // matches what the user sees in their browser at their current zoom
+    // (sites render differently at 1920 desktop vs ~1462 zoomed-narrow).
+    const innerWidth = await measureInnerWidth(tabId);
     const deviceMetrics = {
-        width: 1920,
+        width: innerWidth,
         height: 7000,
         deviceScaleFactor: scale,
         mobile: false,

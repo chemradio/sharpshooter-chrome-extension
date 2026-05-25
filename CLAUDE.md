@@ -76,7 +76,7 @@ Click → background dispatches `captureSiteElement`, which:
 
 1. Runs AdRemover.
 2. Re-injects the site module with `detectOnly: false`. The module now runs its full pipeline: per-page-type DOM cleanup (remove comment-as toolbars, see-more buttons, sidebar panels; set `font-family`) and xpath build. Resolves with `{ mode: "element", xpath }`.
-3. Calls `captureElement()` (1920×7000 @ user scale, auto-expands up to 16384 px per the element pipeline).
+3. Calls `captureElement()` (defaults to `innerWidth`×7000 @ user scale so the captured layout matches what the user sees at their browser zoom; auto-expands up to 16384 px per the element pipeline; a site module may attach a `viewport` hint to override).
 
 If the post/story is no longer present by the time the user clicks (page navigated, post deleted), `captureSiteElement` throws "No element target detected" and the popup surfaces the error — it does **not** silently fall through to a full-page capture.
 
@@ -84,7 +84,7 @@ Profile and unknown pages have no entry in `PROMPT_LABELS` ([popup.js](popup.js)
 
 Supported sites: Facebook, Instagram, Telegram (t.me), X / Twitter, VK. Site modules are intentionally independent files so adding a host = drop a new file under [contentScripts/sites/](contentScripts/sites/) and add one line to `SITE_MODULES`. **Each module's IIFE must honor `window.__SiteOptions?.detectOnly`** — early-return with `{ mode: "detect", pageType }` before any DOM mutation, otherwise simply opening the popup will mutate the user's page.
 
-Site modules do not touch `document.body.style.zoom` — captures leave the user's zoom alone. Only element-mode capture changes zoom (via `chrome.tabs.setZoom`, restored after), and only when needed for accurate cropping.
+Site modules do not touch `document.body.style.zoom`. All capture paths (page, element, auto) wrap the emulated session in `withZoomReset` ([support/zoomReset.js](support/zoomReset.js)): the user's per-tab browser zoom is set to 1 for the duration of the capture, then restored. This is required for accurate element crops *and* for page-mode captures to produce the layout the user expects — at non-1 zoom, `Emulation.setDeviceMetricsOverride` and the browser zoom transform interact and the page lays out for the wrong width (e.g. at 175% zoom a "1920" request ends up emulating ~1097 CSS px, which forces social sites into their narrow/mobile layout).
 
 ---
 
