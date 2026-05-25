@@ -334,6 +334,20 @@ header {
     margin: 10px 0;
 }
 
+.divider--strong {
+    height: 3px;
+    background: linear-gradient(90deg,
+        transparent 0%, var(--accent) 15%, var(--accent) 85%, transparent 100%);
+    box-shadow: 0 0 8px var(--accent), 0 0 2px var(--accent);
+    margin: 16px 0;
+    opacity: 0.85;
+}
+
+.section-label--sub {
+    font-size: 9px;
+    opacity: 0.75;
+}
+
 section {
     display: flex;
     flex-direction: column;

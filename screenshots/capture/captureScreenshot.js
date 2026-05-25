@@ -1,3 +1,5 @@
+import { withOverlayHidden } from "../../support/captureOverlay.js";
+
 export const takeScreenshotClip = (tabId, clip = {}) => {
     const hasValidClip =
         clip.x != null &&
@@ -17,17 +19,19 @@ export const takeScreenshotClip = (tabId, clip = {}) => {
           }
         : {};
 
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand(
-            { tabId },
-            "Page.captureScreenshot",
-            params,
-            (result) => {
-                if (chrome.runtime.lastError)
-                    return reject(chrome.runtime.lastError);
-                console.log("Screenshot captured");
-                resolve(result.data);
-            }
-        );
-    });
+    return withOverlayHidden(tabId, () =>
+        new Promise((resolve, reject) => {
+            chrome.debugger.sendCommand(
+                { tabId },
+                "Page.captureScreenshot",
+                params,
+                (result) => {
+                    if (chrome.runtime.lastError)
+                        return reject(chrome.runtime.lastError);
+                    console.log("Screenshot captured");
+                    resolve(result.data);
+                }
+            );
+        })
+    );
 };

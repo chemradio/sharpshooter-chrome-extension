@@ -11,6 +11,7 @@
 
     "qualityMultiplier":  { "message": "Quality multiplier" },
     "autoCapture":        { "message": "Auto Capture" },
+    "manualCapture":      { "message": "Manual Capture" },
     "pageCapture":        { "message": "Page Capture" },
     "resolution":         { "message": "Resolution" },
     "presetUser":         { "message": "User" },

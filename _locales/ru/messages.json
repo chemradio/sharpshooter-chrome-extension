@@ -13,6 +13,7 @@
 
     "qualityMultiplier": { "message": "Качество" },
     "autoCapture": { "message": "Авто-снимок" },
+    "manualCapture": { "message": "Ручной режим" },
     "pageCapture": { "message": "Снимок страницы" },
     "resolution": { "message": "Разрешение" },
     "presetUser": { "message": "Как у вас" },

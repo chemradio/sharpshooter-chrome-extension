@@ -7,6 +7,10 @@ import {
     injectMutationWatcher,
     waitForMutationSettle,
 } from "../support/mutationObserver.js";
+import {
+    showCaptureOverlay,
+    hideCaptureOverlay,
+} from "../support/captureOverlay.js";
 
 const SCROLLBAR_STYLE_ID = "__no-scroll";
 
@@ -60,6 +64,9 @@ const postEmulationBreather = (tabId) =>
 // page activity (lazy-loading feeds, etc.) trigger the watcher's debounce and
 // resolve it before the resize-driven reflow had actually started.
 export const withEmulatedCapture = async (tabId, deviceMetrics, body) => {
+    // Overlay first, before the viewport starts jumping. Survives the
+    // whole session and is removed in finally regardless of outcome.
+    await showCaptureOverlay(tabId);
     await attachDebugger(tabId);
     try {
         await hideScrollbars(tabId);
@@ -74,5 +81,6 @@ export const withEmulatedCapture = async (tabId, deviceMetrics, body) => {
         // because clearEmulation needs the debugger still attached.
         await Promise.all([restoreScrollbars(tabId), clearEmulation(tabId)]);
         await detachDebugger(tabId);
+        await hideCaptureOverlay(tabId);
     }
 };
