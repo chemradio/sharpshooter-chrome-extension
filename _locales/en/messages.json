@@ -1,199 +1,308 @@
 {
-    "extName":            { "message": "Sharpshooter" },
-    "extDescription":     { "message": "High-resolution page and element screenshots." },
+    "extName": { "message": "Sharpshooter" },
+    "extDescription": {
+        "message": "High-resolution page and element screenshots."
+    },
 
-    "popupTitle":         { "message": "Sharpshooter" },
-    "helpBtnTitle":       { "message": "Help" },
-    "helpBtnTitleClose":  { "message": "Close help" },
-    "settingsBtnTitle":   { "message": "Settings" },
+    "popupTitle": { "message": "Sharpshooter" },
+    "helpBtnTitle": { "message": "Help" },
+    "helpBtnTitleClose": { "message": "Close help" },
+    "settingsBtnTitle": { "message": "Settings" },
     "settingsBtnTitleClose": { "message": "Close settings" },
-    "settingsTitle":      { "message": "Settings" },
+    "settingsTitle": { "message": "Settings" },
 
-    "qualityMultiplier":  { "message": "Quality multiplier" },
-    "autoCapture":        { "message": "Auto Capture" },
-    "manualCapture":      { "message": "Manual Capture" },
-    "pageCapture":        { "message": "Page Capture" },
-    "resolution":         { "message": "Resolution" },
-    "presetUser":         { "message": "User" },
-    "presetFullPage":     { "message": "Full Page" },
-    "presetVertical":     { "message": "Vertical" },
-    "presetVerticalHd":   { "message": "Vertical HD" },
-    "presetReorder":      { "message": "Drag to reorder" },
-    "presetCustom":       { "message": "Custom" },
-    "phWidth":            { "message": "Width" },
-    "phHeight":           { "message": "Height" },
-    "captureElement":     { "message": "Capture Element" },
-    "helpers":            { "message": "Helpers" },
-    "removeElements":     { "message": "Remove Elements" },
-    "cleanup":            { "message": "Cleanup" },
+    "qualityMultiplier": { "message": "Quality multiplier" },
+    "autoCapture": { "message": "Auto Capture" },
+    "manualCapture": { "message": "Manual Capture" },
+    "pageCapture": { "message": "Page Capture" },
+    "resolution": { "message": "Resolution" },
+    "presetUser": { "message": "User" },
+    "presetFullPage": { "message": "Full Page" },
+    "presetVertical": { "message": "Vertical" },
+    "presetVerticalHd": { "message": "Vertical HD" },
+    "presetReorder": { "message": "Drag to reorder" },
+    "presetCustom": { "message": "Custom" },
+    "phWidth": { "message": "Width" },
+    "phHeight": { "message": "Height" },
+    "captureElement": { "message": "Capture Element" },
+    "helpers": { "message": "Helpers" },
+    "removeElements": { "message": "Remove Elements" },
+    "cleanup": { "message": "Cleanup" },
 
-    "expertMode":         { "message": "Expert Mode" },
-    "addFilter":          { "message": "Add filter" },
-    "scopeHost":          { "message": "This host" },
-    "scopeGlobal":        { "message": "All hosts" },
-    "phFilterInput":      { "message": "CSS selector, or paste class=\"…\" / <div …>" },
-    "btnAdd":             { "message": "Add" },
-    "targetParent":       { "message": "Target parent element" },
-    "filterListFor":      { "message": "For" },
-    "exportFilters":      { "message": "Export Filters" },
-    "disableBundled":     { "message": "Disable bundled filters" },
+    "expertMode": { "message": "Expert Mode" },
+    "addFilter": { "message": "Add filter" },
+    "scopeHost": { "message": "This host" },
+    "scopeGlobal": { "message": "All hosts" },
+    "phFilterInput": {
+        "message": "CSS selector, or paste class=\"…\" / <div …>"
+    },
+    "btnAdd": { "message": "Add" },
+    "targetParent": { "message": "Target parent element" },
+    "filterListFor": { "message": "For" },
+    "exportFilters": { "message": "Export Filters" },
+    "disableBundled": { "message": "Disable bundled filters" },
     "clearDomainFilters": { "message": "Clear Domain Filters" },
     "clearGlobalFilters": { "message": "Clear Global Filters" },
-    "output":             { "message": "Output" },
-    "fmtPng":             { "message": "PNG" },
-    "fmtJpeg":            { "message": "JPEG" },
-    "jpegQuality":        { "message": "JPEG quality" },
-    "reencodeOpaque":     { "message": "Re-encode PNG opaque" },
-    "reencodeNote":       { "message": "Flattens captures onto a white background and strips the alpha channel and colour-profile chunks. Fixes Adobe ScriptUI / Direct2D drawbot panels that reject the screenshots (HRESULT 0x80070057)." },
+    "output": { "message": "Output" },
+    "fmtPng": { "message": "PNG" },
+    "fmtJpeg": { "message": "JPEG" },
+    "jpegQuality": { "message": "JPEG quality" },
+    "reencodeOpaque": { "message": "Re-encode PNG opaque" },
+    "reencodeNote": {
+        "message": "Flattens captures onto a white background and strips the alpha channel and colour-profile chunks. Fixes Adobe ScriptUI / Direct2D drawbot panels that reject the screenshots (HRESULT 0x80070057)."
+    },
 
-    "downloads":          { "message": "Downloads" },
-    "filenamePrefix":     { "message": "Filename prefix" },
-    "phFilenamePrefix":   { "message": "e.g. project-name" },
-    "filenamePrefixNote": { "message": "Prepended to every saved file: prefix-domain-timestamp.png" },
+    "downloads": { "message": "Downloads" },
+    "filenamePrefix": { "message": "Filename prefix" },
+    "phFilenamePrefix": { "message": "e.g. project-name" },
+    "filenamePrefixNote": {
+        "message": "Prepended to every saved file: prefix-domain-timestamp.png"
+    },
 
-    "defaultQuality":     { "message": "Default quality multiplier" },
-    "defaultQualityNote": { "message": "Used when a preset is set to \"Default\". Per-preset overrides take precedence." },
-    "presetsLabel":       { "message": "Presets" },
-    "presetsNote":        { "message": "Shown as buttons on the main view. The Custom preset is always kept. Smart presets (User, Full Page, Vertical) auto-derive their dimensions from the active tab." },
-    "addPreset":          { "message": "Add preset" },
-    "restorePresets":     { "message": "Restore factory presets" },
-    "stPresetsRestored":  { "message": "Factory presets restored" },
+    "defaultQuality": { "message": "Default quality multiplier" },
+    "defaultQualityNote": {
+        "message": "Used when a preset is set to \"Default\". Per-preset overrides take precedence."
+    },
+    "presetsLabel": { "message": "Presets" },
+    "presetsNote": {
+        "message": "Shown as buttons on the main view. The Custom preset is always kept. Smart presets (User, Full Page, Vertical) auto-derive their dimensions from the active tab."
+    },
+    "addPreset": { "message": "Add preset" },
+    "restorePresets": { "message": "Restore factory presets" },
+    "stPresetsRestored": { "message": "Factory presets restored" },
     "presetScaleDefault": { "message": "Default" },
-    "presetLabelPh":      { "message": "Label" },
-    "presetDelete":       { "message": "Delete preset" },
-    "presetHide":         { "message": "Hide from main view" },
-    "presetShow":         { "message": "Show on main view" },
-    "presetSmartAuto":    { "message": "auto" },
+    "presetLabelPh": { "message": "Label" },
+    "presetDelete": { "message": "Delete preset" },
+    "presetHide": { "message": "Hide from main view" },
+    "presetShow": { "message": "Show on main view" },
+    "presetSmartAuto": { "message": "auto" },
 
-    "captureSection":     { "message": "Capture" },
-    "defaultCrop":        { "message": "Always open the crop editor" },
-    "defaultCropNote":    { "message": "Every capture goes straight to the crop editor. The separate \"with crop\" buttons are hidden while this is on." },
-    "fullPageCap":        { "message": "Full-page height limit (px)" },
-    "fullPageCapNote":    { "message": "Caps the Full Page preset and Auto Capture height. Hard maximum is 16384 px (Chrome's limit)." },
-    "navTooltip":         { "message": "Show the navigation hint" },
-    "navTooltipNote":     { "message": "Shows a small tip next to the highlight frame in Capture Element and Remove Elements, explaining how to walk the DOM with the scroll wheel and mouse." },
+    "captureSection": { "message": "Capture" },
+    "defaultCrop": { "message": "Always open the crop editor" },
+    "defaultCropNote": {
+        "message": "Every capture goes straight to the crop editor. The separate \"with crop\" buttons are hidden while this is on."
+    },
+    "fullPageCap": { "message": "Full-page height limit (px)" },
+    "fullPageCapNote": {
+        "message": "Caps the Full Page preset and Auto Capture height. Hard maximum is 16384 px (Chrome's limit)."
+    },
+    "navTooltip": { "message": "Show the navigation hint" },
+    "navTooltipNote": {
+        "message": "Shows a small tip next to the highlight frame in Capture Element and Remove Elements, explaining how to walk the DOM with the scroll wheel and mouse."
+    },
 
-    "appearance":         { "message": "Appearance" },
-    "theme":              { "message": "Theme" },
-    "themeAuto":          { "message": "Auto" },
-    "themeLight":         { "message": "Light" },
-    "themeDark":          { "message": "Dark" },
-    "language":           { "message": "Language" },
-    "langAuto":           { "message": "Auto" },
-    "langNote":           { "message": "Overrides the browser language for this popup." },
-    "stSettingSaved":     { "message": "Setting saved" },
+    "appearance": { "message": "Appearance" },
+    "theme": { "message": "Theme" },
+    "themeAuto": { "message": "Auto" },
+    "themeLight": { "message": "Light" },
+    "themeDark": { "message": "Dark" },
+    "language": { "message": "Language" },
+    "langAuto": { "message": "Auto" },
+    "langNote": { "message": "Overrides the browser language for this popup." },
+    "stSettingSaved": { "message": "Setting saved" },
 
-    "helpTitleNormal":    { "message": "How capture works" },
-    "helpDisclaimer":     { "message": "<b>Heads up:</b> social websites change their page structure constantly. When they do, the extension can stop working correctly until it is updated — most often it will fail to detect a post or story for capture. If a capture looks wrong, try Page Capture or Capture Element as a fallback." },
-    "helpCaptureSite":    { "message": "<div class=\"help-heading\">Capture this post / story</div><p>When you open the popup on Facebook, Instagram, Telegram (t.me), X / Twitter or VK, the extension checks whether the page contains a post or a story. If it does, a \"Capture this post\" (or \"story\") button appears at the top. Click it to remove comments, sidebars and other clutter around the target and capture just that element.</p>" },
-    "helpAutoCapture":    { "message": "<div class=\"help-heading\">Auto Capture</div><p>One-click full-page capture: captures the whole page at the chosen scale. Use this when you want the whole page, not a single post.</p>" },
-    "helpPageCapture":    { "message": "<div class=\"help-heading\">Page Capture</div><p>Captures the whole page at a chosen resolution. Pick a preset:</p><ul><li><b>User</b> — the current tab's viewport size (default). Combined with the 2× quality multiplier, gives you a sharp shot at the exact size you see in the browser.</li><li><b>Full Page</b> — viewport width, full document height (measured live).</li><li><b>Vertical</b> — viewport width × (width × 3.5), good for long social posts.</li><li><b>FullHD</b> — 1920 × 1080.</li><li><b>4K</b> — 3840 × 2160.</li><li><b>Custom</b> — your own width × height.</li></ul><p>The page is emulated at this resolution before capture, so layouts adapt as if the window were that size.</p>" },
-    "helpCaptureElement": { "message": "<div class=\"help-heading\">Capture Element</div><p>Click the button, then hover any element on the page. A cyan glow shows what will be captured. Use the <b>scroll wheel</b> to change depth (up = parent, down = first child). Click to commit.</p>" },
-    "helpQuality":        { "message": "<div class=\"help-heading\">Quality multiplier</div><p>1× / 2× / 3× / 4× — scales pixel density. 2× is the default and works well for most uses. 3×–4× produces large but very sharp images suitable for print or motion graphics.</p>" },
-    "helpHelpers":        { "message": "<div class=\"help-heading\">Helpers</div><p><b>Remove Elements</b> — manual click-to-remove mode. Hover targets, scroll to change depth, click to delete. <b>Ctrl/Cmd+Z</b> undoes the last removal; <b>ESC</b> stops.</p>" },
+    "helpTitleNormal": { "message": "How capture works" },
+    "helpDisclaimer": {
+        "message": "<b>Heads up:</b> social websites change their page structure constantly. When they do, the extension can stop working correctly until it is updated — most often it will fail to detect a post or story for capture. If a capture looks wrong, try Page Capture or Capture Element as a fallback."
+    },
+    "helpCaptureSite": {
+        "message": "<div class=\"help-heading\">Capture this post / story</div><p>When you open the popup on Facebook, Instagram, Telegram (t.me), X / Twitter or VK, the extension checks whether the page contains a post or a story. If it does, a \"Capture this post\" (or \"story\") button appears at the top. Click it to remove comments, sidebars and other clutter around the target and capture just that element.</p>"
+    },
+    "helpAutoCapture": {
+        "message": "<div class=\"help-heading\">Auto Capture</div><p>One-click full-page capture: captures the whole page at the chosen scale. Use this when you want the whole page, not a single post.</p>"
+    },
+    "helpPageCapture": {
+        "message": "<div class=\"help-heading\">Page Capture</div><p>Captures the whole page at a chosen resolution. Pick a preset:</p><ul><li><b>User</b> — the current tab's viewport size (default). Combined with the 2× quality multiplier, gives you a sharp shot at the exact size you see in the browser.</li><li><b>Full Page</b> — viewport width, full document height (measured live).</li><li><b>Vertical</b> — viewport width × (width × 3.5), good for long social posts.</li><li><b>FullHD</b> — 1920 × 1080.</li><li><b>4K</b> — 3840 × 2160.</li><li><b>Custom</b> — your own width × height.</li></ul><p>The page is emulated at this resolution before capture, so layouts adapt as if the window were that size.</p>"
+    },
+    "helpCaptureElement": {
+        "message": "<div class=\"help-heading\">Capture Element</div><p>Click the button, then hover any element on the page. A cyan glow shows what will be captured. Use the <b>scroll wheel</b> to change depth (up = parent, down = first child). Click to commit.</p>"
+    },
+    "helpQuality": {
+        "message": "<div class=\"help-heading\">Quality multiplier</div><p>1× / 2× / 3× / 4× — scales pixel density. 2× is the default and works well for most uses. 3×–4× produces large but very sharp images suitable for print or motion graphics.</p>"
+    },
+    "helpHelpers": {
+        "message": "<div class=\"help-heading\">Helpers</div><p><b>Remove Elements</b> — manual click-to-remove mode. Hover targets, scroll to change depth, click to delete. <b>Ctrl/Cmd+Z</b> undoes the last removal; <b>ESC</b> stops.</p>"
+    },
 
-    "helpTitleExpert":    { "message": "How filters work" },
-    "helpTiers":          { "message": "<div class=\"help-heading\">Three filter tiers</div><p>When you run Cleanup or Auto Capture, three sources of filters are merged:</p><ul><li><b>EasyList</b> — the standard adblock cosmetic filter list. Refreshed from easylist.to automatically (weekly).</li><li><b>Bundled filters</b> — hand-curated selectors shipped with the extension for sites the dev has tuned. Updated when the extension updates.</li><li><b>User filters</b> — selectors <i>you</i> collect, either via \"Remove Elements\" (which auto-saves each click) or by typing them in here.</li></ul><p>Duplicates between tiers collapse automatically, so promoting a user filter to the bundled list is non-disruptive.</p>" },
-    "helpAddingFilters":  { "message": "<div class=\"help-heading\">Adding filters manually</div><p>Paste a CSS selector into the input, or paste a fragment like <code>class=\"foo bar\"</code> or <code>&lt;div data-testid=\"ad\"&gt;</code> — it gets converted to a valid selector automatically. Preview shows the normalized form before adding.</p><ul><li><b>This host</b> — applies only on the current domain (and subdomains).</li><li><b>All hosts</b> — applies everywhere. Use sparingly.</li><li><b>Target parent element</b> — wraps the selector in <code>*:has(&gt; …)</code> so the parent gets removed instead of the matched element. Good for \"remove the card that contains this badge\".</li></ul>" },
-    "helpManaging":       { "message": "<div class=\"help-heading\">Managing your filter list</div><p>Filters for the current host are listed under the host name; global filters under \"All hosts\". Click <b>×</b> on a row to remove that one. The <b>Clear Domain Filters</b> and <b>Clear Global Filters</b> buttons wipe entire tiers (EasyList and bundled are untouched).</p><p><b>Disable bundled filters</b> turns off the dev-curated tier — useful for debugging which tier is causing unwanted removals.</p>" },
-    "helpExporting":      { "message": "<div class=\"help-heading\">Exporting filters</div><p><b>Export Filters</b> downloads your collected user filters as a JSON file (shape: <code>{global, domains}</code>). Email this to the extension dev — selectors worth sharing get merged into the bundled list and propagated to everyone in the next update.</p>" },
+    "helpTitleExpert": { "message": "How filters work" },
+    "helpTiers": {
+        "message": "<div class=\"help-heading\">Three filter tiers</div><p>When you run Cleanup or Auto Capture, three sources of filters are merged:</p><ul><li><b>EasyList</b> — the standard adblock cosmetic filter list. Refreshed from easylist.to automatically (weekly).</li><li><b>Bundled filters</b> — hand-curated selectors shipped with the extension for sites the dev has tuned. Updated when the extension updates.</li><li><b>User filters</b> — selectors <i>you</i> collect, either via \"Remove Elements\" (which auto-saves each click) or by typing them in here.</li></ul><p>Duplicates between tiers collapse automatically, so promoting a user filter to the bundled list is non-disruptive.</p>"
+    },
+    "helpAddingFilters": {
+        "message": "<div class=\"help-heading\">Adding filters manually</div><p>Paste a CSS selector into the input, or paste a fragment like <code>class=\"foo bar\"</code> or <code>&lt;div data-testid=\"ad\"&gt;</code> — it gets converted to a valid selector automatically. Preview shows the normalized form before adding.</p><ul><li><b>This host</b> — applies only on the current domain (and subdomains).</li><li><b>All hosts</b> — applies everywhere. Use sparingly.</li><li><b>Target parent element</b> — wraps the selector in <code>*:has(&gt; …)</code> so the parent gets removed instead of the matched element. Good for \"remove the card that contains this badge\".</li></ul>"
+    },
+    "helpManaging": {
+        "message": "<div class=\"help-heading\">Managing your filter list</div><p>Filters for the current host are listed under the host name; global filters under \"All hosts\". Click <b>×</b> on a row to remove that one. The <b>Clear Domain Filters</b> and <b>Clear Global Filters</b> buttons wipe entire tiers (EasyList and bundled are untouched).</p><p><b>Disable bundled filters</b> turns off the dev-curated tier — useful for debugging which tier is causing unwanted removals.</p>"
+    },
+    "helpExporting": {
+        "message": "<div class=\"help-heading\">Exporting filters</div><p><b>Export Filters</b> downloads your collected user filters as a JSON file (shape: <code>{global, domains}</code>). Email this to the extension dev — selectors worth sharing get merged into the bundled list and propagated to everyone in the next update.</p>"
+    },
 
-    "ovCapturing":            { "message": "Capturing…" },
-    "ovCapturingElement":     { "message": "Capturing element…" },
-    "ovSelectElement":        { "message": "Select an element" },
-    "ovSelectElementHint":    { "message": "Move mouse to highlight\nScroll wheel to change depth" },
-    "ovManualRemoval":        { "message": "Manual removal" },
-    "ovManualRemovalHint":    { "message": "Hover to target · Click to remove\nWheel to change depth · Ctrl/Cmd+Z to undo · ESC to stop" },
+    "ovCapturing": { "message": "Capturing…" },
+    "ovCapturingElement": { "message": "Capturing element…" },
+    "ovSelectElement": { "message": "Select an element" },
+    "ovSelectElementHint": {
+        "message": "Move mouse to highlight\nScroll wheel to change depth"
+    },
+    "ovManualRemoval": { "message": "Manual removal" },
+    "ovManualRemovalHint": {
+        "message": "Hover to target · Click to remove\nWheel to change depth · Ctrl/Cmd+Z to undo · ESC to stop"
+    },
 
-    "stMeasuringHeight":      { "message": "Measuring page height…" },
-    "stMeasureFailed":        { "message": "Could not measure page height" },
-    "stCapturingPage":        { "message": "Capturing page…" },
-    "stDone":                 { "message": "Done — check Downloads" },
-    "stCropReady":            { "message": "Opening crop editor…" },
-    "cropSegmentTitle":       { "message": "Capture, then manually crop" },
-    "cropSegmentLabel":       { "message": "with crop" },
-    "stError":                { "message": "Error" },
-    "stRequestFailed":        { "message": "Request failed" },
-    "stAutoCapturing":        { "message": "Auto-capturing…" },
-    "stAutoDone":             { "message": "Auto: full page — check Downloads" },
+    "stMeasuringHeight": { "message": "Measuring page height…" },
+    "stMeasureFailed": { "message": "Could not measure page height" },
+    "stCapturingPage": { "message": "Capturing page…" },
+    "stDone": { "message": "Done — check Downloads" },
+    "stCropReady": { "message": "Opening crop editor…" },
+    "cropSegmentTitle": { "message": "Capture, then manually crop" },
+    "cropSegmentLabel": { "message": "with crop" },
+    "stError": { "message": "Error" },
+    "stRequestFailed": { "message": "Request failed" },
+    "stAutoCapturing": { "message": "Auto-capturing…" },
+    "stAutoDone": { "message": "Auto: full page — check Downloads" },
     "stElementCaptureFailed": { "message": "Element capture failed" },
-    "stCleaningUp":           { "message": "Cleaning up…" },
-    "stCleanupDone":          { "message": "Cleanup done" },
-    "stRemovedNodes":         { "message": "Removed $count$ nodes ($breakdown$)", "placeholders": {
-        "count":     { "content": "$1" },
-        "breakdown": { "content": "$2" }
-    } },
-    "stBundledDisabled":      { "message": "Bundled filters disabled" },
-    "stBundledEnabled":       { "message": "Bundled filters enabled" },
-    "stOpaqueOn":             { "message": "Opaque PNG re-encode on" },
-    "stOpaqueOff":            { "message": "Opaque PNG re-encode off" },
-    "stExpertOn":             { "message": "Expert mode on" },
-    "stExpertOff":            { "message": "Expert mode off" },
-    "stInvalidSelector":      { "message": "Invalid CSS selector" },
-    "stAddedTo":              { "message": "Added to $where$: $selector$", "placeholders": {
-        "where":    { "content": "$1" },
-        "selector": { "content": "$2" }
-    } },
-    "stAlreadyPresent":       { "message": "Already present" },
-    "stRemovedSel":           { "message": "Removed: $selector$", "placeholders": {
-        "selector": { "content": "$1" }
-    } },
-    "stClearing":             { "message": "Clearing…" },
-    "stNoDomainFilters":      { "message": "No domain filters to clear" },
-    "stClearedDomain":        { "message": "Cleared $count$ selectors across $hosts$ hosts", "placeholders": {
-        "count": { "content": "$1" },
-        "hosts": { "content": "$2" }
-    } },
-    "stNoGlobalFilters":      { "message": "No global filters to clear" },
-    "stClearedGlobal":        { "message": "Cleared $count$ global selectors", "placeholders": {
-        "count": { "content": "$1" }
-    } },
-    "stExporting":            { "message": "Exporting…" },
-    "stNoExport":             { "message": "No user filters to export" },
-    "stExported":             { "message": "Exported $count$ selectors across $hosts$ hosts", "placeholders": {
-        "count": { "content": "$1" },
-        "hosts": { "content": "$2" }
-    } },
+    "stCleaningUp": { "message": "Cleaning up…" },
+    "stCleanupDone": { "message": "Cleanup done" },
+    "stRemovedNodes": {
+        "message": "Removed $count$ nodes ($breakdown$)",
+        "placeholders": {
+            "count": { "content": "$1" },
+            "breakdown": { "content": "$2" }
+        }
+    },
+    "stBundledDisabled": { "message": "Bundled filters disabled" },
+    "stBundledEnabled": { "message": "Bundled filters enabled" },
+    "stOpaqueOn": { "message": "Opaque PNG re-encode on" },
+    "stOpaqueOff": { "message": "Opaque PNG re-encode off" },
+    "stExpertOn": { "message": "Expert mode on" },
+    "stExpertOff": { "message": "Expert mode off" },
+    "stInvalidSelector": { "message": "Invalid CSS selector" },
+    "stAddedTo": {
+        "message": "Added to $where$: $selector$",
+        "placeholders": {
+            "where": { "content": "$1" },
+            "selector": { "content": "$2" }
+        }
+    },
+    "stAlreadyPresent": { "message": "Already present" },
+    "stRemovedSel": {
+        "message": "Removed: $selector$",
+        "placeholders": {
+            "selector": { "content": "$1" }
+        }
+    },
+    "stClearing": { "message": "Clearing…" },
+    "stNoDomainFilters": { "message": "No domain filters to clear" },
+    "stClearedDomain": {
+        "message": "Cleared $count$ selectors across $hosts$ hosts",
+        "placeholders": {
+            "count": { "content": "$1" },
+            "hosts": { "content": "$2" }
+        }
+    },
+    "stNoGlobalFilters": { "message": "No global filters to clear" },
+    "stClearedGlobal": {
+        "message": "Cleared $count$ global selectors",
+        "placeholders": {
+            "count": { "content": "$1" }
+        }
+    },
+    "stExporting": { "message": "Exporting…" },
+    "stNoExport": { "message": "No user filters to export" },
+    "stExported": {
+        "message": "Exported $count$ selectors across $hosts$ hosts",
+        "placeholders": {
+            "count": { "content": "$1" },
+            "hosts": { "content": "$2" }
+        }
+    },
     "stManualRemovalStopped": { "message": "Manual removal stopped" },
 
-    "scopeAllHosts":          { "message": "all hosts" },
-    "scopeThisHost":          { "message": "this host" },
-    "noHost":                 { "message": "(no host)" },
-    "removeTitle":            { "message": "Remove" },
-    "invalidPreview":         { "message": "Invalid CSS selector" },
+    "scopeAllHosts": { "message": "all hosts" },
+    "scopeThisHost": { "message": "this host" },
+    "noHost": { "message": "(no host)" },
+    "removeTitle": { "message": "Remove" },
+    "invalidPreview": { "message": "Invalid CSS selector" },
 
-    "promptPost":             { "message": "Capture this post" },
-    "promptStory":            { "message": "Capture this story" },
-    "promptDetectedOn":       { "message": "Detected on $site$", "placeholders": {
-        "site": { "content": "$1" }
-    } },
-    "promptDetectedHere":     { "message": "Detected on this page" },
+    "promptPost": { "message": "Capture this post" },
+    "promptStory": { "message": "Capture this story" },
+    "promptDetectedOn": {
+        "message": "Detected on $site$",
+        "placeholders": {
+            "site": { "content": "$1" }
+        }
+    },
+    "promptDetectedHere": { "message": "Detected on this page" },
 
-    "confirmClearDomain":     { "message": "Clear all per-host (domain) user filters?\n\nHost-scoped selectors you collected via DOM-killer will be removed from this browser. Global, bundled and EasyList filters are not affected." },
-    "confirmClearGlobal":     { "message": "Clear all global user filters?\n\nSelectors that apply to all hosts will be removed from this browser. Domain, bundled and EasyList filters are not affected." },
+    "confirmClearDomain": {
+        "message": "Clear all per-host (domain) user filters?\n\nHost-scoped selectors you collected via DOM-killer will be removed from this browser. Global, bundled and EasyList filters are not affected."
+    },
+    "confirmClearGlobal": {
+        "message": "Clear all global user filters?\n\nSelectors that apply to all hosts will be removed from this browser. Domain, bundled and EasyList filters are not affected."
+    },
 
-    "showTooltips":           { "message": "Show popup tooltips" },
-    "showTooltipsNote":       { "message": "Rotating tips and per-button hints in the popup's bottom bar. Off shrinks the popup — it ends after Remove Elements." },
+    "showTooltips": { "message": "Show popup tooltips" },
+    "showTooltipsNote": {
+        "message": "Rotating tips and per-button hints in the popup's bottom bar. Off shrinks the popup — it ends after Remove Elements."
+    },
 
-    "tipAutoCapture":         { "message": "Auto Capture: one-click full-page shot" },
-    "tipPageCapture":         { "message": "Page Capture: emulate the chosen resolution and shoot the viewport" },
-    "tipCaptureElement":      { "message": "Capture Element: hover a node, wheel to walk the DOM, click to commit" },
-    "tipCaptureSite":         { "message": "Capture this post or story — site-aware element shot" },
-    "tipRemoveElements":      { "message": "Remove Elements: click to delete a node; Ctrl+Z undoes the last kill" },
-    "tipCropSegment":         { "message": "Same capture, then route through the manual crop editor" },
-    "tipHelp":                { "message": "Help — what each capture mode does and how to use them" },
-    "tipSettings":            { "message": "Settings — output format, presets, downloads, theme & language" },
-    "tipResolution":          { "message": "Edit width or height to switch to a Custom preset automatically" },
-    "tipPresets":             { "message": "Resolution presets — User/Full Page auto-size to the tab viewport" },
-    "tipQualityScale":        { "message": "Quality multiplier — 2× doubles pixel density (deviceScaleFactor)" },
+    "tipAutoCapture": { "message": "Auto Capture: one-click full-page shot" },
+    "tipPageCapture": {
+        "message": "Page Capture: emulate the chosen resolution and shoot the viewport"
+    },
+    "tipCaptureElement": {
+        "message": "Capture Element: hover a node, wheel to walk the DOM, click to commit"
+    },
+    "tipCaptureSite": {
+        "message": "Capture this post or story — site-aware element shot"
+    },
+    "tipRemoveElements": {
+        "message": "Remove Elements: click to delete a node; Ctrl+Z undoes the last kill"
+    },
+    "tipCropSegment": {
+        "message": "Same capture, then route through the manual crop editor"
+    },
+    "tipHelp": {
+        "message": "Help — what each capture mode does and how to use them"
+    },
+    "tipSettings": {
+        "message": "Settings — output format, presets, downloads, theme & language"
+    },
+    "tipResolution": {
+        "message": "Edit width or height to switch to a Custom preset automatically"
+    },
+    "tipPresets": {
+        "message": "Resolution presets — User/Full Page auto-size to the tab viewport"
+    },
+    "tipQualityScale": {
+        "message": "Quality multiplier — 2× doubles pixel density (deviceScaleFactor)"
+    },
 
-    "tipGen1":                { "message": "Tip: PNG keeps transparency; switch to JPEG in Settings for smaller files" },
-    "tipGen2":                { "message": "Tip: enable \"Always open the crop editor\" in Settings to skip the segmented buttons" },
-    "tipGen3":                { "message": "Tip: in Capture Element, scroll wheel walks the DOM tree — up to parent, down to first child" },
-    "tipGen4":                { "message": "Tip: Full Page preset measures the live document and caps at your configured height" },
-    "tipGen5":                { "message": "Tip: a filename prefix in Settings tags every shot — prefix-domain-timestamp.png" },
-    "tipGen6":                { "message": "Tip: browser zoom is reset to 100% during capture so layouts come out as expected" },
-    "tipGen7":                { "message": "Tip: Remove Elements writes a personal filter list — open the same site later and it stays clean" },
-    "tipGen8":                { "message": "Tip: 4× scale on a 1920-wide page produces a 7680-wide image (Chrome caps each side at 16384 px)" },
-    "tipGen9":                { "message": "Tip: opaque PNG re-encode (Settings) fixes screenshots that Adobe ScriptUI panels refuse" }
+    "tipGen1": {
+        "message": "Tip: Switch to JPEG in Settings for smaller files"
+    },
+    "tipGen2": {
+        "message": "Tip: enable \"Always open the crop editor\" in Settings to skip the segmented buttons"
+    },
+    "tipGen3": {
+        "message": "Tip: In Capture Element, scroll wheel walks the DOM tree — up to parent, down to previous child"
+    },
+    "tipGen4": {
+        "message": "Tip: Full Page preset measures the live document and caps at your configured height"
+    },
+    "tipGen5": {
+        "message": "Tip: A filename prefix in Settings tags every shot — prefix-domain-timestamp.png"
+    },
+    "tipGen6": {
+        "message": "Tip: Browser zoom is reset to 100% during capture so layouts come out as expected"
+    },
+    "tipGen7": {
+        "message": "Tip: Remove Elements is most useful for cleaning up ads and personal info"
+    },
+    "tipGen8": {
+        "message": "Tip: 4× scale on a 1920-wide page produces a 7680-wide image (Chrome caps each side at 16384 px)"
+    },
+    "tipGen9": {
+        "message": "Tip: Opaque PNG re-encode (Settings) fixes screenshots that other apps refuse"
+    }
 }
