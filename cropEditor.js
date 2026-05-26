@@ -432,12 +432,10 @@
         const {
             outputFormat,
             jpegQuality,
-            skipSaveDialog,
             reencodeOpaquePng,
         } = await chrome.storage.local.get([
             "outputFormat",
             "jpegQuality",
-            "skipSaveDialog",
             "reencodeOpaquePng",
         ]);
         const jpeg = outputFormat === "jpeg";
@@ -466,7 +464,7 @@
         try {
             await new Promise((resolve, reject) => {
                 chrome.downloads.download(
-                    { url, filename: outName, saveAs: skipSaveDialog !== true },
+                    { url, filename: outName, saveAs: true },
                     (id) => {
                         const err = chrome.runtime.lastError;
                         if (err) return reject(new Error(err.message));

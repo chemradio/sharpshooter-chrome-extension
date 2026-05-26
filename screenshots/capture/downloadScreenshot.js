@@ -84,13 +84,11 @@ export const downloadScreenshot = async (base64Data, screenshotName, options = {
         filenamePrefix,
         outputFormat,
         jpegQuality,
-        skipSaveDialog,
     } = await chrome.storage.local.get([
         "reencodeOpaquePng",
         "filenamePrefix",
         "outputFormat",
         "jpegQuality",
-        "skipSaveDialog",
     ]);
 
     const prefix = (filenamePrefix || "").trim();
@@ -140,7 +138,7 @@ export const downloadScreenshot = async (base64Data, screenshotName, options = {
             {
                 url: `data:${mime};base64,` + data,
                 filename: `${baseName}.${ext}`,
-                saveAs: skipSaveDialog !== true,
+                saveAs: true,
             },
             (downloadId) => {
                 const err = chrome.runtime.lastError;

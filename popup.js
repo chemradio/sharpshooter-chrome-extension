@@ -1,4 +1,4 @@
-const layoutInputs   = document.querySelectorAll('input[name="layout"]');
+const layoutGroupEl  = document.getElementById("layout-group");
 const widthInput     = document.getElementById("width");
 const heightInput    = document.getElementById("height");
 const statusEl       = document.getElementById("status");
@@ -27,21 +27,62 @@ let cropDefault = false;
 let viewportWidth  = window.screen.width;
 let viewportHeight = window.screen.height;
 
-const presets = {
-    user:         { width: viewportWidth, height: viewportHeight },
-    fullpage:     { width: viewportWidth, height: null },
-    vertical:     { width: viewportWidth, height: Math.round(viewportWidth * 3.5) },
-    fullhd:       { width: 1920, height: 1080 },
-    horizontal4k: { width: 3840, height: 2160 },
-    custom:       null,
-};
+// Resolution presets are user-configurable (Settings → Resolution). Stored
+// in chrome.storage.local under `resolutionPresets` as an array of:
+//   { id, type, scale, hidden?, labelKey?, label?, width?, height? }
+//
+// `type` is one of:
+//   - "viewport" : width = tab viewport w, height = tab viewport h
+//   - "fullpage" : width = tab viewport w, height = measured page height (capped)
+//   - "fixed"    : literal `width` × `height`, fully editable
+//   - "custom"   : free-form, inputs editable on the main view
+//
+// `scale` is null (inherit Settings → Default quality multiplier) or 1/2/3/4.
+// `hidden: true` removes the preset from the main view but keeps the row in
+// the Settings editor. Every preset can be hidden; user-added presets are
+// purged by the "Restore factory presets" button.
+// `labelKey` (i18n key) is set for seeded presets so the language override
+// re-localizes them; user-added presets carry a plain `label`.
+const DEFAULT_PRESETS = [
+    { id: "user",         type: "viewport", labelKey: "presetUser",       scale: null },
+    { id: "fullpage",     type: "fullpage", labelKey: "presetFullPage",   scale: null },
+    { id: "vertical",     type: "fixed",    labelKey: "presetVerticalHd", scale: null, width: 1920, height: 7000 },
+    { id: "fullhd",       type: "fixed",    label: "FullHD",              scale: null, width: 1920, height: 1080 },
+    { id: "horizontal4k", type: "fixed",    label: "4K",                  scale: null, width: 3840, height: 2160 },
+    { id: "custom",       type: "custom",   labelKey: "presetCustom",     scale: null },
+];
 
-function recomputeViewportPresets() {
-    presets.user.width      = viewportWidth;
-    presets.user.height     = viewportHeight;
-    presets.fullpage.width  = viewportWidth;
-    presets.vertical.width  = viewportWidth;
-    presets.vertical.height = Math.round(viewportWidth * 3.5);
+let presets = DEFAULT_PRESETS.map((p) => ({ ...p }));
+let defaultScaleFactor = 2;
+
+function presetLabel(p) {
+    if (p.labelKey) {
+        const v = window.__i18n?.get?.(p.labelKey);
+        if (v && v !== p.labelKey) return v;
+    }
+    return p.label || p.id;
+}
+
+function getPreset(id) {
+    return presets.find((p) => p.id === id);
+}
+
+function presetDimensions(p) {
+    if (p.type === "viewport") return { width: viewportWidth, height: viewportHeight };
+    if (p.type === "fullpage") return { width: viewportWidth, height: null };
+    if (p.type === "fixed")    return { width: p.width, height: p.height };
+    return null; // custom
+}
+
+// Persist the editable preset state. We strip the seeded `labelKey` only when
+// the user has overwritten the label (not the case in current UI — label is
+// read-only for seeded presets — but kept defensive).
+function savePresets() {
+    chrome.storage.local.set({ resolutionPresets: presets });
+}
+
+function saveDefaultScale() {
+    chrome.storage.local.set({ defaultScaleFactor });
 }
 
 // ─── Capture overlay ──────────────────────────────────────────────────────────
@@ -80,8 +121,12 @@ function setStatus(msg, type = "busy", autoClear = 0) {
 
     if (!msg) {
         statusEl.innerHTML = "";
+        actionLocked = false;
+        renderCurrentHint();
         return;
     }
+
+    actionLocked = true;
 
     const total = msg.length;
     // Speed scales with length so short toasts stay snappy and long
@@ -102,30 +147,177 @@ function setStatus(msg, type = "busy", autoClear = 0) {
             statusTypeTimer = null;
             if (autoClear > 0) {
                 statusTimer = setTimeout(() => {
-                    statusEl.innerHTML = "";
-                    statusEl.className = "status";
+                    actionLocked = false;
+                    renderCurrentHint();
                 }, autoClear);
             }
         }
     }, stepMs);
 }
 
+// ─── Hints — bottom-bar tooltips ──────────────────────────────────────────────
+//
+// The status bar pulls double duty: action results (typewriter, autoClear) take
+// priority; otherwise it shows context tips. On hover over a known control we
+// render a per-control tip; with nothing hovered it cycles through general
+// usage tips on a slow timer.
+
+// Action status is currently displayed — hint renders are suppressed until it
+// clears (autoClear timer, or setStatus("")).
+let actionLocked = false;
+let hoverTipKey  = null;
+let generalIdx   = 0;
+let generalTimer = null;
+// Settings → "Show popup tooltips". When off, hover hints and rotating tips
+// are suppressed and CSS hides the status row entirely (popup shrinks).
+let tooltipsEnabled = true;
+
+const BUTTON_TIPS = [
+    ["#capture-auto",         "tipAutoCapture"],
+    ["#capture-auto-crop",    "tipCropSegment"],
+    ["#capture-page",         "tipPageCapture"],
+    ["#capture-page-crop",    "tipCropSegment"],
+    ["#capture-element",      "tipCaptureElement"],
+    ["#capture-element-crop", "tipCropSegment"],
+    ["#capture-site",         "tipCaptureSite"],
+    ["#capture-site-crop",    "tipCropSegment"],
+    ["#dom-killer",           "tipRemoveElements"],
+    ["#help-toggle",          "tipHelp"],
+    ["#settings-toggle",      "tipSettings"],
+    ["#width",                "tipResolution"],
+    ["#height",               "tipResolution"],
+    ["#layout-group",         "tipPresets"],
+];
+
+const GENERAL_TIP_KEYS = [
+    "tipGen1", "tipGen2", "tipGen3", "tipGen4", "tipGen5",
+    "tipGen6", "tipGen7", "tipGen8", "tipGen9",
+];
+
+function applyTooltipsEnabled(on) {
+    tooltipsEnabled = !!on;
+    popupEl.classList.toggle("no-tooltips", !tooltipsEnabled);
+    if (!tooltipsEnabled) {
+        if (generalTimer) { clearInterval(generalTimer); generalTimer = null; }
+        clearTimeout(statusTimer);
+        clearInterval(statusTypeTimer);
+        statusTypeTimer = null;
+        hoverTipKey = null;
+        statusEl.innerHTML = "";
+        statusEl.className = "status";
+    } else if (!generalTimer) {
+        startGeneralTipRotation();
+    }
+}
+
+function renderHintText(text) {
+    if (actionLocked || !tooltipsEnabled) return;
+    clearTimeout(statusTimer);
+    clearInterval(statusTypeTimer);
+    statusTypeTimer = null;
+    statusEl.className = "status hint";
+
+    if (!text) {
+        statusEl.innerHTML = "";
+        return;
+    }
+
+    // Same typewriter + blinking caret used by setStatus, so hints feel
+    // continuous with action readouts — just without the autoClear.
+    const total = text.length;
+    const stepMs = Math.max(10, Math.min(24, Math.round(520 / total)));
+    let i = 0;
+    const render = () => {
+        statusEl.innerHTML = escapeStatus(text.slice(0, i)) + STATUS_CARET;
+    };
+    render();
+    statusTypeTimer = setInterval(() => {
+        i += 1;
+        render();
+        if (i >= total) {
+            clearInterval(statusTypeTimer);
+            statusTypeTimer = null;
+        }
+    }, stepMs);
+}
+
+function currentGeneralTipText() {
+    const key = GENERAL_TIP_KEYS[generalIdx % GENERAL_TIP_KEYS.length];
+    return t(key);
+}
+
+function renderCurrentHint() {
+    if (actionLocked || !tooltipsEnabled) return;
+    if (hoverTipKey) {
+        renderHintText(t(hoverTipKey));
+    } else {
+        renderHintText(currentGeneralTipText());
+    }
+}
+
+function setHoverTip(key) {
+    hoverTipKey = key || null;
+    renderCurrentHint();
+}
+
+function wireHoverTips() {
+    for (const [sel, key] of BUTTON_TIPS) {
+        const el = document.querySelector(sel);
+        if (!el) continue;
+        el.addEventListener("mouseenter", () => setHoverTip(key));
+        el.addEventListener("mouseleave", () => setHoverTip(null));
+        // Keyboard parity — keep accessible focus showing the same tip.
+        el.addEventListener("focus", () => setHoverTip(key));
+        el.addEventListener("blur",  () => setHoverTip(null));
+    }
+}
+
+function startGeneralTipRotation() {
+    if (!tooltipsEnabled) return;
+    if (generalTimer) clearInterval(generalTimer);
+    // Start on a random tip so reopens don't always show #1.
+    generalIdx = Math.floor(Math.random() * GENERAL_TIP_KEYS.length);
+    renderCurrentHint();
+    generalTimer = setInterval(() => {
+        generalIdx += 1;
+        if (!hoverTipKey && !actionLocked) renderHintText(currentGeneralTipText());
+    }, 35000);
+}
+
+// Click the status bar → advance to the next general tip immediately and
+// reset the rotation timer so the new tip gets its full dwell.
+statusEl.addEventListener("click", () => {
+    if (!tooltipsEnabled || actionLocked) return;
+    generalIdx += 1;
+    hoverTipKey = null;
+    renderHintText(currentGeneralTipText());
+    if (generalTimer) clearInterval(generalTimer);
+    generalTimer = setInterval(() => {
+        generalIdx += 1;
+        if (!hoverTipKey && !actionLocked) renderHintText(currentGeneralTipText());
+    }, 35000);
+});
+statusEl.style.cursor = "pointer";
+
 // ─── Resolution ───────────────────────────────────────────────────────────────
 
 function getSelectedLayout() {
-    return document.querySelector('input[name="layout"]:checked').value;
+    const checked = document.querySelector('input[name="layout"]:checked');
+    return checked ? checked.value : (presets[0]?.id || "custom");
 }
 
 function updateResolutionInputs() {
     const layout = getSelectedLayout();
+    const preset = getPreset(layout);
+    if (!preset) return;
 
-    if (layout === "custom") {
+    if (preset.type === "custom") {
         widthInput.disabled  = false;
         heightInput.disabled = false;
         return;
     }
 
-    if (layout === "fullpage") {
+    if (preset.type === "fullpage") {
         widthInput.disabled  = true;
         heightInput.disabled = true;
         widthInput.value     = viewportWidth;
@@ -143,33 +335,42 @@ function updateResolutionInputs() {
         return;
     }
 
+    const dims = presetDimensions(preset);
     widthInput.disabled  = false;
     heightInput.disabled = false;
-    const preset         = presets[layout];
-    widthInput.value     = preset.width;
-    heightInput.value    = preset.height;
+    if (dims) {
+        widthInput.value  = dims.width;
+        heightInput.value = dims.height;
+    }
 }
 
 function checkCustomResolution() {
     const layout = getSelectedLayout();
-    if (layout === "custom" || layout === "fullpage") return;
+    const preset = getPreset(layout);
+    if (!preset || preset.type === "custom" || preset.type === "fullpage") return;
 
-    const preset = presets[layout];
+    const dims = presetDimensions(preset);
+    if (!dims) return;
     if (
-        parseInt(widthInput.value)  !== preset.width ||
-        parseInt(heightInput.value) !== preset.height
+        parseInt(widthInput.value)  !== dims.width ||
+        parseInt(heightInput.value) !== dims.height
     ) {
-        document.getElementById("custom").checked = true;
+        // Switch to the custom preset (which is always present).
+        const custom = presets.find((p) => p.type === "custom");
+        if (!custom) return;
+        const radio = document.querySelector(`input[name="layout"][value="${custom.id}"]`);
+        if (radio) radio.checked = true;
         widthInput.disabled  = false;
         heightInput.disabled = false;
     }
 }
 
 function getScaleFactor() {
-    for (const s of document.getElementsByName("scale")) {
-        if (s.checked) return parseInt(s.value);
+    const preset = getPreset(getSelectedLayout());
+    if (preset && Number.isFinite(preset.scale) && preset.scale >= 1 && preset.scale <= 4) {
+        return preset.scale;
     }
-    return 2;
+    return defaultScaleFactor;
 }
 
 function getSettings(extras = {}) {
@@ -345,11 +546,11 @@ const formatInputs     = document.getElementsByName("output-format");
 const jpegQualityRow   = document.getElementById("jpeg-quality-row");
 const jpegQualityInput = document.getElementById("jpeg-quality");
 const jpegQualityValue = document.getElementById("jpeg-quality-value");
-const skipSaveCb       = document.getElementById("skip-save-dialog");
 const filenamePrefixIn = document.getElementById("filename-prefix");
 const defaultCropCb    = document.getElementById("default-crop");
 const fullpageCapIn    = document.getElementById("fullpage-cap");
 const navTooltipCb     = document.getElementById("nav-tooltip");
+const showTooltipsCb   = document.getElementById("show-tooltips");
 const themeInputs      = document.getElementsByName("theme");
 const langInputs       = document.getElementsByName("lang");
 
@@ -369,6 +570,7 @@ function applyTheme(theme) {
         cssLight.media = "(prefers-color-scheme: light)";
         cssDark.media  = "(prefers-color-scheme: dark)";
     }
+    window.__paintBrandMark?.(theme);
 }
 
 // "Always open the crop editor" — also hides the dedicated "-crop" buttons.
@@ -391,9 +593,9 @@ function setRadio(inputs, value) {
 
 // Load every persisted setting and reflect it into the controls.
 chrome.storage.local.get([
-    "reencodeOpaquePng", "outputFormat", "jpegQuality", "skipSaveDialog",
+    "reencodeOpaquePng", "outputFormat", "jpegQuality",
     "filenamePrefix", "defaultCrop", "fullPageHeightCap", "themeOverride",
-    "langOverride", "showNavTooltip",
+    "langOverride", "showNavTooltip", "showPopupTooltips",
 ]).then((s) => {
     reencodeOpaqueCb.checked = s.reencodeOpaquePng !== false;
 
@@ -405,7 +607,6 @@ chrome.storage.local.get([
     jpegQualityInput.value = Math.round(q * 100);
     jpegQualityValue.textContent = `${Math.round(q * 100)}%`;
 
-    skipSaveCb.checked = s.skipSaveDialog === true;
     filenamePrefixIn.value = s.filenamePrefix || "";
 
     applyCropDefault(s.defaultCrop === true);
@@ -416,6 +617,10 @@ chrome.storage.local.get([
     fullpageCapIn.value = fullPageCap;
 
     navTooltipCb.checked = s.showNavTooltip !== false;
+
+    tooltipsEnabled = s.showPopupTooltips !== false;
+    showTooltipsCb.checked = tooltipsEnabled;
+    applyTooltipsEnabled(tooltipsEnabled);
 
     setRadio(themeInputs, s.themeOverride || "auto");
     setRadio(langInputs,  s.langOverride  || "auto");
@@ -447,11 +652,6 @@ jpegQualityInput.addEventListener("change", () => {
     setStatus(t("stSettingSaved"), "ok", 1500);
 });
 
-skipSaveCb.addEventListener("change", () => {
-    chrome.storage.local.set({ skipSaveDialog: skipSaveCb.checked });
-    setStatus(t("stSettingSaved"), "ok", 1500);
-});
-
 filenamePrefixIn.addEventListener("change", () => {
     // Strip characters illegal in download filenames.
     const clean = filenamePrefixIn.value.trim().replace(/[\\/:*?"<>|]+/g, "");
@@ -468,6 +668,12 @@ defaultCropCb.addEventListener("change", () => {
 
 navTooltipCb.addEventListener("change", () => {
     chrome.storage.local.set({ showNavTooltip: navTooltipCb.checked });
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+showTooltipsCb.addEventListener("change", () => {
+    applyTooltipsEnabled(showTooltipsCb.checked);
+    chrome.storage.local.set({ showPopupTooltips: tooltipsEnabled });
     setStatus(t("stSettingSaved"), "ok", 1500);
 });
 
@@ -498,6 +704,7 @@ for (const r of langInputs) {
         // Re-localize the whole popup in place.
         window.__i18n.reload(r.value).then(() => {
             window.__applyI18n();
+            applyLangClass();
             refreshDynamicStrings();
             setStatus(t("stSettingSaved"), "ok", 1500);
         });
@@ -511,6 +718,12 @@ function refreshDynamicStrings() {
         ? t("settingsBtnTitleClose") : t("settingsBtnTitle");
     helpToggleBtn.title = popupEl.classList.contains("is-helping")
         ? t("helpBtnTitleClose") : t("helpBtnTitle");
+    // Preset labels resolve through __i18n for seeded presets — re-render so
+    // a language change shows localized names in both views.
+    renderLayoutGroup();
+    renderPresetsEditor();
+    // Re-render the bottom-bar hint in the new language.
+    if (!actionLocked) renderCurrentHint();
 }
 
 function setSettings(open) {
@@ -549,14 +762,318 @@ chrome.runtime.onMessage.addListener((msg) => {
     return false;
 });
 
+// ─── Presets: rendering ───────────────────────────────────────────────────────
+
+const presetsEditorEl  = document.getElementById("presets-editor");
+const addPresetBtn     = document.getElementById("add-preset");
+const defaultScaleEls  = document.getElementsByName("default-scale");
+
+// Build the radio group on the main view. Preserves the currently checked id
+// when possible; falls back to the first preset.
+function renderLayoutGroup() {
+    const prev = layoutGroupEl.querySelector('input[name="layout"]:checked')?.value;
+    layoutGroupEl.innerHTML = "";
+    const visible = presets.filter((p) => !p.hidden);
+    let pickedId = null;
+    for (const p of visible) {
+        const input = document.createElement("input");
+        input.type    = "radio";
+        input.name    = "layout";
+        input.id      = `layout-${p.id}`;
+        input.value   = p.id;
+        const label = document.createElement("label");
+        label.setAttribute("for", input.id);
+        label.textContent = presetLabel(p);
+        if (p.type === "custom") label.classList.add("custom-label");
+        layoutGroupEl.appendChild(input);
+        layoutGroupEl.appendChild(label);
+
+        input.addEventListener("change", () => {
+            if (!input.checked) return;
+            updateResolutionInputs();
+            chrome.storage.local.set({ layoutPreset: getSelectedLayout() });
+        });
+
+        if (!pickedId && prev === p.id) pickedId = p.id;
+    }
+    if (!pickedId) pickedId = visible[0]?.id;
+    if (pickedId) {
+        const chosen = layoutGroupEl.querySelector(`input[value="${pickedId}"]`);
+        if (chosen) chosen.checked = true;
+    }
+}
+
+// Build the per-preset row inside the Settings editor.
+function renderPresetsEditor() {
+    presetsEditorEl.innerHTML = "";
+    for (const p of presets) {
+        const row = document.createElement("div");
+        row.className = "preset-row";
+        row.dataset.id = p.id;
+
+        // Drag handle — initiates row reorder. Sets the row's draggable
+        // attribute only while the handle is grabbed so the surrounding text
+        // inputs stay interactive otherwise.
+        const handle = document.createElement("span");
+        handle.className = "preset-handle";
+        handle.title = t("presetReorder");
+        handle.setAttribute("aria-label", handle.title);
+        handle.innerHTML = DRAG_HANDLE_SVG;
+        handle.addEventListener("mousedown", () => { row.draggable = true; });
+        handle.addEventListener("mouseup",   () => { row.draggable = false; });
+        row.appendChild(handle);
+        attachRowDrag(row, p.id);
+
+        // Label column — fixed presets are editable; smart/custom are read-only.
+        const labelInput = document.createElement("input");
+        labelInput.type = "text";
+        labelInput.className = "preset-label";
+        labelInput.value = presetLabel(p);
+        labelInput.placeholder = t("presetLabelPh");
+        if (p.type !== "fixed") {
+            labelInput.disabled = true;
+        } else {
+            labelInput.addEventListener("change", () => {
+                const v = labelInput.value.trim();
+                if (!v) { labelInput.value = presetLabel(p); return; }
+                p.label = v;
+                delete p.labelKey;
+                savePresets();
+                renderLayoutGroup();
+            });
+        }
+        row.appendChild(labelInput);
+
+        // Width / height — editable only for fixed.
+        const w = document.createElement("input");
+        w.type = "number";
+        w.className = "preset-dim";
+        w.min = 300; w.max = 16384;
+        const h = document.createElement("input");
+        h.type = "number";
+        h.className = "preset-dim";
+        h.min = 300; h.max = 16384;
+        if (p.type === "fixed") {
+            w.value = p.width;
+            h.value = p.height;
+            const onDimChange = () => {
+                const wv = Math.max(300, Math.min(16384, parseInt(w.value, 10) || p.width));
+                const hv = Math.max(300, Math.min(16384, parseInt(h.value, 10) || p.height));
+                w.value = wv; h.value = hv;
+                p.width = wv; p.height = hv;
+                savePresets();
+                if (getSelectedLayout() === p.id) updateResolutionInputs();
+            };
+            w.addEventListener("change", onDimChange);
+            h.addEventListener("change", onDimChange);
+        } else {
+            w.disabled = true;
+            h.disabled = true;
+            w.placeholder = t("presetSmartAuto");
+            h.placeholder = t("presetSmartAuto");
+        }
+        const dimWrap = document.createElement("div");
+        dimWrap.className = "preset-dims";
+        dimWrap.appendChild(w);
+        const x = document.createElement("span");
+        x.className = "resolution-x";
+        x.textContent = "×";
+        dimWrap.appendChild(x);
+        dimWrap.appendChild(h);
+        row.appendChild(dimWrap);
+
+        // Scale select — Default / 1× / 2× / 3× / 4×.
+        const sel = document.createElement("select");
+        sel.className = "preset-scale";
+        const optDef = document.createElement("option");
+        optDef.value = "";
+        optDef.textContent = t("presetScaleDefault");
+        sel.appendChild(optDef);
+        for (const n of [1, 2, 3, 4]) {
+            const o = document.createElement("option");
+            o.value = String(n);
+            o.textContent = `${n}×`;
+            sel.appendChild(o);
+        }
+        sel.value = (p.scale == null) ? "" : String(p.scale);
+        sel.addEventListener("change", () => {
+            p.scale = sel.value === "" ? null : parseInt(sel.value, 10);
+            savePresets();
+        });
+        row.appendChild(sel);
+
+        // Hide / show toggle — every preset except Custom can be hidden from
+        // the main view. Custom is always available so the user can fall back
+        // to a free-form W×H entry even if every other preset is hidden.
+        if (p.type !== "custom") {
+            const toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = "preset-toggle";
+            const setEye = () => {
+                const isHidden = !!p.hidden;
+                toggle.innerHTML = isHidden ? EYE_OFF_SVG : EYE_ON_SVG;
+                toggle.title = t(isHidden ? "presetShow" : "presetHide");
+                toggle.setAttribute("aria-label", toggle.title);
+                toggle.classList.toggle("is-off", isHidden);
+            };
+            setEye();
+            toggle.addEventListener("click", () => {
+                p.hidden = !p.hidden;
+                setEye();
+                savePresets();
+                renderLayoutGroup();
+                // If we just hid the active layout, renderLayoutGroup fell
+                // back to the first visible preset — persist the new selection
+                // and refresh the resolution inputs.
+                const newLayout = getSelectedLayout();
+                if (newLayout) chrome.storage.local.set({ layoutPreset: newLayout });
+                updateResolutionInputs();
+            });
+            row.appendChild(toggle);
+        } else {
+            const spacer = document.createElement("span");
+            spacer.className = "preset-toggle-spacer";
+            row.appendChild(spacer);
+        }
+
+        // Delete — available on every editable (fixed-W×H) preset, including
+        // the factory ones (Vertical HD, FullHD, 4K) and any user-added entry.
+        // Viewport / Full Page / Custom can only be hidden; "Restore factory
+        // presets" brings deleted factory rows back. The cell stays in place
+        // either way so the grid stays aligned.
+        if (p.type === "fixed") {
+            const del = document.createElement("button");
+            del.type = "button";
+            del.className = "preset-delete";
+            del.title = t("presetDelete");
+            del.setAttribute("aria-label", t("presetDelete"));
+            del.textContent = "×";
+            del.addEventListener("click", () => {
+                presets = presets.filter((x) => x.id !== p.id);
+                savePresets();
+                renderPresetsEditor();
+                renderLayoutGroup();
+                const newLayout = getSelectedLayout();
+                if (newLayout) chrome.storage.local.set({ layoutPreset: newLayout });
+                updateResolutionInputs();
+            });
+            row.appendChild(del);
+        } else {
+            const spacer = document.createElement("span");
+            spacer.className = "preset-delete-spacer";
+            row.appendChild(spacer);
+        }
+
+        presetsEditorEl.appendChild(row);
+    }
+}
+
+// ─── Drag-to-reorder ──────────────────────────────────────────────────────────
+
+const DRAG_HANDLE_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+    '<circle cx="9"  cy="6"  r="1"/><circle cx="9"  cy="12" r="1"/><circle cx="9"  cy="18" r="1"/>' +
+    '<circle cx="15" cy="6"  r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>';
+
+let dragSrcId = null;
+
+function attachRowDrag(row, id) {
+    row.addEventListener("dragstart", (e) => {
+        dragSrcId = id;
+        row.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        // Some browsers won't initiate a drag without payload set.
+        try { e.dataTransfer.setData("text/plain", id); } catch {}
+    });
+    row.addEventListener("dragend", () => {
+        row.classList.remove("dragging");
+        row.draggable = false;
+        dragSrcId = null;
+        for (const r of presetsEditorEl.querySelectorAll(".preset-row")) {
+            r.classList.remove("drop-before", "drop-after");
+        }
+    });
+    row.addEventListener("dragover", (e) => {
+        if (!dragSrcId || dragSrcId === id) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const rect = row.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height / 2;
+        row.classList.toggle("drop-before", !after);
+        row.classList.toggle("drop-after",   after);
+    });
+    row.addEventListener("dragleave", () => {
+        row.classList.remove("drop-before", "drop-after");
+    });
+    row.addEventListener("drop", (e) => {
+        if (!dragSrcId || dragSrcId === id) return;
+        e.preventDefault();
+        const rect = row.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height / 2;
+        const srcIdx = presets.findIndex((p) => p.id === dragSrcId);
+        if (srcIdx < 0) return;
+        const [moved] = presets.splice(srcIdx, 1);
+        let dstIdx = presets.findIndex((p) => p.id === id);
+        if (dstIdx < 0) dstIdx = presets.length;
+        if (after) dstIdx += 1;
+        presets.splice(dstIdx, 0, moved);
+        savePresets();
+        renderPresetsEditor();
+        renderLayoutGroup();
+    });
+}
+
+// Eye glyphs for the show/hide toggle on the undeletable presets.
+const EYE_ON_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.13 4.16"/>' +
+    '<path d="M6.5 6.71A17.5 17.5 0 0 0 2 12s3.5 7 10 7a10.9 10.9 0 0 0 5.74-1.64"/>' +
+    '<path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/><line x1="3" y1="3" x2="21" y2="21"/></svg>';
+
+addPresetBtn.addEventListener("click", () => {
+    const id = `user-${Date.now().toString(36)}`;
+    presets.push({
+        id,
+        type:   "fixed",
+        label:  "New preset",
+        width:  1920,
+        height: 1080,
+        scale:  null,
+    });
+    if (!presets.some((p) => p.type === "custom")) {
+        presets.push({ ...DEFAULT_PRESETS.find((p) => p.type === "custom") });
+    }
+    savePresets();
+    renderPresetsEditor();
+    renderLayoutGroup();
+});
+
+const restorePresetsBtn = document.getElementById("restore-presets");
+restorePresetsBtn.addEventListener("click", () => {
+    presets = DEFAULT_PRESETS.map((p) => ({ ...p }));
+    savePresets();
+    renderPresetsEditor();
+    renderLayoutGroup();
+    const newLayout = getSelectedLayout();
+    if (newLayout) chrome.storage.local.set({ layoutPreset: newLayout });
+    updateResolutionInputs();
+    setStatus(t("stPresetsRestored"), "ok", 2000);
+});
+
+for (const r of defaultScaleEls) {
+    r.addEventListener("change", () => {
+        if (!r.checked) return;
+        defaultScaleFactor = parseInt(r.value, 10);
+        saveDefaultScale();
+        setStatus(t("stSettingSaved"), "ok", 1500);
+    });
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-layoutInputs.forEach((input) =>
-    input.addEventListener("change", () => {
-        updateResolutionInputs();
-        chrome.storage.local.set({ layoutPreset: getSelectedLayout() });
-    })
-);
 widthInput.addEventListener("input",  checkCustomResolution);
 heightInput.addEventListener("input", checkCustomResolution);
 
@@ -564,7 +1081,8 @@ heightInput.addEventListener("input", checkCustomResolution);
 // Only meaningful when the active preset is "custom"; for other presets these
 // inputs are derived from the preset itself.
 function persistCustomDimensions() {
-    if (getSelectedLayout() !== "custom") return;
+    const preset = getPreset(getSelectedLayout());
+    if (!preset || preset.type !== "custom") return;
     chrome.storage.local.set({
         customWidth:  parseInt(widthInput.value)  || null,
         customHeight: parseInt(heightInput.value) || null,
@@ -573,54 +1091,94 @@ function persistCustomDimensions() {
 widthInput.addEventListener("change",  persistCustomDimensions);
 heightInput.addEventListener("change", persistCustomDimensions);
 
-// Persist the user's scale-factor choice across popup opens. Default stays 2×
-// (set via `checked` in popup.html); a stored value just overrides the default.
-chrome.storage.local.get("scaleFactor").then(({ scaleFactor }) => {
-    if (scaleFactor) {
-        const radio = document.querySelector(`input[name="scale"][value="${scaleFactor}"]`);
-        if (radio) radio.checked = true;
-    }
-});
-for (const s of document.getElementsByName("scale")) {
-    s.addEventListener("change", () => {
-        if (s.checked) chrome.storage.local.set({ scaleFactor: parseInt(s.value) });
-    });
-}
-
+// Initial render with defaults — replaced once storage resolves.
+renderLayoutGroup();
+renderPresetsEditor();
 updateResolutionInputs();
 
-// Restore the user's previously chosen resolution preset. Async — the initial
-// updateResolutionInputs() call above runs with the HTML default ("user"); once
-// storage resolves we switch the radio and re-derive the inputs.
+// Re-render once the locale loader settles so a Settings → language override
+// (loaded asynchronously) is reflected in the seeded preset labels.
+window.__i18n.ready.then(() => {
+    renderLayoutGroup();
+    renderPresetsEditor();
+});
+
+// Restore presets, default scale, last layout, and last custom dimensions.
 chrome.storage.local
-    .get(["layoutPreset", "customWidth", "customHeight"])
-    .then(({ layoutPreset, customWidth, customHeight }) => {
-        if (!layoutPreset) return;
-        const radio = document.querySelector(`input[name="layout"][value="${layoutPreset}"]`);
-        if (!radio) return;
-        radio.checked = true;
+    .get([
+        "resolutionPresets", "defaultScaleFactor", "scaleFactor",
+        "layoutPreset", "customWidth", "customHeight",
+    ])
+    .then((s) => {
+        if (Array.isArray(s.resolutionPresets) && s.resolutionPresets.length) {
+            presets = s.resolutionPresets;
+            // Guarantee the custom preset always exists and stays visible.
+            if (!presets.some((p) => p.type === "custom")) {
+                presets.push({ ...DEFAULT_PRESETS.find((p) => p.type === "custom") });
+            }
+            for (const p of presets) {
+                if (p.type === "custom" && p.hidden) p.hidden = false;
+            }
+        }
+        // Migrate the old `scaleFactor` key into the new default; honor a
+        // freshly written `defaultScaleFactor` if present.
+        const ds = Number(s.defaultScaleFactor ?? s.scaleFactor);
+        if (Number.isFinite(ds) && ds >= 1 && ds <= 4) defaultScaleFactor = ds;
+        setRadio(defaultScaleEls, String(defaultScaleFactor));
+
+        renderPresetsEditor();
+        renderLayoutGroup();
+
+        if (s.layoutPreset) {
+            const radio = layoutGroupEl.querySelector(`input[value="${s.layoutPreset}"]`);
+            if (radio) radio.checked = true;
+        }
         updateResolutionInputs();
-        if (layoutPreset === "custom") {
-            if (customWidth)  widthInput.value  = customWidth;
-            if (customHeight) heightInput.value = customHeight;
+
+        const customPreset = presets.find((p) => p.type === "custom");
+        if (customPreset && getSelectedLayout() === customPreset.id) {
+            if (s.customWidth)  widthInput.value  = s.customWidth;
+            if (s.customHeight) heightInput.value = s.customHeight;
         }
     });
 
-// Pull the active tab's viewport size and refresh the user/fullpage/vertical
-// presets. Best-effort: on restricted URLs (chrome://, store) the background
-// returns nulls and we keep the screen-based fallback computed at module load.
+// Pull the active tab's viewport size and refresh the smart presets.
+// Best-effort: on restricted URLs (chrome://, store) the background returns
+// nulls and we keep the screen-based fallback computed at module load.
 sendMessage({ action: "getViewportSize" })
     .then((res) => {
         if (!res?.width || !res?.height) return;
         viewportWidth  = res.width;
         viewportHeight = res.height;
-        recomputeViewportPresets();
-        const layout = getSelectedLayout();
-        if (layout === "user" || layout === "fullpage" || layout === "vertical") {
+        const preset = getPreset(getSelectedLayout());
+        if (preset && preset.type !== "fixed" && preset.type !== "custom") {
             updateResolutionInputs();
         }
     })
     .catch(() => { /* keep fallback */ });
+
+// Tag the popup with the effective language code so CSS can adjust layout for
+// locales whose copy doesn't fit the default tooltip height (e.g. Russian
+// averages ~30% longer than English and needs a third line).
+function applyLangClass() {
+    const override = window.__i18n?.lang;
+    let lang = (override && override !== "auto")
+        ? override
+        : (chrome.i18n.getUILanguage?.() || navigator.language || "en");
+    lang = String(lang).split("-")[0].toLowerCase();
+    for (const c of [...popupEl.classList]) {
+        if (c.startsWith("lang-")) popupEl.classList.remove(c);
+    }
+    popupEl.classList.add(`lang-${lang}`);
+}
+
+// Start hint rotation once translations are in place; wire hover handlers
+// to swap the rotating tip for a per-control hint while pointing at it.
+window.__i18n.ready.then(() => {
+    applyLangClass();
+    wireHoverTips();
+    startGeneralTipRotation();
+});
 
 // If the popup was re-opened by the element-click handoff, show the
 // "Capturing…" overlay immediately. The session flag is set in

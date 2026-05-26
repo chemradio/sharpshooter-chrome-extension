@@ -17,6 +17,8 @@
     "presetUser":         { "message": "User" },
     "presetFullPage":     { "message": "Full Page" },
     "presetVertical":     { "message": "Vertical" },
+    "presetVerticalHd":   { "message": "Vertical HD" },
+    "presetReorder":      { "message": "Drag to reorder" },
     "presetCustom":       { "message": "Custom" },
     "phWidth":            { "message": "Width" },
     "phHeight":           { "message": "Height" },
@@ -45,11 +47,23 @@
     "reencodeNote":       { "message": "Flattens captures onto a white background and strips the alpha channel and colour-profile chunks. Fixes Adobe ScriptUI / Direct2D drawbot panels that reject the screenshots (HRESULT 0x80070057)." },
 
     "downloads":          { "message": "Downloads" },
-    "skipSaveDialog":     { "message": "Skip the \"Save as\" dialog" },
-    "skipSaveNote":       { "message": "Downloads land straight in your default Downloads folder without a save prompt." },
     "filenamePrefix":     { "message": "Filename prefix" },
     "phFilenamePrefix":   { "message": "e.g. project-name" },
     "filenamePrefixNote": { "message": "Prepended to every saved file: prefix-domain-timestamp.png" },
+
+    "defaultQuality":     { "message": "Default quality multiplier" },
+    "defaultQualityNote": { "message": "Used when a preset is set to \"Default\". Per-preset overrides take precedence." },
+    "presetsLabel":       { "message": "Presets" },
+    "presetsNote":        { "message": "Shown as buttons on the main view. The Custom preset is always kept. Smart presets (User, Full Page, Vertical) auto-derive their dimensions from the active tab." },
+    "addPreset":          { "message": "Add preset" },
+    "restorePresets":     { "message": "Restore factory presets" },
+    "stPresetsRestored":  { "message": "Factory presets restored" },
+    "presetScaleDefault": { "message": "Default" },
+    "presetLabelPh":      { "message": "Label" },
+    "presetDelete":       { "message": "Delete preset" },
+    "presetHide":         { "message": "Hide from main view" },
+    "presetShow":         { "message": "Show on main view" },
+    "presetSmartAuto":    { "message": "auto" },
 
     "captureSection":     { "message": "Capture" },
     "defaultCrop":        { "message": "Always open the crop editor" },
@@ -156,5 +170,30 @@
     "promptDetectedHere":     { "message": "Detected on this page" },
 
     "confirmClearDomain":     { "message": "Clear all per-host (domain) user filters?\n\nHost-scoped selectors you collected via DOM-killer will be removed from this browser. Global, bundled and EasyList filters are not affected." },
-    "confirmClearGlobal":     { "message": "Clear all global user filters?\n\nSelectors that apply to all hosts will be removed from this browser. Domain, bundled and EasyList filters are not affected." }
+    "confirmClearGlobal":     { "message": "Clear all global user filters?\n\nSelectors that apply to all hosts will be removed from this browser. Domain, bundled and EasyList filters are not affected." },
+
+    "showTooltips":           { "message": "Show popup tooltips" },
+    "showTooltipsNote":       { "message": "Rotating tips and per-button hints in the popup's bottom bar. Off shrinks the popup — it ends after Remove Elements." },
+
+    "tipAutoCapture":         { "message": "Auto Capture: one-click full-page shot" },
+    "tipPageCapture":         { "message": "Page Capture: emulate the chosen resolution and shoot the viewport" },
+    "tipCaptureElement":      { "message": "Capture Element: hover a node, wheel to walk the DOM, click to commit" },
+    "tipCaptureSite":         { "message": "Capture this post or story — site-aware element shot" },
+    "tipRemoveElements":      { "message": "Remove Elements: click to delete a node; Ctrl+Z undoes the last kill" },
+    "tipCropSegment":         { "message": "Same capture, then route through the manual crop editor" },
+    "tipHelp":                { "message": "Help — what each capture mode does and how to use them" },
+    "tipSettings":            { "message": "Settings — output format, presets, downloads, theme & language" },
+    "tipResolution":          { "message": "Edit width or height to switch to a Custom preset automatically" },
+    "tipPresets":             { "message": "Resolution presets — User/Full Page auto-size to the tab viewport" },
+    "tipQualityScale":        { "message": "Quality multiplier — 2× doubles pixel density (deviceScaleFactor)" },
+
+    "tipGen1":                { "message": "Tip: PNG keeps transparency; switch to JPEG in Settings for smaller files" },
+    "tipGen2":                { "message": "Tip: enable \"Always open the crop editor\" in Settings to skip the segmented buttons" },
+    "tipGen3":                { "message": "Tip: in Capture Element, scroll wheel walks the DOM tree — up to parent, down to first child" },
+    "tipGen4":                { "message": "Tip: Full Page preset measures the live document and caps at your configured height" },
+    "tipGen5":                { "message": "Tip: a filename prefix in Settings tags every shot — prefix-domain-timestamp.png" },
+    "tipGen6":                { "message": "Tip: browser zoom is reset to 100% during capture so layouts come out as expected" },
+    "tipGen7":                { "message": "Tip: Remove Elements writes a personal filter list — open the same site later and it stays clean" },
+    "tipGen8":                { "message": "Tip: 4× scale on a 1920-wide page produces a 7680-wide image (Chrome caps each side at 16384 px)" },
+    "tipGen9":                { "message": "Tip: opaque PNG re-encode (Settings) fixes screenshots that Adobe ScriptUI panels refuse" }
 }
