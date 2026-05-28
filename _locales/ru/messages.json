@@ -123,6 +123,9 @@
     "helpHelpers": {
         "message": "<div class=\"help-heading\">Инструменты</div><p><b>Удалить элементы</b> — ручной режим удаления по клику. Наводите курсор на цели, прокручивайте для смены глубины, кликайте для удаления. <b>Ctrl/Cmd+Z</b> отменяет последнее удаление; <b>ESC</b> — остановить.</p>"
     },
+    "helpFeedback": {
+        "message": "<div class=\"help-heading\">Обратная связь и проблемы</div><p>В случае любых проблем с расширением или для обратной связи — пишите на <a href=\"mailto:chemradio@gmail.com\">chemradio@gmail.com</a>.</p><p>Расширение создано Тимуром Тимаевым при помощи Claude.</p>"
+    },
 
     "helpTitleExpert": { "message": "Как работают фильтры" },
     "helpTiers": {

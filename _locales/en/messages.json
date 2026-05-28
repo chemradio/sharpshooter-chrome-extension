@@ -123,6 +123,9 @@
     "helpHelpers": {
         "message": "<div class=\"help-heading\">Helpers</div><p><b>Remove Elements</b> — manual click-to-remove mode. Hover targets, scroll to change depth, click to delete. <b>Ctrl/Cmd+Z</b> undoes the last removal; <b>ESC</b> stops.</p>"
     },
+    "helpFeedback": {
+        "message": "<div class=\"help-heading\">Feedback &amp; issues</div><p>In case of any issues with the extension or any feedback — forward to <a href=\"mailto:chemradio@gmail.com\">chemradio@gmail.com</a>.</p><p>Extension was built by Timur Timaev with help of Claude.</p>"
+    },
 
     "helpTitleExpert": { "message": "How filters work" },
     "helpTiers": {

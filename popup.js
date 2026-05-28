@@ -752,6 +752,7 @@ function setHelp(open) {
 }
 
 helpToggleBtn.addEventListener("click", () => {
+    if (popupEl.classList.contains("is-settings")) setSettings(false);
     setHelp(!popupEl.classList.contains("is-helping"));
 });
 
