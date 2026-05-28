@@ -16,6 +16,16 @@ const t = (key, ...subs) =>
 // below; the built-in default keeps the UI sane before storage resolves.
 let fullPageCap = 16000;
 
+// Default cap scales with the user's screen width using the 1920×7000 ratio
+// (so a 1920-wide monitor defaults to 7000 px, a 2560-wide one to ~9333, etc).
+// Clamped to [1000, 16384] (CDP hard limit). Once the user edits the field
+// (`fullPageHeightCapUserSet` flag), this auto-default no longer applies.
+function computeDefaultFullPageCap() {
+    const w = Number(window.screen?.width) || 1920;
+    const v = Math.round(w * 7000 / 1920);
+    return Math.min(Math.max(v, 1000), 16384);
+}
+
 // Whether every capture should route to the crop editor (Settings →
 // "Always open the crop editor"). Updated from storage on load.
 let cropDefault = false;
@@ -619,7 +629,8 @@ function setRadio(inputs, value) {
 // Load every persisted setting and reflect it into the controls.
 chrome.storage.local.get([
     "reencodeOpaquePng", "outputFormat", "jpegQuality",
-    "filenamePrefix", "defaultCrop", "fullPageHeightCap", "themeOverride",
+    "filenamePrefix", "defaultCrop", "fullPageHeightCap",
+    "fullPageHeightCapUserSet", "themeOverride",
     "langOverride", "showNavTooltip", "showPopupTooltips",
 ]).then((s) => {
     reencodeOpaqueCb.checked = s.reencodeOpaquePng !== false;
@@ -638,7 +649,15 @@ chrome.storage.local.get([
     defaultCropCb.checked = cropDefault;
 
     const cap = Number(s.fullPageHeightCap);
-    if (Number.isFinite(cap) && cap > 0) fullPageCap = Math.min(cap, 16384);
+    if (s.fullPageHeightCapUserSet && Number.isFinite(cap) && cap > 0) {
+        fullPageCap = Math.min(cap, 16384);
+    } else {
+        fullPageCap = computeDefaultFullPageCap();
+        // Persist the computed default so the service-worker capture path
+        // (autoCapture.js) reads the same value. Not flagged as user-set,
+        // so a different screen on next open recomputes.
+        chrome.storage.local.set({ fullPageHeightCap: fullPageCap });
+    }
     fullpageCapIn.value = fullPageCap;
 
     navTooltipCb.checked = s.showNavTooltip !== false;
@@ -704,11 +723,14 @@ showTooltipsCb.addEventListener("change", () => {
 
 fullpageCapIn.addEventListener("change", () => {
     let v = parseInt(fullpageCapIn.value, 10);
-    if (!Number.isFinite(v) || v <= 0) v = 16000;
+    if (!Number.isFinite(v) || v <= 0) v = computeDefaultFullPageCap();
     v = Math.min(Math.max(v, 1000), 16384);
     fullpageCapIn.value = v;
     fullPageCap = v;
-    chrome.storage.local.set({ fullPageHeightCap: v });
+    chrome.storage.local.set({
+        fullPageHeightCap: v,
+        fullPageHeightCapUserSet: true,
+    });
     if (getSelectedLayout() === "fullpage") updateResolutionInputs();
     setStatus(t("stSettingSaved"), "ok", 1500);
 });
