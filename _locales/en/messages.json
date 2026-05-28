@@ -279,33 +279,5 @@
     },
     "tipQualityScale": {
         "message": "Quality multiplier — 2× doubles pixel density (deviceScaleFactor)"
-    },
-
-    "tipGen1": {
-        "message": "Tip: Switch to JPEG in Settings for smaller files"
-    },
-    "tipGen2": {
-        "message": "Tip: enable \"Always open the crop editor\" in Settings to skip the segmented buttons"
-    },
-    "tipGen3": {
-        "message": "Tip: In Capture Element, scroll wheel walks the DOM tree — up to parent, down to previous child"
-    },
-    "tipGen4": {
-        "message": "Tip: Full Page preset measures the live document and caps at your configured height"
-    },
-    "tipGen5": {
-        "message": "Tip: A filename prefix in Settings tags every shot — prefix-domain-timestamp.png"
-    },
-    "tipGen6": {
-        "message": "Tip: Browser zoom is reset to 100% during capture so layouts come out as expected"
-    },
-    "tipGen7": {
-        "message": "Tip: Remove Elements is most useful for cleaning up ads and personal info"
-    },
-    "tipGen8": {
-        "message": "Tip: 4× scale on a 1920-wide page produces a 7680-wide image (Chrome caps each side at 16384 px)"
-    },
-    "tipGen9": {
-        "message": "Tip: Opaque PNG re-encode (Settings) fixes screenshots that other apps refuse"
     }
 }

@@ -189,10 +189,33 @@ const BUTTON_TIPS = [
     ["#layout-group",         "tipPresets"],
 ];
 
-const GENERAL_TIP_KEYS = [
-    "tipGen1", "tipGen2", "tipGen3", "tipGen4", "tipGen5",
-    "tipGen6", "tipGen7", "tipGen8", "tipGen9",
-];
+// Generic rotating tips live in tips/genericTips.json so they can be edited
+// freely without touching the locked-down messages.json schema. Shape:
+// { "en": ["Tip: …", …], "ru": [...], … }. Locales fall back to "en".
+let GENERAL_TIPS = [];
+
+function currentLangCode() {
+    const override = window.__i18n?.lang;
+    const raw = (override && override !== "auto")
+        ? override
+        : (chrome.i18n.getUILanguage?.() || navigator.language || "en");
+    return String(raw).split("-")[0].toLowerCase();
+}
+
+async function loadGenericTips() {
+    try {
+        const url = chrome.runtime.getURL("tips/genericTips.json");
+        const res = await fetch(url);
+        const data = await res.json();
+        const lang = currentLangCode();
+        const list = Array.isArray(data[lang]) ? data[lang]
+                   : Array.isArray(data.en)   ? data.en
+                   : [];
+        GENERAL_TIPS = list.filter((s) => typeof s === "string" && s.length > 0);
+    } catch {
+        GENERAL_TIPS = [];
+    }
+}
 
 function applyTooltipsEnabled(on) {
     tooltipsEnabled = !!on;
@@ -242,8 +265,8 @@ function renderHintText(text) {
 }
 
 function currentGeneralTipText() {
-    const key = GENERAL_TIP_KEYS[generalIdx % GENERAL_TIP_KEYS.length];
-    return t(key);
+    if (!GENERAL_TIPS.length) return "";
+    return GENERAL_TIPS[generalIdx % GENERAL_TIPS.length];
 }
 
 function renderCurrentHint() {
@@ -275,8 +298,10 @@ function wireHoverTips() {
 function startGeneralTipRotation() {
     if (!tooltipsEnabled) return;
     if (generalTimer) clearInterval(generalTimer);
-    // Start on a random tip so reopens don't always show #1.
-    generalIdx = Math.floor(Math.random() * GENERAL_TIP_KEYS.length);
+    if (!GENERAL_TIPS.length) return;
+    // Start on a random tip so reopens don't always show #1, and shuffle the
+    // order so consecutive ticks don't always march in file order.
+    generalIdx = Math.floor(Math.random() * GENERAL_TIPS.length);
     renderCurrentHint();
     generalTimer = setInterval(() => {
         generalIdx += 1;
@@ -702,10 +727,12 @@ for (const r of langInputs) {
         if (!r.checked) return;
         chrome.storage.local.set({ langOverride: r.value });
         // Re-localize the whole popup in place.
-        window.__i18n.reload(r.value).then(() => {
+        window.__i18n.reload(r.value).then(async () => {
             window.__applyI18n();
             applyLangClass();
             refreshDynamicStrings();
+            await loadGenericTips();
+            startGeneralTipRotation();
             setStatus(t("stSettingSaved"), "ok", 1500);
         });
     });
@@ -1175,9 +1202,10 @@ function applyLangClass() {
 
 // Start hint rotation once translations are in place; wire hover handlers
 // to swap the rotating tip for a per-control hint while pointing at it.
-window.__i18n.ready.then(() => {
+window.__i18n.ready.then(async () => {
     applyLangClass();
     wireHoverTips();
+    await loadGenericTips();
     startGeneralTipRotation();
 });
 

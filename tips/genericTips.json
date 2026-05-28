@@ -1,0 +1,25 @@
+{
+    "_comment": "Generic rotating tips shown in the popup's status bar. Edit freely — add, remove, or reorder. Each entry is a plain string. Locale keys are 2-letter codes; 'en' is the fallback for any locale not listed here.",
+    "en": [
+        "Tip: Switch to JPEG in Settings for smaller files",
+        "Tip: enable \"Always open the crop editor\" in Settings to skip the segmented buttons",
+        "Tip: In Capture Element, scroll wheel walks the DOM tree — up to parent, down to previous child",
+        "Tip: Full Page preset measures the live document and caps at your configured height",
+        "Tip: A filename prefix in Settings tags every shot — prefix-domain-timestamp.png",
+        "Tip: Browser zoom is reset to 100% during capture so layouts come out as expected",
+        "Tip: Remove Elements is most useful for cleaning up ads and personal info",
+        "Tip: 4× scale on a 1920-wide page produces a 7680-wide image (Chrome caps each side at 16384 px)",
+        "Tip: Opaque PNG re-encode (Settings) fixes screenshots that other apps refuse"
+    ],
+    "ru": [
+        "Tip: В Настройках можно переключить на JPEG ради меньшего размера",
+        "Tip: Включите «Всегда открывать редактор кропа» — и узкие кнопки «with crop» больше не нужны",
+        "Tip: В «Снимке элемента» колесо мыши ходит по DOM — вверх к родителю, вниз к предыдущему потомку",
+        "Tip: Пресет Full Page меряет реальную высоту страницы и ограничивает её настроенным лимитом",
+        "Tip: Префикс имени файла в Настройках помечает каждый снимок — prefix-домен-метка.png",
+        "Tip: На время съёмки зум браузера сбрасывается до 100%, чтобы вёрстка не плыла",
+        "Tip: «Удалить элементы» удобно использоваться для удаления рекламы.",
+        "Tip: 4× при ширине 1920 даёт картинку 7680 px (Chrome ограничен 16384 px по стороне)",
+        "Tip: «непрозрачное перекодирование PNG» в Настройках спасает скрины, которые отказываются грузиться в другие программы"
+    ]
+}
