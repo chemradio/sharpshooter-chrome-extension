@@ -88,7 +88,7 @@
     },
     "navTooltip": { "message": "Show the navigation hint" },
     "navTooltipNote": {
-        "message": "Shows a small tip next to the highlight frame in Capture Element and Remove Elements, explaining how to walk the DOM with the scroll wheel and mouse."
+        "message": "Shows a small tip next to the highlight frame in Capture Element and Remove Elements, explaining how to walk the DOM with the scroll wheel, arrow keys and mouse (↑↓ for depth, ←→ for siblings)."
     },
 
     "appearance": { "message": "Appearance" },
@@ -115,13 +115,13 @@
         "message": "<div class=\"help-heading\">Page Capture</div><p>Captures the whole page at a chosen resolution. Pick a preset:</p><ul><li><b>User</b> — the current tab's viewport size (default). Combined with the 2× quality multiplier, gives you a sharp shot at the exact size you see in the browser.</li><li><b>Full Page</b> — viewport width, full document height (measured live).</li><li><b>Vertical</b> — viewport width × (width × 3.5), good for long social posts.</li><li><b>FullHD</b> — 1920 × 1080.</li><li><b>4K</b> — 3840 × 2160.</li><li><b>Custom</b> — your own width × height.</li></ul><p>The page is emulated at this resolution before capture, so layouts adapt as if the window were that size.</p>"
     },
     "helpCaptureElement": {
-        "message": "<div class=\"help-heading\">Capture Element</div><p>Click the button, then hover any element on the page. A cyan glow shows what will be captured. Use the <b>scroll wheel</b> to change depth (up = parent, down = first child). Click to commit.</p>"
+        "message": "<div class=\"help-heading\">Capture Element</div><p>Click the button, then hover any element on the page. A cyan glow shows what will be captured. Use the <b>scroll wheel</b> or <b>↑ / ↓</b> to change depth (up = parent, down = first child) and <b>← / →</b> to step to the previous / next sibling. <b>Click</b> or press <b>Enter</b> to commit.</p>"
     },
     "helpQuality": {
         "message": "<div class=\"help-heading\">Quality multiplier</div><p>1× / 2× / 3× / 4× — scales pixel density. 2× is the default and works well for most uses. 3×–4× produces large but very sharp images suitable for print or motion graphics.</p>"
     },
     "helpHelpers": {
-        "message": "<div class=\"help-heading\">Helpers</div><p><b>Remove Elements</b> — manual click-to-remove mode. Hover targets, scroll to change depth, click to delete. <b>Ctrl/Cmd+Z</b> undoes the last removal; <b>ESC</b> stops.</p>"
+        "message": "<div class=\"help-heading\">Helpers</div><p><b>Remove Elements</b> — manual click-to-remove mode. Hover targets, use the wheel or <b>↑ / ↓</b> to change depth and <b>← / →</b> to step between siblings, then <b>click</b> or press <b>Enter</b> to delete. <b>Ctrl/Cmd+Z</b> undoes the last removal; <b>ESC</b> stops.</p>"
     },
     "helpFeedback": {
         "message": "<div class=\"help-heading\">Feedback &amp; issues</div><p>In case of any issues with the extension or any feedback — forward to <a href=\"mailto:chemradio@gmail.com\">chemradio@gmail.com</a>.</p><p>Extension was built by Timur Timaev with help of Claude.</p>"
@@ -145,11 +145,11 @@
     "ovCapturingElement": { "message": "Capturing element…" },
     "ovSelectElement": { "message": "Select an element" },
     "ovSelectElementHint": {
-        "message": "Move mouse to highlight\nScroll wheel to change depth"
+        "message": "Move mouse to highlight · Click or Enter to capture\nWheel / ↑ ↓ = depth · ← → = siblings"
     },
     "ovManualRemoval": { "message": "Manual removal" },
     "ovManualRemovalHint": {
-        "message": "Hover to target · Click to remove\nWheel to change depth · Ctrl/Cmd+Z to undo · ESC to stop"
+        "message": "Hover to target · Click or Enter to remove\nWheel / ↑ ↓ = depth · ← → = siblings · Ctrl/Cmd+Z to undo · ESC to stop"
     },
 
     "stMeasuringHeight": { "message": "Measuring page height…" },

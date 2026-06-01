@@ -435,7 +435,16 @@ const sendMessage = (message) =>
 
 // ─── Button handlers ──────────────────────────────────────────────────────────
 
+// Any capture must start from a clean page: a still-running Remove Elements
+// session keeps an overlay, stubs window.open, and disables iframe pointer
+// events — all of which would corrupt the shot. Tear it down the instant a
+// capture button is clicked. Best-effort, fire-and-forget (no-op if inactive).
+function stopDomKillerSession() {
+    sendMessage({ action: "stopDomKiller" }).catch(() => {});
+}
+
 function runPageCapture(manualCrop) {
+    stopDomKillerSession();
     showCapturing(t("stCapturingPage"));
     sendMessage({ action: "capturePage", settings: getSettings({ manualCrop }) })
         .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stDone"), "ok", 4000); })
@@ -443,6 +452,7 @@ function runPageCapture(manualCrop) {
 }
 
 async function runElementCapture(manualCrop) {
+    stopDomKillerSession();
     showCapturing(t("ovSelectElement"), t("ovSelectElementHint"));
     try {
         // Await injection so the highlighter is listening before we close the popup.
@@ -458,6 +468,7 @@ async function runElementCapture(manualCrop) {
 }
 
 function runAutoCapture(manualCrop) {
+    stopDomKillerSession();
     showCapturing(t("stAutoCapturing"));
     sendMessage({ action: "autoCapture", settings: getSettings({ manualCrop }) })
         .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stAutoDone"), "ok", 4000); })
@@ -530,6 +541,7 @@ window.__i18n.ready.then(() => {
 });
 
 function runSiteCapture(manualCrop) {
+    stopDomKillerSession();
     showCapturing(t("ovCapturing"));
     sendMessage({ action: "captureSiteElement", settings: getSettings({ manualCrop }) })
         .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stDone"), "ok", 4000); })

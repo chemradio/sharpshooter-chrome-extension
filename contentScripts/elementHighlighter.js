@@ -191,8 +191,8 @@
             <div class="__hl-label __hl-l-h" data-label-h></div>
         </div>
         <div class="__hl-tip" data-tip>
-            <b>Scroll wheel</b> to walk the DOM — up = parent, down = child.<br>
-            <b>Click</b> to capture the highlighted element · <b>Esc</b> to cancel.
+            <b>Wheel</b> / <b>↑ ↓</b> = parent / child · <b>← →</b> = previous / next sibling.<br>
+            <b>Click</b> or <b>Enter</b> to capture the highlighted element · <b>Esc</b> to cancel.
         </div>
     `;
     document.documentElement.appendChild(overlay);
@@ -423,51 +423,107 @@
         });
     }
 
-    function onWheel(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!currentElement) return;
-
-        // Freeze hover tracking while the user scrolls the DOM tree.
+    // Freeze hover tracking briefly after a tree-navigation step (wheel or
+    // arrow key) so the user doesn't have to hold the mouse perfectly still.
+    function lockHover() {
         isScrollLocked = true;
         clearTimeout(scrollLockTimer);
         scrollLockTimer = setTimeout(() => {
             isScrollLocked = false;
             // Anchor threshold to current mouse position so a small drift to
-            // click doesn't overwrite the scroll-navigated element.
+            // click doesn't overwrite the navigated element.
             lastCommittedX = pendingX;
             lastCommittedY = pendingY;
         }, SCROLL_LOCK_MS);
+    }
 
-        if (e.deltaY < 0) {
-            // Scroll up → parent element, normalized to the topmost ancestor
-            // sharing its rect. Remember which child we came from so a later
-            // scroll-down can return to it.
-            const parent = currentElement.parentElement;
-            if (parent && parent !== document.documentElement) {
-                const target = topmostSameRect(parent);
-                descentMemory.set(target, currentElement);
-                highlight(target);
-            }
-        } else {
-            // Scroll down → descend, skipping same-rect children so the frame
-            // visibly shrinks rather than appearing stuck.
-            const target = descendDifferent(currentElement);
-            if (target) highlight(target);
+    // Up → parent element, normalized to the topmost ancestor sharing its
+    // rect. Remember which child we came from so a later descend returns to it.
+    function navigateToParent() {
+        const parent = currentElement.parentElement;
+        if (parent && parent !== document.documentElement) {
+            const target = topmostSameRect(parent);
+            descentMemory.set(target, currentElement);
+            highlight(target);
         }
     }
 
-    function onKeyDown(e) {
-        if (e.key !== "Escape") return;
-        e.preventDefault();
-        e.stopPropagation();
-        destroy();
+    // Down → descend, skipping same-rect children so the frame visibly shrinks
+    // rather than appearing stuck.
+    function navigateToChild() {
+        const target = descendDifferent(currentElement);
+        if (target) highlight(target);
     }
 
-    function onClick(e) {
+    // The highlighter's own injected nodes must never become navigation
+    // targets when walking siblings near the top of the tree.
+    function isOwnNode(el) {
+        return el.id === OVERLAY_ID || el.id === STYLE_ID;
+    }
+
+    // Right/Left → next/previous sibling at the same level. When the current
+    // element has no sibling in that direction, climb to the nearest ancestor
+    // that does and use its sibling — so navigation continues in document
+    // order up the tree instead of dead-ending.
+    function navigateToSibling(forward) {
+        let el = currentElement;
+        while (el && el !== document.body && el !== document.documentElement) {
+            let sib = forward ? el.nextElementSibling : el.previousElementSibling;
+            while (sib && isOwnNode(sib)) {
+                sib = forward ? sib.nextElementSibling : sib.previousElementSibling;
+            }
+            if (sib) {
+                highlight(sib);
+                return;
+            }
+            el = el.parentElement;
+        }
+    }
+
+    function onWheel(e) {
         e.preventDefault();
         e.stopPropagation();
+        if (!currentElement) return;
 
+        lockHover();
+        if (e.deltaY < 0) navigateToParent();
+        else              navigateToChild();
+    }
+
+    function onKeyDown(e) {
+        if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            destroy();
+            return;
+        }
+
+        // Enter commits the highlighted element, same as a click.
+        if (e.key === "Enter") {
+            if (!currentElement) return;
+            e.preventDefault();
+            e.stopPropagation();
+            commitSelection();
+            return;
+        }
+
+        // Arrow keys walk the DOM: up/down = parent/child (like the wheel),
+        // left/right = previous/next sibling (climbing when exhausted).
+        if (e.key === "ArrowUp"   || e.key === "ArrowDown"
+         || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            if (!currentElement) return;
+            e.preventDefault();
+            e.stopPropagation();
+            lockHover();
+            if      (e.key === "ArrowUp")    navigateToParent();
+            else if (e.key === "ArrowDown")  navigateToChild();
+            else if (e.key === "ArrowLeft")  navigateToSibling(false);
+            else                             navigateToSibling(true);
+        }
+    }
+
+    // Commit the highlighted element for capture. Shared by click and Enter.
+    function commitSelection() {
         if (!currentElement) return;
 
         const element = currentElement;
@@ -482,6 +538,12 @@
             screenshotSuffix,
             manualCrop,
         });
+    }
+
+    function onClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        commitSelection();
     }
 
 

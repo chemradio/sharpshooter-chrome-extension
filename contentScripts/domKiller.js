@@ -245,8 +245,8 @@
             <div class="__dk-label __dk-l-h" data-label-h></div>
         </div>
         <div class="__dk-tip" data-tip>
-            <b>Scroll wheel</b> to walk the DOM — up = parent, down = child.<br>
-            <b>Click</b> to remove the highlighted element · <b>Ctrl/Cmd+Z</b> to undo.
+            <b>Wheel</b> / <b>↑ ↓</b> = parent / child · <b>← →</b> = previous / next sibling.<br>
+            <b>Click</b> or <b>Enter</b> to remove the highlighted element · <b>Ctrl/Cmd+Z</b> to undo.
         </div>
     `;
     document.documentElement.appendChild(overlay);
@@ -364,7 +364,7 @@
     if (!document.getElementById(BANNER_ID)) {
         const banner = document.createElement("div");
         banner.id = BANNER_ID;
-        banner.textContent = "Manual element removal — Hover to target · Click to remove · Wheel to change depth · Ctrl/Cmd+Z to undo · ESC to stop";
+        banner.textContent = "Manual element removal — Hover to target · Click or Enter to remove · Wheel/↑↓ = depth, ←→ = siblings · Ctrl/Cmd+Z to undo · ESC to stop";
         document.documentElement.appendChild(banner);
     }
 
@@ -444,13 +444,9 @@
         });
     }
 
-    function onWheel(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        if (!currentElement) return;
-
+    // Freeze hover tracking briefly after a tree-navigation step (wheel or
+    // arrow key) so the user doesn't have to hold the mouse perfectly still.
+    function lockHover() {
         isScrollLocked = true;
         clearTimeout(scrollLockTimer);
         scrollLockTimer = setTimeout(() => {
@@ -458,18 +454,61 @@
             lastCommittedX = pendingX;
             lastCommittedY = pendingY;
         }, SCROLL_LOCK_MS);
+    }
 
-        if (e.deltaY < 0) {
-            const parent = currentElement.parentElement;
-            if (parent && parent !== document.documentElement) {
-                const target = topmostSameRect(parent);
-                descentMemory.set(target, currentElement);
-                highlight(target);
-            }
-        } else {
-            const target = descendDifferent(currentElement);
-            if (target) highlight(target);
+    // Up → parent (topmost ancestor sharing its rect), remembering the child
+    // we came from so a later descend can return to it.
+    function navigateToParent() {
+        const parent = currentElement.parentElement;
+        if (parent && parent !== document.documentElement) {
+            const target = topmostSameRect(parent);
+            descentMemory.set(target, currentElement);
+            highlight(target);
         }
+    }
+
+    // Down → descend, skipping same-rect children so the frame visibly shrinks.
+    function navigateToChild() {
+        const target = descendDifferent(currentElement);
+        if (target) highlight(target);
+    }
+
+    // The killer's own injected nodes (overlay, style, banner, kill-frames)
+    // must never become navigation targets when walking siblings.
+    function isOwnNode(el) {
+        return el.id === OVERLAY_ID || el.id === STYLE_ID || el.id === BANNER_ID
+            || el.classList.contains("__dk-killframe");
+    }
+
+    // Right/Left → next/previous sibling at the same level. When the current
+    // element has no sibling in that direction, climb to the nearest ancestor
+    // that does and use its sibling — so navigation continues in document
+    // order up the tree instead of dead-ending.
+    function navigateToSibling(forward) {
+        let el = currentElement;
+        while (el && el !== document.body && el !== document.documentElement) {
+            let sib = forward ? el.nextElementSibling : el.previousElementSibling;
+            while (sib && isOwnNode(sib)) {
+                sib = forward ? sib.nextElementSibling : sib.previousElementSibling;
+            }
+            if (sib) {
+                highlight(sib);
+                return;
+            }
+            el = el.parentElement;
+        }
+    }
+
+    function onWheel(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        if (!currentElement) return;
+
+        lockHover();
+        if (e.deltaY < 0) navigateToParent();
+        else              navigateToChild();
     }
 
     function blockEvent(e) {
@@ -490,9 +529,8 @@
         blockEvent(e);
     }
 
-    function onClick(e) {
-        blockEvent(e);
-
+    // Remove the highlighted element. Shared by click and Enter.
+    function killCurrent() {
         if (!currentElement) return;
 
         const element = currentElement;
@@ -542,6 +580,11 @@
             target.remove();
             killFrame.remove();
         }, 520);
+    }
+
+    function onClick(e) {
+        blockEvent(e);
+        killCurrent();
     }
 
     // ─── Undo ─────────────────────────────────────────────────────────────────
@@ -632,6 +675,32 @@
         if (e.key === "Escape") {
             destroy();
             chrome.runtime.sendMessage({ action: "domKillerEnded" });
+            return;
+        }
+
+        // Enter removes the highlighted element, same as a click.
+        if (e.key === "Enter") {
+            if (!currentElement) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            killCurrent();
+            return;
+        }
+
+        // Arrow keys walk the DOM: up/down = parent/child (like the wheel),
+        // left/right = previous/next sibling (climbing when exhausted).
+        if (e.key === "ArrowUp"   || e.key === "ArrowDown"
+         || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            if (!currentElement) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            lockHover();
+            if      (e.key === "ArrowUp")    navigateToParent();
+            else if (e.key === "ArrowDown")  navigateToChild();
+            else if (e.key === "ArrowLeft")  navigateToSibling(false);
+            else                             navigateToSibling(true);
             return;
         }
 
