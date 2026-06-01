@@ -351,6 +351,20 @@ async function handleAction(request) {
             return {};
         }
 
+        case "stopDomKiller": {
+            // Tear down any live Remove Elements session. Called when the popup
+            // opens so a session the user left running (reopened the popup
+            // instead of pressing ESC) is cleaned up. No-op if none is active.
+            if (isRestrictedUrl(tab.url)) return {};
+            await chrome.scripting
+                .executeScript({
+                    target: { tabId: tab.id },
+                    func: () => window.__DomKillerDestroy?.(),
+                })
+                .catch(() => {});
+            return {};
+        }
+
         case "exportFilters": {
             return await exportUserFilters();
         }
@@ -404,6 +418,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "addUserFilter",
         "removeUserFilter",
         "domKiller",
+        "stopDomKiller",
         "domKillerEnded",
     ]);
     if (!owned.has(request?.action)) return false;

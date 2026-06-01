@@ -1146,6 +1146,12 @@ renderLayoutGroup();
 renderPresetsEditor();
 updateResolutionInputs();
 
+// Opening the popup ends any active Remove Elements session. Without this, a
+// session the user left running (they reopened the popup instead of pressing
+// ESC) keeps intercepting page clicks and showing its overlay — a confusing
+// mess. Best-effort: silently no-ops on restricted URLs or when none is active.
+sendMessage({ action: "stopDomKiller" }).catch(() => {});
+
 // Re-render once the locale loader settles so a Settings → language override
 // (loaded asynchronously) is reflected in the seeded preset labels.
 window.__i18n.ready.then(() => {
