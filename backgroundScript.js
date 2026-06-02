@@ -1,6 +1,7 @@
 import { emulateCaptureViewport } from "./screenshots/emulatedViewportCapture.js";
 import { addElementClickedListener } from "./screenshots/elementSelect/elementClickListener.js";
 import { withZoomReset } from "./support/zoomReset.js";
+import { handoffToCropEditor } from "./screenshots/capture/cropHandoff.js";
 import { refreshFilters, refreshIfStale } from "./adRemover/refreshFilters.js";
 import {
     runAutoCapture,
@@ -379,6 +380,13 @@ async function handleAction(request) {
         }
 
         case "imageExtractor": {
+            if (request.manualCrop) {
+                await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: (opts) => { window.__ImageExtractorOptions = opts; },
+                    args: [{ manualCrop: true }],
+                });
+            }
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 files: ["contentScripts/imageExtractor.js"],
@@ -427,6 +435,41 @@ async function handleAction(request) {
                 // Fallback: download the original format without conversion
                 await chrome.downloads.download({ url, saveAs: true });
             }
+            return {};
+        }
+
+        case "imageExtractorCropUrl": {
+            const { url: cropUrl } = request;
+            const cropSuffix = buildTimestampSuffix(tab.url);
+            const { filenamePrefix: cropPrefix } = await chrome.storage.local.get("filenamePrefix");
+            const cropBase = ((cropPrefix || "").trim())
+                ? `${cropPrefix.trim()}-${cropSuffix}`
+                : cropSuffix;
+
+            let fetchUrl = cropUrl;
+            const stripped = stripCdnSuffix(cropUrl);
+            if (stripped) {
+                try {
+                    const probe = await fetch(stripped, { method: "HEAD" });
+                    if (probe.ok) fetchUrl = stripped;
+                } catch { /* keep original */ }
+            }
+
+            const res = await fetch(fetchUrl);
+            if (!res.ok) throw new Error(`fetch ${res.status}`);
+            const blob   = await res.blob();
+            const bitmap = await createImageBitmap(blob);
+            const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+            canvas.getContext("2d").drawImage(bitmap, 0, 0);
+            bitmap.close();
+            const pngBlob = await canvas.convertToBlob({ type: "image/png" });
+            const bytes   = new Uint8Array(await pngBlob.arrayBuffer());
+            const CHUNK   = 0x8000;
+            let binary = "";
+            for (let i = 0; i < bytes.length; i += CHUNK) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+            }
+            await handoffToCropEditor(btoa(binary), `${cropBase}.png`);
             return {};
         }
 
@@ -501,6 +544,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "domKillerEnded",
         "imageExtractor",
         "imageExtractorDownload",
+        "imageExtractorCropUrl",
     ]);
     if (!owned.has(request?.action)) return false;
 

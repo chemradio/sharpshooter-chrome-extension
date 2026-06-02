@@ -405,6 +405,11 @@
 
             /* ── Progress overlay — mirrors the popup's capture animation ── */
             #${PROGRESS_ID} {
+                --ixpr-accent:     #0ECAE3;
+                --ixpr-accent-rgb: 14, 202, 227;
+                --ixpr-danger:     #FF3860;
+                --ixpr-danger-rgb: 255, 56, 96;
+                --ixpr-panel:      #102C44;
                 position: fixed !important;
                 inset: 0 !important;
                 z-index: ${Z + 1} !important;
@@ -413,11 +418,19 @@
                 justify-content: center !important;
                 background: rgba(0, 0, 0, 0.62) !important;
             }
+            #${PROGRESS_ID}[data-ix-theme="light"] {
+                --ixpr-accent:     #0bb4cd;
+                --ixpr-accent-rgb: 11, 180, 205;
+                --ixpr-danger:     #df0039;
+                --ixpr-danger-rgb: 223, 0, 57;
+                --ixpr-panel:      #f3f6f9;
+                background: rgba(180, 200, 218, 0.72) !important;
+            }
             .__ixpr-card {
                 position: relative !important;
-                background: #0d2236 !important;
-                border: 1px solid #0ECAE3 !important;
-                box-shadow: 0 0 40px rgba(14, 202, 227, 0.30) !important;
+                background: var(--ixpr-panel) !important;
+                border: 1px solid var(--ixpr-accent) !important;
+                box-shadow: 0 0 40px rgba(var(--ixpr-accent-rgb), 0.30) !important;
                 padding: 36px 52px !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -431,11 +444,11 @@
                 height: 60px !important;
                 pointer-events: none !important;
                 background: linear-gradient(180deg,
-                    transparent                0%,
-                    rgba(14,202,227,0.015)    40%,
-                    rgba(14,202,227,0.06)     75%,
-                    rgba(14,202,227,0.20)     94%,
-                    rgba(14,202,227,0.32)    100%
+                    transparent 0%,
+                    rgba(var(--ixpr-accent-rgb), 0.015) 40%,
+                    rgba(var(--ixpr-accent-rgb), 0.06)  75%,
+                    rgba(var(--ixpr-accent-rgb), 0.20)  94%,
+                    rgba(var(--ixpr-accent-rgb), 0.32) 100%
                 ) !important;
                 mix-blend-mode: screen !important;
                 animation: __ixScan 2.6s linear infinite !important;
@@ -449,8 +462,8 @@
             .__ixpr-ring {
                 width: 54px !important; height: 54px !important;
                 border-radius: 50% !important;
-                border: 2px solid #0ECAE3 !important;
-                box-shadow: 0 0 8px rgba(14,202,227,0.8), inset 0 0 12px rgba(14,202,227,0.35) !important;
+                border: 2px solid var(--ixpr-accent) !important;
+                box-shadow: 0 0 8px rgba(var(--ixpr-accent-rgb), 0.80), inset 0 0 12px rgba(var(--ixpr-accent-rgb), 0.35) !important;
                 position: relative !important;
                 display: flex !important;
                 align-items: center !important;
@@ -461,14 +474,14 @@
                 content: "" !important;
                 position: absolute !important; inset: 0 !important;
                 border-radius: 50% !important;
-                border: 2px solid #0ECAE3 !important;
+                border: 2px solid var(--ixpr-accent) !important;
                 animation: __ixRingExpand 1.8s ease-out infinite !important;
                 opacity: 0 !important;
             }
             .__ixpr-ring::after { animation-delay: 0.9s !important; }
             @keyframes __ixRingPump {
-                0%,100% { transform: scale(1);    box-shadow: 0 0 8px  rgba(14,202,227,0.80), inset 0 0 10px rgba(14,202,227,0.30); }
-                50%     { transform: scale(1.12); box-shadow: 0 0 22px rgba(14,202,227,0.70), inset 0 0 18px rgba(14,202,227,0.55); }
+                0%,100% { transform: scale(1);    box-shadow: 0 0 8px  rgba(var(--ixpr-accent-rgb), 0.80), inset 0 0 10px rgba(var(--ixpr-accent-rgb), 0.30); }
+                50%     { transform: scale(1.12); box-shadow: 0 0 22px rgba(var(--ixpr-accent-rgb), 0.70), inset 0 0 18px rgba(var(--ixpr-accent-rgb), 0.55); }
             }
             @keyframes __ixRingExpand {
                 0%   { transform: scale(1);   opacity: 0.7; }
@@ -478,8 +491,8 @@
                 display: block !important;
                 width: 12px !important; height: 12px !important;
                 border-radius: 50% !important;
-                background: #FF3860 !important;
-                box-shadow: 0 0 8px rgba(255,56,96,0.8), 0 0 14px rgba(255,56,96,0.85), 0 0 28px rgba(255,56,96,0.45) !important;
+                background: var(--ixpr-danger) !important;
+                box-shadow: 0 0 8px rgba(var(--ixpr-danger-rgb), 0.80), 0 0 14px rgba(var(--ixpr-danger-rgb), 0.85), 0 0 28px rgba(var(--ixpr-danger-rgb), 0.45) !important;
                 animation: __ixDotPulse 1.2s ease-in-out infinite !important;
             }
             @keyframes __ixDotPulse {
@@ -489,9 +502,15 @@
             .__ixpr-label {
                 font: 700 11px/1 "Courier New", ui-monospace, monospace !important;
                 letter-spacing: 0.16em !important;
-                color: #0ECAE3 !important;
-                text-shadow: 0 0 8px rgba(14, 202, 227, 0.80) !important;
+                color: var(--ixpr-accent) !important;
+                text-shadow: 0 0 8px rgba(var(--ixpr-accent-rgb), 0.80) !important;
                 text-transform: uppercase !important;
+                white-space: nowrap !important;
+            }
+            .__ixpr-dots {
+                display: inline-block !important;
+                width: 2.2em !important;
+                text-align: left !important;
             }
         `;
         document.head.appendChild(style);
@@ -779,6 +798,7 @@
     function commitSelection() {
         if (!currentElement) return;
         const el = currentElement;
+        const cropMode = !!window.__ImageExtractorOptions?.manualCrop;
         detachHighlighter();
 
         let candidates = findImages(el);
@@ -795,11 +815,12 @@
 
         // Single non-canvas result → skip the picker
         if (candidates.length === 1 && candidates[0].type !== "canvas") {
-            sendDownload(candidates[0].url);
+            if (cropMode) sendCrop(candidates[0].url);
+            else          sendDownload(candidates[0].url);
             return;
         }
 
-        showPicker(candidates);
+        showPicker(candidates, cropMode);
     }
 
     // ─── Picker ───────────────────────────────────────────────────────────────────
@@ -809,7 +830,7 @@
             ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
     }
 
-    function showPicker(candidates) {
+    function showPicker(candidates, cropMode) {
         let gridHtml = "";
         let bestMarked = false;
         for (const c of candidates) {
@@ -875,14 +896,26 @@
             const url = item.dataset.url;
             if (!url) return;
             closePicker();
-            sendDownload(url);
+            if (cropMode) sendCrop(url);
+            else          sendDownload(url);
         });
     }
 
     // ─── Download + progress + toast ─────────────────────────────────────────────
 
+    async function sendCrop(url) {
+        await showProgress();
+        try {
+            await chrome.runtime.sendMessage({ action: "imageExtractorCropUrl", url });
+        } catch {
+            showToast("Could not open crop editor — check extension permissions and try again.");
+        } finally {
+            hideProgress();
+        }
+    }
+
     async function sendDownload(url) {
-        showProgress();
+        await showProgress();
         try {
             await chrome.runtime.sendMessage({ action: "imageExtractorDownload", url });
         } catch {
@@ -892,22 +925,35 @@
         }
     }
 
-    function showProgress() {
+    async function showProgress() {
         hideProgress();
+
+        // Resolve theme from storage — fast local read
+        let theme = "dark";
+        try {
+            const { themeOverride } = await chrome.storage.local.get("themeOverride");
+            const pref = themeOverride || "auto";
+            theme = pref === "auto"
+                ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+                : pref;
+        } catch { /* keep dark */ }
+
         const el = document.createElement("div");
         el.id = PROGRESS_ID;
+        el.dataset.ixTheme = theme;
         el.innerHTML = `
             <div class="__ixpr-card">
                 <div class="__ixpr-scan"></div>
                 <div class="__ixpr-ring"><span class="__ixpr-dot"></span></div>
-                <div class="__ixpr-label" id="__ixpr-text">EXTRACTING</div>
+                <div class="__ixpr-label">EXTRACTING<span class="__ixpr-dots" id="__ixpr-dots"></span></div>
             </div>`;
         document.documentElement.appendChild(el);
+
         let dots = 0;
         progressTimer = setInterval(() => {
             dots = (dots + 1) % 4;
-            const lbl = document.getElementById("__ixpr-text");
-            if (lbl) lbl.textContent = "EXTRACTING" + ".".repeat(dots);
+            const span = document.getElementById("__ixpr-dots");
+            if (span) span.textContent = ".".repeat(dots);
         }, 380);
     }
 

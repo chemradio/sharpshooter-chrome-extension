@@ -193,6 +193,7 @@ const BUTTON_TIPS = [
     ["#capture-site-crop",    "tipCropSegment"],
     ["#dom-killer",           "tipRemoveElements"],
     ["#image-extractor",      "tipImageExtractor"],
+    ["#image-extractor-crop", "tipCropSegment"],
     ["#help-toggle",          "tipHelp"],
     ["#settings-toggle",      "tipSettings"],
     ["#width",                "tipResolution"],
@@ -578,16 +579,19 @@ document.getElementById("dom-killer").addEventListener("click", async () => {
     }
 });
 
-document.getElementById("image-extractor").addEventListener("click", async () => {
+async function runImageExtractor(manualCrop) {
     showCapturing(t("ovSelectElement"), t("ovImageExtractorHint"));
     try {
-        await sendMessage({ action: "imageExtractor" });
+        await sendMessage({ action: "imageExtractor", manualCrop });
         window.close();
     } catch (e) {
         stopCapturing();
         setStatus(e.message ?? t("stError"), "error", 5000);
     }
-});
+}
+
+document.getElementById("image-extractor").addEventListener("click", () => runImageExtractor(false));
+document.getElementById("image-extractor-crop").addEventListener("click", () => runImageExtractor(true));
 
 // ─── Settings view ────────────────────────────────────────────────────────────
 //
