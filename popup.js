@@ -192,6 +192,7 @@ const BUTTON_TIPS = [
     ["#capture-site",         "tipCaptureSite"],
     ["#capture-site-crop",    "tipCropSegment"],
     ["#dom-killer",           "tipRemoveElements"],
+    ["#image-extractor",      "tipImageExtractor"],
     ["#help-toggle",          "tipHelp"],
     ["#settings-toggle",      "tipSettings"],
     ["#width",                "tipResolution"],
@@ -570,6 +571,17 @@ document.getElementById("dom-killer").addEventListener("click", async () => {
         // content script is listening, so the user's first click on the page
         // reaches the kill handler instead of being swallowed by popup dismissal.
         await sendMessage({ action: "domKiller" });
+        window.close();
+    } catch (e) {
+        stopCapturing();
+        setStatus(e.message ?? t("stError"), "error", 5000);
+    }
+});
+
+document.getElementById("image-extractor").addEventListener("click", async () => {
+    showCapturing(t("ovSelectElement"), t("ovImageExtractorHint"));
+    try {
+        await sendMessage({ action: "imageExtractor" });
         window.close();
     } catch (e) {
         stopCapturing();

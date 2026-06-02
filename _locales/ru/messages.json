@@ -27,6 +27,7 @@
     "captureElement": { "message": "Снимок элемента" },
     "helpers": { "message": "Инструменты" },
     "removeElements": { "message": "Удалить элементы" },
+    "imageExtractor": { "message": "Извлечь изображение" },
     "cleanup": { "message": "Очистка" },
 
     "expertMode": { "message": "Экспертный режим" },
@@ -151,6 +152,9 @@
     "ovManualRemovalHint": {
         "message": "Наведение — цель · Клик или Enter — удалить\nКолесо / ↑ ↓ — глубина · ← → — соседние · Ctrl/Cmd+Z — отмена · ESC — стоп"
     },
+    "ovImageExtractorHint": {
+        "message": "Наведение — цель · Клик или Enter — извлечь изображения\nКолесо / ↑ ↓ — глубина · ← → — соседние · ESC — отмена"
+    },
 
     "stMeasuringHeight": { "message": "Измерение высоты страницы…" },
     "stMeasureFailed": { "message": "Не удалось измерить высоту страницы" },
@@ -265,6 +269,9 @@
     },
     "tipRemoveElements": {
         "message": "Удалить элементы: клик удаляет узел; Ctrl+Z отменяет последнее удаление"
+    },
+    "tipImageExtractor": {
+        "message": "Извлечь изображение: наведите на элемент, кликните — найдёт растровые изображения в поддереве и скачает как PNG"
     },
     "tipCropSegment": {
         "message": "То же самое, но потом откроется редактор кропа"

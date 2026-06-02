@@ -27,6 +27,7 @@
     "captureElement": { "message": "Capture Element" },
     "helpers": { "message": "Helpers" },
     "removeElements": { "message": "Remove Elements" },
+    "imageExtractor": { "message": "Extract Image" },
     "cleanup": { "message": "Cleanup" },
 
     "expertMode": { "message": "Expert Mode" },
@@ -151,6 +152,9 @@
     "ovManualRemovalHint": {
         "message": "Hover to target · Click or Enter to remove\nWheel / ↑ ↓ = depth · ← → = siblings · Ctrl/Cmd+Z to undo · ESC to stop"
     },
+    "ovImageExtractorHint": {
+        "message": "Hover to target · Click or Enter to extract images\nWheel / ↑ ↓ = depth · ← → = siblings · ESC to cancel"
+    },
 
     "stMeasuringHeight": { "message": "Measuring page height…" },
     "stMeasureFailed": { "message": "Could not measure page height" },
@@ -261,6 +265,9 @@
     },
     "tipRemoveElements": {
         "message": "Remove Elements: click to delete a node; Ctrl+Z undoes the last kill"
+    },
+    "tipImageExtractor": {
+        "message": "Extract Image: hover an element, click to scan its subtree for raster images and download as PNG"
     },
     "tipCropSegment": {
         "message": "Same capture, then route through the manual crop editor"

@@ -80,6 +80,33 @@ function isRestrictedUrl(url) {
         || /^https?:\/\/chrome\.google\.com\/webstore\//i.test(url);
 }
 
+// CDN image transformation suffixes baked into filenames before the extension.
+// Stripping them often yields the original unprocessed asset.
+// Order matters — first match wins. Fallback to original URL on fetch failure.
+const CDN_STRIP_PATTERNS = [
+    // Width-anchored transform chain: _w1597_n_r1_s_s  _w800_h600  _w1200
+    /_w\d+(_[a-z0-9]+)*(?=\.[a-z]{2,5}(\?|$))/i,
+    // Explicit WxH dimension suffix: _800x600  -800x600  _1920x1080
+    /[_-]\d{2,5}x\d{2,5}(?=\.[a-z]{2,5}(\?|$))/i,
+    // Named size variant: _large _xlarge _medium _small _thumb _thumbnail _preview _original _full
+    /[_-](x{0,2}large|medium|x{0,2}small|thumb(?:nail)?|preview|original|full|big|tiny)(?=\.[a-z]{2,5}(\?|$))/i,
+];
+
+function stripCdnSuffix(urlStr) {
+    try {
+        const u    = new URL(urlStr);
+        const path = u.pathname;
+        for (const re of CDN_STRIP_PATTERNS) {
+            const stripped = path.replace(re, "");
+            if (stripped !== path) {
+                u.pathname = stripped;
+                return u.href;
+            }
+        }
+    } catch { /* malformed URL */ }
+    return null;
+}
+
 function getPageHeight(tabId) {
     return new Promise((resolve, reject) => {
         chrome.scripting.executeScript(
@@ -351,6 +378,58 @@ async function handleAction(request) {
             return {};
         }
 
+        case "imageExtractor": {
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: ["contentScripts/imageExtractor.js"],
+            });
+            return {};
+        }
+
+        case "imageExtractorDownload": {
+            const { url } = request;
+            const suffix = buildTimestampSuffix(tab.url);
+            const { filenamePrefix } = await chrome.storage.local.get("filenamePrefix");
+            const prefix   = (filenamePrefix || "").trim();
+            const baseName = prefix ? `${prefix}-${suffix}` : suffix;
+
+            // Try stripped URL (CDN suffix removal) first; fall back to original
+            let fetchUrl = url;
+            const stripped = stripCdnSuffix(url);
+            if (stripped) {
+                try {
+                    const probe = await fetch(stripped, { method: "HEAD" });
+                    if (probe.ok) fetchUrl = stripped;
+                } catch { /* keep original */ }
+            }
+
+            try {
+                const res = await fetch(fetchUrl);
+                if (!res.ok) throw new Error(`fetch ${res.status}`);
+                const blob   = await res.blob();
+                const bitmap = await createImageBitmap(blob);
+                const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+                canvas.getContext("2d").drawImage(bitmap, 0, 0);
+                bitmap.close();
+                const pngBlob = await canvas.convertToBlob({ type: "image/png" });
+                const bytes   = new Uint8Array(await pngBlob.arrayBuffer());
+                const CHUNK   = 0x8000;
+                let binary = "";
+                for (let i = 0; i < bytes.length; i += CHUNK) {
+                    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+                }
+                await chrome.downloads.download({
+                    url:      `data:image/png;base64,${btoa(binary)}`,
+                    filename: `${baseName}.png`,
+                    saveAs:   true,
+                });
+            } catch {
+                // Fallback: download the original format without conversion
+                await chrome.downloads.download({ url, saveAs: true });
+            }
+            return {};
+        }
+
         case "stopDomKiller": {
             // Tear down any live Remove Elements session. Called when the popup
             // opens so a session the user left running (reopened the popup
@@ -420,6 +499,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "domKiller",
         "stopDomKiller",
         "domKillerEnded",
+        "imageExtractor",
+        "imageExtractorDownload",
     ]);
     if (!owned.has(request?.action)) return false;
 
