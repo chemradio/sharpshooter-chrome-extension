@@ -380,13 +380,15 @@ async function handleAction(request) {
         }
 
         case "imageExtractor": {
-            if (request.manualCrop) {
-                await chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    func: (opts) => { window.__ImageExtractorOptions = opts; },
-                    args: [{ manualCrop: true }],
-                });
-            }
+            // Always (re)set the options so a previous crop-mode run can't
+            // leave a stale window.__ImageExtractorOptions.manualCrop=true in
+            // the isolated world — the content script reads it at commit time
+            // and would otherwise route a plain extraction to the crop editor.
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: (opts) => { window.__ImageExtractorOptions = opts; },
+                args: [{ manualCrop: !!request.manualCrop }],
+            });
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 files: ["contentScripts/imageExtractor.js"],
