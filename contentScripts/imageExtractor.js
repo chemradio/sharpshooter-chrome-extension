@@ -18,6 +18,7 @@
     // ─── State ────────────────────────────────────────────────────────────────────
 
     let currentElement  = null;
+    let manualCrop      = false;
     let lastCommittedX  = -9999;
     let lastCommittedY  = -9999;
     let pendingX        = 0;
@@ -29,6 +30,20 @@
     let progressTimer   = null;
 
     const descentMemory = new WeakMap();
+
+    // ─── Receive crop mode sent by background after injection ───────────────────────
+    //
+    // The crop flag arrives via chrome.tabs.sendMessage (same reliable channel
+    // elementHighlighter uses), NOT a cross-injection global. A previously set
+    // window.__ImageExtractorOptions could go stale and route a plain extraction
+    // to the crop editor; a per-injection message can't. The message lands well
+    // before the user hovers + clicks, so manualCrop is always current at commit.
+    const optionsListener = (message) => {
+        if (message?.action === "imageExtractorOptions") {
+            manualCrop = !!message.manualCrop;
+        }
+    };
+    chrome.runtime.onMessage.addListener(optionsListener);
 
     // ─── Image utilities ──────────────────────────────────────────────────────────
 
@@ -798,7 +813,7 @@
     function commitSelection() {
         if (!currentElement) return;
         const el = currentElement;
-        const cropMode = !!window.__ImageExtractorOptions?.manualCrop;
+        const cropMode = manualCrop;
         detachHighlighter();
 
         let candidates = findImages(el);
@@ -1001,6 +1016,7 @@
         document.removeEventListener("keydown",   onKeyDown,   true);
         window.removeEventListener("resize", onViewportChange, true);
         window.removeEventListener("scroll", onViewportChange, true);
+        chrome.runtime.onMessage.removeListener(optionsListener);
         currentElement = null;
         document.documentElement.classList.remove("__ix-cursor");
         overlay.remove();

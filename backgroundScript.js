@@ -380,18 +380,19 @@ async function handleAction(request) {
         }
 
         case "imageExtractor": {
-            // Always (re)set the options so a previous crop-mode run can't
-            // leave a stale window.__ImageExtractorOptions.manualCrop=true in
-            // the isolated world — the content script reads it at commit time
-            // and would otherwise route a plain extraction to the crop editor.
-            await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: (opts) => { window.__ImageExtractorOptions = opts; },
-                args: [{ manualCrop: !!request.manualCrop }],
-            });
+            // Inject the picker, then push the crop flag over the per-injection
+            // message channel (same pattern as captureElement). A cross-injection
+            // global (window.__ImageExtractorOptions) set via a separate
+            // executeScript would not reliably reach the content script's scope,
+            // leaving a prior crop-mode run's manualCrop=true stale and routing a
+            // plain extraction to the crop editor.
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 files: ["contentScripts/imageExtractor.js"],
+            });
+            await chrome.tabs.sendMessage(tab.id, {
+                action: "imageExtractorOptions",
+                manualCrop: !!request.manualCrop,
             });
             return {};
         }
