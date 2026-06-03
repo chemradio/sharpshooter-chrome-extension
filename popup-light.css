@@ -357,6 +357,7 @@ section {
 }
 
 section + section { margin-top: 12px; }
+section[hidden] { display: none; }
 
 .section-label {
     font-size: 10px;

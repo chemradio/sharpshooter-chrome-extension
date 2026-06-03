@@ -161,8 +161,8 @@
 
                     <div class="divider" id="site-prompt-divider" hidden></div>
 
-                    <!-- Auto Capture -->
-                    <section>
+                    <!-- Auto Capture (temporarily hidden — unreliable; restore by removing `hidden`) -->
+                    <section hidden>
                         <div class="capture-segmented">
                             <button id="capture-auto" class="btn-capture btn-capture--main">
                                 <svg
@@ -206,7 +206,8 @@
                         </div>
                     </section>
 
-                    <div class="divider divider--strong"></div>
+                    <!-- Separator after Auto Capture (temporarily hidden — restore with the section above) -->
+                    <div class="divider divider--strong" hidden></div>
 
                     <!-- Page Capture + resolution -->
                     <section>
@@ -699,9 +700,11 @@
                         class="help-block"
                         data-i18n-html="helpCaptureSite"
                     ></div>
+                    <!-- Auto Capture help (temporarily hidden — restore by removing `hidden`) -->
                     <div
                         class="help-block"
                         data-i18n-html="helpAutoCapture"
+                        hidden
                     ></div>
                     <div
                         class="help-block"
