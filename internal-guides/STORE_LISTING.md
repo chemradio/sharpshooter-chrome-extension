@@ -20,8 +20,11 @@ page, a chosen resolution, or a single element you click on.
 - **Capture Element** — hover any element, scroll to change depth, click to
   capture just that part of the page.
 - **Auto Capture** — one-click full-page capture.
-- **Post / story capture** — on Facebook, Instagram, Telegram, X and VK,
-  detects a post or story and captures it without surrounding clutter.
+- **Post / story capture** — on Facebook, Instagram, Telegram, X, VK and
+  Threads, detects a post or story and captures it without surrounding clutter.
+- **Extract Image** — hover any element to scan its subtree for raster images
+  and download the highest-resolution source as PNG, optionally through the crop
+  editor.
 - **Crop editor** — optionally route any capture through a built-in crop editor.
 - **Remove Elements** — manually click to remove distracting elements from the
   page before capturing.

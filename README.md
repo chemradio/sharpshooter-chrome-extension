@@ -43,14 +43,16 @@ PNG by default, or JPEG — both configurable in Settings.
 
 ## Resolution presets (Page Capture)
 
-| Preset    | Width            | Height                          |
-| --------- | ---------------- | ------------------------------- |
-| User      | tab viewport     | tab viewport                    |
-| Full Page | tab viewport     | measured live page height       |
-| Vertical  | tab viewport     | width × 3.5                     |
-| FullHD    | 1920             | 1080                            |
-| 4K        | 3840             | 2160                            |
-| Custom    | user-editable    | user-editable                   |
+| Preset      | Width         | Height                    |
+| ----------- | ------------- | ------------------------- |
+| User        | tab viewport  | tab viewport              |
+| Full Page   | tab viewport  | measured live page height |
+| Vertical HD | 1920          | 7000                      |
+| FullHD      | 1920          | 1080                      |
+| 4K          | 3840          | 2160                      |
+| Custom      | user-editable | user-editable             |
+
+Presets can be reordered, shown/hidden, and the fixed-dimension ones edited or deleted in Settings. New presets can be added; **Restore factory presets** resets the list.
 
 **Quality multiplier** — 1× / 2× / 3× / 4× (`deviceScaleFactor`); default 2×.
 Max output is 16384 px per side (CDP limit).
@@ -64,6 +66,7 @@ Max output is 16384 px per side (CDP limit).
 | X / Twitter     |  ✓   |       |                                |
 | Telegram (t.me) |  ✓   |       |                                |
 | VK              |  ✓   |       |                                |
+| Threads         |  ✓   |       |                                |
 
 The "Capture this post/story" prompt only shows when the URL looks like a
 single post/story page. Feed and profile pages fall through to Auto / Page
@@ -74,6 +77,13 @@ Capture.
 - **Remove Elements** — interactive click-to-remove tool. Hover + scroll wheel
   to target, click to delete an element; **Ctrl/Cmd+Z** undoes the last
   removal.
+- **Extract Image** — hover any element (amber highlight), scroll wheel or arrow
+  keys to walk the DOM, click to scan the subtree for raster images (`<img>`,
+  `<picture>`, CSS background). One result downloads directly; multiple results
+  open a picker so you can choose. Each button is split: the main segment
+  downloads as PNG, the narrow **with crop** segment sends the image to the
+  crop editor. CDN size-suffix stripping is attempted automatically to fetch the
+  largest available source.
 
 ## Settings
 
