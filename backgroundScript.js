@@ -13,9 +13,11 @@ addElementClickedListener();
 
 // ─── FROZEN: Cleanup / AdRemover feature ──────────────────────────────────────
 // The cleanup feature (EasyList fetching, bundled + user filters) is obsoleted.
-// The hydration listeners below are disabled so the extension makes no network
-// requests and needs no host_permissions. The code is left intact — see
-// FROZEN-CLEANUP.md for how to re-enable it.
+// The hydration listeners below are disabled so the extension does not fetch
+// from easylist.to or other filter-list hosts. (host_permissions: <all_urls>
+// is still present for the unrelated Extract Image feature — see
+// PRIVACY.md.) The code is left intact — see FROZEN-CLEANUP.md for how to
+// re-enable it.
 //
 // const logRefreshFailure = (where) => (e) =>
 //     console.error(`filter refresh on ${where} failed:`, e);

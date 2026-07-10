@@ -2,8 +2,10 @@
 
 The **Cleanup** feature — EasyList fetching, bundled filters, user filters,
 AdRemover, the Expert-mode filter manager, and the Expert help page — has been
-**obsoleted and disabled**. None of it runs anymore and the extension makes no
-network requests.
+**obsoleted and disabled**. None of it runs anymore, so the extension makes no
+requests to easylist.to or other filter-list hosts. (The extension does still
+make network requests for the unrelated Extract Image feature — see
+[../PRIVACY.md](../PRIVACY.md).)
 
 All the code is **left intact** on disk. Nothing was deleted — only unwired.
 This document lists every change so the feature can be turned back on.
@@ -32,15 +34,13 @@ These still exist and are fully functional — they are just no longer called:
 
 Each step is marked in code with a `FROZEN` comment.
 
-1. **`manifest.json`** — re-add the `host_permissions` block (it was removed
-   entirely; it sat right after `permissions`):
-   ```json
-   "host_permissions": [
-       "https://easylist.to/*",
-       "https://raw.githubusercontent.com/*",
-       "https://cdn.jsdelivr.net/*"
-   ],
-   ```
+1. **`manifest.json`** — the `host_permissions` block was removed when this
+   feature was frozen, but has since been re-added as `["<all_urls>"]` for the
+   unrelated Extract Image feature (see PRIVACY.md). That broader grant
+   already covers EasyList's needs, so no manifest change is required here —
+   just confirm `<all_urls>` (or the narrower easylist.to /
+   raw.githubusercontent.com / cdn.jsdelivr.net set, if Extract Image's grant
+   is ever narrowed) is still present.
 
 2. **`backgroundScript.js`** — uncomment the `onStartup` / `onInstalled` filter
    hydration listeners (search for `FROZEN: Cleanup / AdRemover feature`).
