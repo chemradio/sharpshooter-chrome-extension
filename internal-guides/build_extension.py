@@ -30,7 +30,6 @@ EXCLUDE_DIRS = {
     ".git",            # version control
     ".claude",         # Claude Code settings
     "internal-guides", # these docs + this script + build output
-    "static",          # dev-only icon/brand-mark generation assets
     "__pycache__",     # Python cache
 }
 
@@ -40,6 +39,15 @@ EXCLUDE_FILES = {
     "CLAUDE.md",
     "README.md",
     "PRIVACY.md",      # hosted publicly, not shipped inside the extension
+}
+
+# Exact relative paths (POSIX-style) never packed. static/embed-{dark,light}.html
+# are runtime-fetched by brandMark.js, so static/ itself must be packed — but
+# these three files are dev-only icon generation/preview assets, not runtime deps.
+EXCLUDE_PATHS = {
+    "static/icon-render.html",
+    "static/icon-source.svg",
+    "static/icon-animated.svg",
 }
 
 # File-name patterns never packed, anywhere.
@@ -53,6 +61,8 @@ def should_include(path: Path) -> bool:
     if any(p in EXCLUDE_DIRS for p in parts):
         return False
     if len(parts) == 1 and rel.name in EXCLUDE_FILES:
+        return False
+    if rel.as_posix() in EXCLUDE_PATHS:
         return False
     if rel.name in EXCLUDE_NAMES:
         return False
