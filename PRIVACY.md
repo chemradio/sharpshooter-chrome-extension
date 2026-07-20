@@ -1,6 +1,6 @@
 # Privacy Policy — Sharpshooter
 
-_Last updated: 2026-07-10_
+_Last updated: 2026-07-20_
 
 Sharpshooter is a Chrome extension for capturing high-resolution screenshots of
 web pages and page elements, and for extracting source images from a page.
@@ -45,11 +45,6 @@ since the image being extracted can be hosted on any domain (see
 
 No other feature makes network requests. In particular, screenshot capture is
 entirely local: nothing about the page you capture is ever sent anywhere.
-
-> The **Cleanup / Filters** feature (EasyList fetching, bundled + user
-> filters, AdRemover) is present in the codebase but disabled and unwired — it
-> does not run and makes no requests. See
-> [internal-guides/FROZEN-CLEANUP.md](internal-guides/FROZEN-CLEANUP.md).
 
 ## Screenshots
 

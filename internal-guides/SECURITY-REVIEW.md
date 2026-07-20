@@ -61,10 +61,6 @@ the same ground.
   the page they're viewing. This is the same request the browser already made
   to render that image — the extension does not proxy, log, or forward it
   anywhere else.
-- A separate feature (**Cleanup / AdRemover**, cosmetic-filter-based ad
-  removal via EasyList) exists in the codebase but is **frozen/disabled** —
-  its network fetches (`easylist.to`) do not run. See
-  [FROZEN-CLEANUP.md](FROZEN-CLEANUP.md).
 
 ## Data handling
 
@@ -98,15 +94,12 @@ from files bundled in the extension package.
   actions listed above.
 - `popup.html` / `popup.js` — the toolbar UI.
 - `screenshots/` — capture pipeline (viewport emulation, element capture,
-  auto-capture, site-specific modules under `screenshots/elementSelect/` and
-  `contentScripts/sites/`).
+  site-aware element capture, site-specific modules under
+  `screenshots/elementSelect/` and `contentScripts/sites/`).
 - `contentScripts/` — scripts injected into the page being captured
   (highlighter, DOM remover, image extractor, mutation watcher).
 - `support/` — shared utilities (debugger attach/detach lifecycle, mutation
   settling, zoom reset).
-- `adRemover/`, `filters/`, `contentScripts/adRemover.js`,
-  `contentScripts/cleanup.js` — the frozen/disabled Cleanup feature (present,
-  unwired — see FROZEN-CLEANUP.md).
 - `cropEditor.js` / `cropEditor.html` — optional post-capture crop UI.
 - `_locales/` — English and Russian UI strings.
 
@@ -120,9 +113,6 @@ from files bundled in the extension package.
   protocol devtools uses). Usage here is scoped to short capture sessions on
   the active tab only, always explicitly triggered by the user, and always
   detached afterward (including on error, via `finally`).
-- The Cleanup/AdRemover feature's code is present but dead — it is not wired
-  into any UI control and does not execute. It's flagged here for
-  completeness since static analysis of the repo will find it.
 
 ## Distribution
 

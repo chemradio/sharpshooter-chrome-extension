@@ -542,10 +542,6 @@
         const link = element.closest("a");
         const target = link ?? element;
 
-        // Persisting click-removed selectors to userFilters is disabled:
-        // the generalized selector often matched different nodes on re-apply
-        // than what the user removed by hand. Will be redesigned separately.
-
         // Record position before detaching so Ctrl/Cmd+Z can splice it back.
         removalHistory.push({
             node: target,
@@ -602,73 +598,6 @@
             ? nextSibling
             : null;
         parent.insertBefore(node, ref);
-    }
-
-    // ─── Selector capture ─────────────────────────────────────────────────────
-
-    // Short, generalizing selector. Prefers stable hooks (testid, aria-label,
-    // id) and falls back to tag + first couple of classes. Goal: catch similar
-    // ads on reload without being so specific it brittle-breaks on re-renders.
-    function computeSelector(el) {
-        if (!el || el.nodeType !== 1) return null;
-
-        for (const a of [
-            "data-testid",
-            "data-test-id",
-            "data-test",
-            "data-qa",
-            "data-cy",
-        ]) {
-            if (el.hasAttribute(a)) {
-                const v = el.getAttribute(a);
-                if (v) return `[${a}="${cssEscape(v)}"]`;
-            }
-        }
-
-        if (el.hasAttribute("aria-label")) {
-            const v = el.getAttribute("aria-label");
-            if (v && v.length < 60) {
-                return `${el.tagName.toLowerCase()}[aria-label="${cssEscape(v)}"]`;
-            }
-        }
-
-        // Skip ids that look auto-generated (long digit runs / uuid-ish).
-        if (el.id && !/\d{4,}/.test(el.id) && !/^[a-f0-9-]{16,}$/i.test(el.id)) {
-            return `#${cssEscape(el.id)}`;
-        }
-
-        if (el.classList.length) {
-            const classes = Array.from(el.classList)
-                .slice(0, 2)
-                .map((c) => `.${cssEscape(c)}`)
-                .join("");
-            return `${el.tagName.toLowerCase()}${classes}`;
-        }
-
-        return el.tagName.toLowerCase();
-    }
-
-    function cssEscape(s) {
-        return typeof CSS !== "undefined" && CSS.escape
-            ? CSS.escape(s)
-            : String(s).replace(/(["\\\]])/g, "\\$1");
-    }
-
-    async function persistUserFilter(selector) {
-        try {
-            const host = location.hostname.toLowerCase();
-            const { userFilters } = await chrome.storage.local.get("userFilters");
-            const map = userFilters ?? {};
-            const list = map[host] ?? [];
-            if (!list.includes(selector)) {
-                list.push(selector);
-                map[host] = list;
-                await chrome.storage.local.set({ userFilters: map });
-                console.log(`DOM-killer saved: ${host} → ${selector}`);
-            }
-        } catch (e) {
-            console.warn("DOM-killer persist failed:", e);
-        }
     }
 
     function onKeyDown(e) {

@@ -2,55 +2,12 @@ import { emulateCaptureViewport } from "./screenshots/emulatedViewportCapture.js
 import { addElementClickedListener } from "./screenshots/elementSelect/elementClickListener.js";
 import { withZoomReset } from "./support/zoomReset.js";
 import { handoffToCropEditor } from "./screenshots/capture/cropHandoff.js";
-import { refreshFilters, refreshIfStale } from "./adRemover/refreshFilters.js";
 import {
-    runAutoCapture,
     detectSite,
     captureSiteElement,
 } from "./screenshots/autoCapture.js";
 
 addElementClickedListener();
-
-// ─── FROZEN: Cleanup / AdRemover feature ──────────────────────────────────────
-// The cleanup feature (EasyList fetching, bundled + user filters) is obsoleted.
-// The hydration listeners below are disabled so the extension does not fetch
-// from easylist.to or other filter-list hosts. (host_permissions: <all_urls>
-// is still present for the unrelated Extract Image feature — see
-// PRIVACY.md.) The code is left intact — see FROZEN-CLEANUP.md for how to
-// re-enable it.
-//
-// const logRefreshFailure = (where) => (e) =>
-//     console.error(`filter refresh on ${where} failed:`, e);
-//
-// chrome.runtime.onStartup.addListener(() => {
-//     refreshFilters().catch(logRefreshFailure("startup"));
-// });
-// chrome.runtime.onInstalled.addListener(() => {
-//     refreshFilters().catch(logRefreshFailure("install"));
-//     loadBundledFilters().catch((e) =>
-//         console.error("bundled-filter load failed:", e)
-//     );
-// });
-
-// Pull the in-repo curated filter list into storage so adRemover can read it
-// alongside EasyList + userFilters. Runs on install AND every extension update
-// — that's how new versions of the bundled list propagate to users.
-async function loadBundledFilters() {
-    const url = chrome.runtime.getURL("filters/bundledFilters.json");
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`fetch ${url} → ${res.status}`);
-    const data = await res.json();
-    const bundledFilters = {
-        global: Array.isArray(data.global) ? data.global : [],
-        domains: data.domains && typeof data.domains === "object" ? data.domains : {},
-    };
-    await chrome.storage.local.set({ bundledFilters });
-    const hostCount = Object.keys(bundledFilters.domains).length;
-    console.log(
-        `bundled filters loaded: ${bundledFilters.global.length} global, ` +
-            `${hostCount} domain entries`
-    );
-}
 
 async function getActiveTab() {
     return new Promise((resolve, reject) => {
@@ -136,138 +93,6 @@ function getPageHeight(tabId) {
     });
 }
 
-// Unified cleanup: EasyList ad selectors + per-host hand-curated cleanup +
-// user-collected DOM-killer selectors. Used by the popup's "Manual" button
-// and the "Cleanup before capture" checkbox.
-async function runCleanup(tabId) {
-    // Lazy-hydrate filters in case onInstalled/onStartup fetch hasn't landed.
-    await refreshIfStale().catch((e) =>
-        console.warn("refreshIfStale failed:", e)
-    );
-    const adResults = await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ["contentScripts/adRemover.js"],
-    });
-    await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ["contentScripts/cleanup.js"],
-    });
-    return adResults?.[0]?.result ?? null;
-}
-
-async function readUserFilters() {
-    const { userFilters, userGlobalFilters } =
-        await chrome.storage.local.get(["userFilters", "userGlobalFilters"]);
-    return {
-        map: userFilters ?? {},
-        global: Array.isArray(userGlobalFilters) ? userGlobalFilters : [],
-    };
-}
-
-// Dump userFilters as a downloadable JSON in the same shape as
-// filters/bundledFilters.json — so the dev can merge promising entries
-// straight into the bundled file for the next extension release.
-async function exportUserFilters() {
-    const { map: domains, global } = await readUserFilters();
-    const hostCount     = Object.keys(domains).length;
-    const selectorCount = global.length + Object.values(domains)
-        .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
-
-    if (selectorCount === 0) {
-        return { selectorCount: 0, hostCount: 0 };
-    }
-
-    const payload = {
-        _exportedAt: new Date().toISOString(),
-        _shape: "matches filters/bundledFilters.json — drop entries from `global` / `domains` into the bundled file",
-        global,
-        domains,
-    };
-    const json = JSON.stringify(payload, null, 4);
-    const dataUrl =
-        "data:application/json;charset=utf-8;base64," +
-        btoa(unescape(encodeURIComponent(json)));
-    const stamp = new Date()
-        .toISOString()
-        .replace(/T/, "-")
-        .replace(/:/g, "-")
-        .split(".")[0];
-
-    await chrome.downloads.download({
-        url: dataUrl,
-        filename: `userFilters-${stamp}.json`,
-        saveAs: true,
-    });
-
-    return { selectorCount, hostCount };
-}
-
-async function listUserFilters(host) {
-    const { map, global } = await readUserFilters();
-    return {
-        host,
-        selectors:       map[host] ?? [],
-        globalSelectors: global,
-    };
-}
-
-async function addUserFilter(host, selector, scope) {
-    const sel = (selector ?? "").trim();
-    if (!sel) throw new Error("Empty selector");
-    const { map, global } = await readUserFilters();
-
-    if (scope === "global") {
-        const added = !global.includes(sel);
-        if (added) {
-            global.push(sel);
-            await chrome.storage.local.set({ userGlobalFilters: global });
-        }
-        return { host, selectors: map[host] ?? [], globalSelectors: global, added };
-    }
-
-    if (!host) throw new Error("No host");
-    const list = map[host] ?? [];
-    const added = !list.includes(sel);
-    if (added) {
-        list.push(sel);
-        map[host] = list;
-        await chrome.storage.local.set({ userFilters: map });
-    }
-    return { host, selectors: list, globalSelectors: global, added };
-}
-
-async function removeUserFilter(host, selector, scope) {
-    const { map, global } = await readUserFilters();
-
-    if (scope === "global") {
-        const next = global.filter((s) => s !== selector);
-        await chrome.storage.local.set({ userGlobalFilters: next });
-        return { host, selectors: map[host] ?? [], globalSelectors: next };
-    }
-
-    const list = (map[host] ?? []).filter((s) => s !== selector);
-    if (list.length === 0) delete map[host];
-    else map[host] = list;
-    await chrome.storage.local.set({ userFilters: map });
-    return { host, selectors: list, globalSelectors: global };
-}
-
-async function clearDomainFilters() {
-    const { map } = await readUserFilters();
-    const hostCount = Object.keys(map).length;
-    const selectorCount = Object.values(map)
-        .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
-    await chrome.storage.local.set({ userFilters: {} });
-    return { selectorCount, hostCount };
-}
-
-async function clearGlobalFilters() {
-    const { global } = await readUserFilters();
-    const selectorCount = global.length;
-    await chrome.storage.local.set({ userGlobalFilters: [] });
-    return { selectorCount };
-}
-
 async function handleAction(request) {
     const tab = await getActiveTab();
     const settings = request.settings ?? {};
@@ -341,21 +166,6 @@ async function handleAction(request) {
                 manualCrop: !!settings.manualCrop,
             });
             return {};
-        }
-
-        case "manualCleanup": {
-            const stats = await runCleanup(tab.id);
-            return { stats };
-        }
-
-        case "autoCapture": {
-            const result = await runAutoCapture({
-                tabId: tab.id,
-                url: tab.url,
-                settings,
-                screenshotSuffix,
-            });
-            return result;
         }
 
         case "detectSite": {
@@ -492,33 +302,6 @@ async function handleAction(request) {
             return {};
         }
 
-        case "exportFilters": {
-            return await exportUserFilters();
-        }
-
-        case "clearDomainFilters": {
-            return await clearDomainFilters();
-        }
-
-        case "clearGlobalFilters": {
-            return await clearGlobalFilters();
-        }
-
-        case "listUserFilters": {
-            const host = new URL(tab.url).hostname.toLowerCase();
-            return await listUserFilters(host);
-        }
-
-        case "addUserFilter": {
-            const host = new URL(tab.url).hostname.toLowerCase();
-            return await addUserFilter(host, request.selector, request.scope);
-        }
-
-        case "removeUserFilter": {
-            const host = new URL(tab.url).hostname.toLowerCase();
-            return await removeUserFilter(host, request.selector, request.scope);
-        }
-
         default:
             // elementClicked is handled by its own dedicated listener
             return null;
@@ -534,19 +317,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "getViewportSize",
         "capturePage",
         "captureElement",
-        "manualCleanup",
-        "autoCapture",
         "detectSite",
         "captureSiteElement",
-        "exportFilters",
-        "clearDomainFilters",
-        "clearGlobalFilters",
-        "listUserFilters",
-        "addUserFilter",
-        "removeUserFilter",
         "domKiller",
         "stopDomKiller",
-        "domKillerEnded",
         "imageExtractor",
         "imageExtractorDownload",
         "imageExtractorCropUrl",

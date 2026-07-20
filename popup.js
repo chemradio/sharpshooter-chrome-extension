@@ -183,8 +183,6 @@ let generalTimer = null;
 let tooltipsEnabled = true;
 
 const BUTTON_TIPS = [
-    ["#capture-auto",         "tipAutoCapture"],
-    ["#capture-auto-crop",    "tipCropSegment"],
     ["#capture-page",         "tipPageCapture"],
     ["#capture-page-crop",    "tipCropSegment"],
     ["#capture-element",      "tipCaptureElement"],
@@ -469,14 +467,6 @@ async function runElementCapture(manualCrop) {
     }
 }
 
-function runAutoCapture(manualCrop) {
-    stopDomKillerSession();
-    showCapturing(t("stAutoCapturing"));
-    sendMessage({ action: "autoCapture", settings: getSettings({ manualCrop }) })
-        .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stAutoDone"), "ok", 4000); })
-        .catch((e) => { stopCapturing(); setStatus(e.message ?? t("stError"), "error", 5000); });
-}
-
 // The "main" capture buttons route to the crop editor when the Settings
 // "Always open the crop editor" option is on (cropDefault). The dedicated
 // "-crop" buttons always crop; they are hidden by CSS when cropDefault is on.
@@ -485,9 +475,6 @@ document.getElementById("capture-page-crop").addEventListener("click", () => run
 
 document.getElementById("capture-element").addEventListener("click", () => runElementCapture(cropDefault));
 document.getElementById("capture-element-crop").addEventListener("click", () => runElementCapture(true));
-
-document.getElementById("capture-auto").addEventListener("click", () => runAutoCapture(cropDefault));
-document.getElementById("capture-auto-crop").addEventListener("click", () => runAutoCapture(true));
 
 // ─── Site-detection prompt ────────────────────────────────────────────────────
 //
@@ -596,8 +583,7 @@ document.getElementById("image-extractor-crop").addEventListener("click", () => 
 // ─── Settings view ────────────────────────────────────────────────────────────
 //
 // The former "Expert mode" view is now a plain Settings panel, opened from
-// the gear icon in the header. Filter management and the Cleanup feature were
-// obsoleted — see FROZEN-CLEANUP.md.
+// the gear icon in the header.
 
 const viewNormal       = document.getElementById("view-normal");
 const viewSettings     = document.getElementById("view-settings");
@@ -681,9 +667,9 @@ chrome.storage.local.get([
         fullPageCap = Math.min(cap, 16384);
     } else {
         fullPageCap = computeDefaultFullPageCap();
-        // Persist the computed default so the service-worker capture path
-        // (autoCapture.js) reads the same value. Not flagged as user-set,
-        // so a different screen on next open recomputes.
+        // Persist the computed default so the next popup open on this screen
+        // shows the same value instead of flickering. Not flagged as
+        // user-set, so a different screen on next open recomputes.
         chrome.storage.local.set({ fullPageHeightCap: fullPageCap });
     }
     fullpageCapIn.value = fullPageCap;

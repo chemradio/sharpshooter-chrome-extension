@@ -19,7 +19,6 @@ page, a chosen resolution, or a single element you click on.
   FullHD, 4K) or a custom size, at up to 4× pixel density.
 - **Capture Element** — hover any element, scroll to change depth, click to
   capture just that part of the page.
-- **Auto Capture** — one-click full-page capture.
 - **Post / story capture** — on Facebook, Instagram, Telegram, X, VK and
   Threads, detects a post or story and captures it without surrounding clutter.
 - **Extract Image** — hover any element to scan its subtree for raster images

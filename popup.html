@@ -161,54 +161,6 @@
 
                     <div class="divider" id="site-prompt-divider" hidden></div>
 
-                    <!-- Auto Capture (temporarily hidden — unreliable; restore by removing `hidden`) -->
-                    <section hidden>
-                        <div class="capture-segmented">
-                            <button id="capture-auto" class="btn-capture btn-capture--main">
-                                <svg
-                                    class="btn-icon"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.75"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <path
-                                        d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"
-                                    />
-                                </svg>
-                                <span data-i18n="autoCapture">Auto Capture</span>
-                            </button>
-                            <button
-                                id="capture-auto-crop"
-                                class="btn-capture btn-capture--crop"
-                                title="Capture, then manually crop"
-                                data-i18n-title="cropSegmentTitle"
-                                aria-label="With manual crop"
-                            >
-                                <svg
-                                    class="btn-icon"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.75"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <path d="M6 2v14a2 2 0 0 0 2 2h14" />
-                                    <path d="M18 22V8a2 2 0 0 0-2-2H2" />
-                                </svg>
-                                <span class="crop-segment-label" data-i18n="cropSegmentLabel">with crop</span>
-                            </button>
-                        </div>
-                    </section>
-
-                    <!-- Separator after Auto Capture (temporarily hidden — restore with the section above) -->
-                    <div class="divider divider--strong" hidden></div>
-
                     <!-- Page Capture + resolution -->
                     <section>
                         <div class="section-label" data-i18n="resolution">
@@ -574,7 +526,7 @@
                             value="16000"
                         />
                         <p class="setting-note" data-i18n="fullPageCapNote">
-                            Caps the Full Page preset and Auto Capture height.
+                            Caps the Full Page preset height.
                             Hard maximum is 16384 px (Chrome's limit).
                         </p>
                         <div class="setting-divider"></div>
@@ -699,12 +651,6 @@
                     <div
                         class="help-block"
                         data-i18n-html="helpCaptureSite"
-                    ></div>
-                    <!-- Auto Capture help (temporarily hidden — restore by removing `hidden`) -->
-                    <div
-                        class="help-block"
-                        data-i18n-html="helpAutoCapture"
-                        hidden
                     ></div>
                     <div
                         class="help-block"

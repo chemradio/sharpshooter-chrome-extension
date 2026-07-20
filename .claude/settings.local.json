@@ -8,7 +8,9 @@
       "Grep",
       "Bash",
       "PowerShell",
-      "Bash(python internal-guides/build_extension.py)"
+      "Bash(python internal-guides/build_extension.py)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/en/messages.json','utf8'\\)\\); console.log\\('en OK'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/ru/messages.json','utf8'\\)\\); console.log\\('ru OK'\\)\")"
     ]
   }
 }

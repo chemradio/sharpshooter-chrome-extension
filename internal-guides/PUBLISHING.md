@@ -4,7 +4,6 @@ Internal checklist. Not part of the extension.
 
 Related files in this folder:
 - **STORE_LISTING.md** — copy/paste text for the dashboard (description, permission justifications).
-- **FROZEN-CLEANUP.md** — record of the disabled Cleanup/Filters feature.
 - **build_extension.py** — builds the upload ZIP (see step 3).
 
 The privacy policy (**PRIVACY.md**) stays at the project root because it must be
@@ -101,9 +100,6 @@ The build script packs these automatically. Listed here for review.
 - `contentScripts/` — including `sites/`
 - `screenshots/` — including `capture/`, `elementSelect/`, `emulation/`
 - `support/`
-- `adRemover/` — frozen feature, but `backgroundScript.js` still imports it; the
-  service worker fails to load if it is missing.
-- `filters/` — `bundledFilters.json` (frozen feature; kept for the same reason).
 
 ## What must NOT go in the ZIP
 

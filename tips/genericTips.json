@@ -2,7 +2,6 @@
     "_comment": "Generic rotating tips shown in the popup's status bar. Edit freely — add, remove, or reorder. Each entry is a plain string. Locale keys are 2-letter codes; 'en' is the fallback for any locale not listed here.",
     "en": [
         "Tip: Switch to JPEG in Settings for smaller files",
-        "Tip: Use Page Capture with Vertical HD preset if Auto-Capture fails",
         "Tip: enable \"Always open the crop editor\" in Settings to skip the segmented buttons",
         "Tip: In Capture Element, scroll wheel walks the DOM tree — up to parent, down to previous child",
         "Tip: Full Page preset measures the live document and caps at your configured height",
@@ -14,7 +13,6 @@
     ],
     "ru": [
         "Tip: В Настройках можно переключить на JPEG ради меньшего размера",
-        "Tip: Используй 'Снимок страницы' и 'Вертикальное HD', если 'Авто-снимок' не справился",
         "Tip: Включите «Всегда открывать редактор кропа» — и узкие кнопки «with crop» больше не нужны",
         "Tip: В «Снимке элемента» колесо мыши ходит по DOM — вверх к родителю, вниз к предыдущему потомку",
         "Tip: Пресет Full Page меряет реальную высоту страницы и ограничивает её настроенным лимитом",

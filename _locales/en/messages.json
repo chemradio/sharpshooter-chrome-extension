@@ -12,7 +12,6 @@
     "settingsTitle": { "message": "Settings" },
 
     "qualityMultiplier": { "message": "Quality multiplier" },
-    "autoCapture": { "message": "Auto Capture" },
     "manualCapture": { "message": "Manual Capture" },
     "pageCapture": { "message": "Page Capture" },
     "resolution": { "message": "Resolution" },
@@ -28,22 +27,7 @@
     "helpers": { "message": "Helpers" },
     "removeElements": { "message": "Remove Elements" },
     "imageExtractor": { "message": "Extract Image" },
-    "cleanup": { "message": "Cleanup" },
 
-    "expertMode": { "message": "Expert Mode" },
-    "addFilter": { "message": "Add filter" },
-    "scopeHost": { "message": "This host" },
-    "scopeGlobal": { "message": "All hosts" },
-    "phFilterInput": {
-        "message": "CSS selector, or paste class=\"…\" / <div …>"
-    },
-    "btnAdd": { "message": "Add" },
-    "targetParent": { "message": "Target parent element" },
-    "filterListFor": { "message": "For" },
-    "exportFilters": { "message": "Export Filters" },
-    "disableBundled": { "message": "Disable bundled filters" },
-    "clearDomainFilters": { "message": "Clear Domain Filters" },
-    "clearGlobalFilters": { "message": "Clear Global Filters" },
     "output": { "message": "Output" },
     "fmtPng": { "message": "PNG" },
     "fmtJpeg": { "message": "JPEG" },
@@ -85,7 +69,7 @@
     },
     "fullPageCap": { "message": "Full-page height limit (px)" },
     "fullPageCapNote": {
-        "message": "Caps the Full Page preset and Auto Capture height. Hard maximum is 16384 px (Chrome's limit)."
+        "message": "Caps the Full Page preset height. Hard maximum is 16384 px (Chrome's limit)."
     },
     "navTooltip": { "message": "Show the navigation hint" },
     "navTooltipNote": {
@@ -109,9 +93,6 @@
     "helpCaptureSite": {
         "message": "<div class=\"help-heading\">Capture this post / story</div><p>When you open the popup on Facebook, Instagram, Telegram (t.me), X / Twitter or VK, the extension checks whether the page contains a post or a story. If it does, a \"Capture this post\" (or \"story\") button appears at the top. Click it to remove comments, sidebars and other clutter around the target and capture just that element.</p>"
     },
-    "helpAutoCapture": {
-        "message": "<div class=\"help-heading\">Auto Capture</div><p>One-click full-page capture: captures the whole page at the chosen scale. Use this when you want the whole page, not a single post.</p>"
-    },
     "helpPageCapture": {
         "message": "<div class=\"help-heading\">Page Capture</div><p>Captures the whole page at a chosen resolution. Pick a preset:</p><ul><li><b>User</b> — the current tab's viewport size (default). Combined with the 2× quality multiplier, gives you a sharp shot at the exact size you see in the browser.</li><li><b>Full Page</b> — viewport width, full document height (measured live).</li><li><b>Vertical</b> — viewport width × (width × 3.5), good for long social posts.</li><li><b>FullHD</b> — 1920 × 1080.</li><li><b>4K</b> — 3840 × 2160.</li><li><b>Custom</b> — your own width × height.</li></ul><p>The page is emulated at this resolution before capture, so layouts adapt as if the window were that size.</p>"
     },
@@ -126,20 +107,6 @@
     },
     "helpFeedback": {
         "message": "<div class=\"help-heading\">Feedback &amp; issues</div><p>In case of any issues with the extension or any feedback — forward to <a href=\"mailto:chemradio@gmail.com\">chemradio@gmail.com</a>.</p><p>Extension was built by Timur Timaev with help of Claude.</p>"
-    },
-
-    "helpTitleExpert": { "message": "How filters work" },
-    "helpTiers": {
-        "message": "<div class=\"help-heading\">Three filter tiers</div><p>When you run Cleanup or Auto Capture, three sources of filters are merged:</p><ul><li><b>EasyList</b> — the standard adblock cosmetic filter list. Refreshed from easylist.to automatically (weekly).</li><li><b>Bundled filters</b> — hand-curated selectors shipped with the extension for sites the dev has tuned. Updated when the extension updates.</li><li><b>User filters</b> — selectors <i>you</i> collect, either via \"Remove Elements\" (which auto-saves each click) or by typing them in here.</li></ul><p>Duplicates between tiers collapse automatically, so promoting a user filter to the bundled list is non-disruptive.</p>"
-    },
-    "helpAddingFilters": {
-        "message": "<div class=\"help-heading\">Adding filters manually</div><p>Paste a CSS selector into the input, or paste a fragment like <code>class=\"foo bar\"</code> or <code>&lt;div data-testid=\"ad\"&gt;</code> — it gets converted to a valid selector automatically. Preview shows the normalized form before adding.</p><ul><li><b>This host</b> — applies only on the current domain (and subdomains).</li><li><b>All hosts</b> — applies everywhere. Use sparingly.</li><li><b>Target parent element</b> — wraps the selector in <code>*:has(&gt; …)</code> so the parent gets removed instead of the matched element. Good for \"remove the card that contains this badge\".</li></ul>"
-    },
-    "helpManaging": {
-        "message": "<div class=\"help-heading\">Managing your filter list</div><p>Filters for the current host are listed under the host name; global filters under \"All hosts\". Click <b>×</b> on a row to remove that one. The <b>Clear Domain Filters</b> and <b>Clear Global Filters</b> buttons wipe entire tiers (EasyList and bundled are untouched).</p><p><b>Disable bundled filters</b> turns off the dev-curated tier — useful for debugging which tier is causing unwanted removals.</p>"
-    },
-    "helpExporting": {
-        "message": "<div class=\"help-heading\">Exporting filters</div><p><b>Export Filters</b> downloads your collected user filters as a JSON file (shape: <code>{global, domains}</code>). Email this to the extension dev — selectors worth sharing get merged into the bundled list and propagated to everyone in the next update.</p>"
     },
 
     "ovCapturing": { "message": "Capturing…" },
@@ -165,71 +132,10 @@
     "cropSegmentLabel": { "message": "with crop" },
     "stError": { "message": "Error" },
     "stRequestFailed": { "message": "Request failed" },
-    "stAutoCapturing": { "message": "Auto-capturing…" },
-    "stAutoDone": { "message": "Auto: full page — check Downloads" },
     "stElementCaptureFailed": { "message": "Element capture failed" },
-    "stCleaningUp": { "message": "Cleaning up…" },
-    "stCleanupDone": { "message": "Cleanup done" },
-    "stRemovedNodes": {
-        "message": "Removed $count$ nodes ($breakdown$)",
-        "placeholders": {
-            "count": { "content": "$1" },
-            "breakdown": { "content": "$2" }
-        }
-    },
-    "stBundledDisabled": { "message": "Bundled filters disabled" },
-    "stBundledEnabled": { "message": "Bundled filters enabled" },
     "stOpaqueOn": { "message": "Opaque PNG re-encode on" },
     "stOpaqueOff": { "message": "Opaque PNG re-encode off" },
-    "stExpertOn": { "message": "Expert mode on" },
-    "stExpertOff": { "message": "Expert mode off" },
-    "stInvalidSelector": { "message": "Invalid CSS selector" },
-    "stAddedTo": {
-        "message": "Added to $where$: $selector$",
-        "placeholders": {
-            "where": { "content": "$1" },
-            "selector": { "content": "$2" }
-        }
-    },
-    "stAlreadyPresent": { "message": "Already present" },
-    "stRemovedSel": {
-        "message": "Removed: $selector$",
-        "placeholders": {
-            "selector": { "content": "$1" }
-        }
-    },
-    "stClearing": { "message": "Clearing…" },
-    "stNoDomainFilters": { "message": "No domain filters to clear" },
-    "stClearedDomain": {
-        "message": "Cleared $count$ selectors across $hosts$ hosts",
-        "placeholders": {
-            "count": { "content": "$1" },
-            "hosts": { "content": "$2" }
-        }
-    },
-    "stNoGlobalFilters": { "message": "No global filters to clear" },
-    "stClearedGlobal": {
-        "message": "Cleared $count$ global selectors",
-        "placeholders": {
-            "count": { "content": "$1" }
-        }
-    },
-    "stExporting": { "message": "Exporting…" },
-    "stNoExport": { "message": "No user filters to export" },
-    "stExported": {
-        "message": "Exported $count$ selectors across $hosts$ hosts",
-        "placeholders": {
-            "count": { "content": "$1" },
-            "hosts": { "content": "$2" }
-        }
-    },
     "stManualRemovalStopped": { "message": "Manual removal stopped" },
-
-    "scopeAllHosts": { "message": "all hosts" },
-    "scopeThisHost": { "message": "this host" },
-    "noHost": { "message": "(no host)" },
-    "removeTitle": { "message": "Remove" },
-    "invalidPreview": { "message": "Invalid CSS selector" },
 
     "promptPost": { "message": "Capture this post" },
     "promptStory": { "message": "Capture this story" },
@@ -241,19 +147,11 @@
     },
     "promptDetectedHere": { "message": "Detected on this page" },
 
-    "confirmClearDomain": {
-        "message": "Clear all per-host (domain) user filters?\n\nHost-scoped selectors you collected via DOM-killer will be removed from this browser. Global, bundled and EasyList filters are not affected."
-    },
-    "confirmClearGlobal": {
-        "message": "Clear all global user filters?\n\nSelectors that apply to all hosts will be removed from this browser. Domain, bundled and EasyList filters are not affected."
-    },
-
     "showTooltips": { "message": "Show popup tooltips" },
     "showTooltipsNote": {
         "message": "Rotating tips and per-button hints in the popup's bottom bar. Off shrinks the popup — it ends after Remove Elements."
     },
 
-    "tipAutoCapture": { "message": "Auto Capture: one-click full-page shot" },
     "tipPageCapture": {
         "message": "Page Capture: emulate the chosen resolution and shoot the viewport"
     },

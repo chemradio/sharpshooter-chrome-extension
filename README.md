@@ -26,7 +26,6 @@ All captures start from the toolbar popup.
 - **Capture this post / story** — appears at the top of the popup only when the
   active tab is a single post or story on a supported social site. One click
   cleans up the page and captures just that post/story element.
-- **Auto Capture** — one-click full-page capture at the selected scale.
 - **Page Capture** — captures the page at a chosen resolution preset and scale.
 - **Capture Element** — interactively pick any DOM element: hover to highlight
   (cyan glow), scroll wheel to walk the DOM tree (up = parent, down = child),
@@ -69,8 +68,7 @@ Max output is 16384 px per side (CDP limit).
 | Threads         |  ✓   |       |                                |
 
 The "Capture this post/story" prompt only shows when the URL looks like a
-single post/story page. Feed and profile pages fall through to Auto / Page
-Capture.
+single post/story page. Feed and profile pages fall through to Page Capture.
 
 ## Helpers
 
@@ -93,17 +91,12 @@ The header **gear** icon opens the Settings panel:
   (flattens onto white and strips alpha / colour-profile chunks, fixing Adobe
   ScriptUI / Direct2D panels that reject the screenshots — on by default,
   hidden in JPEG mode).
-- **Downloads** — skip the "Save as" dialog; filename prefix prepended to
-  every saved file.
+- **Downloads** — filename prefix prepended to every saved file. Chrome's
+  native "Save as" dialog always shows — there is no setting to skip it.
 - **Capture** — always open the crop editor; full-page height limit
   (capped at Chrome's 16384 px maximum).
 - **Appearance** — theme override (Auto / Light / Dark) and language override
   (Auto / English / Русский) for the popup.
-
-> The **Cleanup / Filters** feature (EasyList ad removal, the bundled + user
-> filter lists, the Expert-mode filter manager) is frozen and disabled. The
-> code is left intact but unwired — see [FROZEN-CLEANUP.md](internal-guides/FROZEN-CLEANUP.md)
-> to re-enable it.
 
 ## How it works
 
