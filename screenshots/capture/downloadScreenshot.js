@@ -1,15 +1,5 @@
 import { handoffToCropEditor } from "./cropHandoff.js";
-
-const CHUNK = 0x8000;
-
-// Chunked btoa — large canvases overflow String.fromCharCode otherwise.
-function base64FromBytes(bytes) {
-    let bin = "";
-    for (let i = 0; i < bytes.length; i += CHUNK) {
-        bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-    }
-    return btoa(bin);
-}
+import { bytesToBase64 } from "../../support/binary.js";
 
 // Strip every ancillary chunk from a PNG byte stream, keeping only the
 // critical ones (IHDR, PLTE, IDAT, IEND). Adobe's ScriptUI Direct2D drawbot
@@ -69,7 +59,7 @@ async function reencode(base64, { type = "image/png", quality } = {}) {
     const outBlob = await canvas.convertToBlob(opts);
     let outBytes = new Uint8Array(await outBlob.arrayBuffer());
     if (type === "image/png") outBytes = stripPngAncillaryChunks(outBytes);
-    return base64FromBytes(outBytes);
+    return bytesToBase64(outBytes);
 }
 
 export const downloadScreenshot = async (base64Data, screenshotName, options = {}) => {

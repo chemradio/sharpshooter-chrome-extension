@@ -414,6 +414,12 @@ function getSettings(extras = {}) {
         width:             parseInt(widthInput.value)  || 1920,
         height:            parseInt(heightInput.value) || 1080,
         deviceScaleFactor: getScaleFactor(),
+        // Legal Capture forces a fresh reload before it screenshots, which can
+        // invalidate a "User"/"Full Page" preset's numbers (measured from the
+        // pre-reload page — a fresh load may have less lazy-loaded content).
+        // These let it re-measure post-reload instead of trusting stale numbers.
+        presetType:        getPreset(getSelectedLayout())?.type ?? "fixed",
+        fullPageHeightCap: fullPageCap,
         ...extras,
     };
 }
@@ -580,6 +586,41 @@ async function runImageExtractor(manualCrop) {
 document.getElementById("image-extractor").addEventListener("click", () => runImageExtractor(false));
 document.getElementById("image-extractor-crop").addEventListener("click", () => runImageExtractor(true));
 
+// ─── Legal Capture ────────────────────────────────────────────────────────────
+//
+// Specialist mode, hidden unless enabled in Settings (see legalCaptureEnabled
+// wiring below). Always forces a clean reload before recording, so unlike
+// other capture buttons there's no separate "did you forget to reload"
+// gate — the warning banner is purely informational.
+
+const legalCaptureSection  = document.getElementById("legal-capture-section");
+const legalCaptureDivider  = document.getElementById("legal-capture-divider");
+const legalCaptureBtn      = document.getElementById("legal-capture");
+const legalWarning         = document.getElementById("legal-warning");
+
+function applyLegalCaptureVisible(enabled) {
+    legalCaptureSection.hidden = !enabled;
+    legalCaptureDivider.hidden = !enabled;
+}
+
+legalCaptureBtn.addEventListener("click", async () => {
+    stopDomKillerSession();
+    showCapturing(t("ovLegalCapture"), t("ovLegalCaptureHint"));
+    try {
+        await sendMessage({ action: "startLegalCapture", settings: getSettings() });
+        stopCapturing();
+        setStatus(t("stLegalCaptureDone"), "ok", 6000);
+    } catch (e) {
+        stopCapturing();
+        const message = e.message ?? "";
+        setStatus(
+            message.startsWith("DevTools is open") ? t("stDevToolsOpen") : (message || t("stError")),
+            "error",
+            8000
+        );
+    }
+});
+
 // ─── Settings view ────────────────────────────────────────────────────────────
 //
 // The former "Expert mode" view is now a plain Settings panel, opened from
@@ -600,6 +641,7 @@ const defaultCropCb    = document.getElementById("default-crop");
 const fullpageCapIn    = document.getElementById("fullpage-cap");
 const navTooltipCb     = document.getElementById("nav-tooltip");
 const showTooltipsCb   = document.getElementById("show-tooltips");
+const legalCaptureEnabledCb = document.getElementById("legal-capture-enabled");
 const themeInputs      = document.getElementsByName("theme");
 const langInputs       = document.getElementsByName("lang");
 
@@ -646,6 +688,7 @@ chrome.storage.local.get([
     "filenamePrefix", "defaultCrop", "fullPageHeightCap",
     "fullPageHeightCapUserSet", "themeOverride",
     "langOverride", "showNavTooltip", "showPopupTooltips",
+    "legalCaptureEnabled",
 ]).then((s) => {
     reencodeOpaqueCb.checked = s.reencodeOpaquePng !== false;
 
@@ -683,6 +726,15 @@ chrome.storage.local.get([
     setRadio(themeInputs, s.themeOverride || "auto");
     setRadio(langInputs,  s.langOverride  || "auto");
     applyTheme(s.themeOverride || "auto");
+
+    const legalCaptureEnabled = s.legalCaptureEnabled === true;
+    legalCaptureEnabledCb.checked = legalCaptureEnabled;
+    applyLegalCaptureVisible(legalCaptureEnabled);
+    if (legalCaptureEnabled) {
+        sendMessage({ action: "getTabCaptureFlags" })
+            .then((flags) => { legalWarning.hidden = !flags?.domKillerUsed; })
+            .catch(() => { /* best-effort — silent on failure */ });
+    }
 });
 
 reencodeOpaqueCb.addEventListener("change", () => {
@@ -732,6 +784,12 @@ navTooltipCb.addEventListener("change", () => {
 showTooltipsCb.addEventListener("change", () => {
     applyTooltipsEnabled(showTooltipsCb.checked);
     chrome.storage.local.set({ showPopupTooltips: tooltipsEnabled });
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+legalCaptureEnabledCb.addEventListener("change", () => {
+    applyLegalCaptureVisible(legalCaptureEnabledCb.checked);
+    chrome.storage.local.set({ legalCaptureEnabled: legalCaptureEnabledCb.checked });
     setStatus(t("stSettingSaved"), "ok", 1500);
 });
 

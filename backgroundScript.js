@@ -6,6 +6,18 @@ import {
     detectSite,
     captureSiteElement,
 } from "./screenshots/autoCapture.js";
+import { bytesToBase64 } from "./support/binary.js";
+import { measurePageHeight, measureViewportSize } from "./support/pageMeasure.js";
+import {
+    wasDomKillerUsed,
+    registerTabResetListener,
+    registerDomKillerUsedListener,
+} from "./support/tabState.js";
+import { startLegalCapture } from "./support/legalCapture/legalCaptureSession.js";
+import { DevToolsAttachedError } from "./support/debugerAttachment.js";
+
+registerTabResetListener();
+registerDomKillerUsedListener();
 
 addElementClickedListener();
 
@@ -67,32 +79,6 @@ function stripCdnSuffix(urlStr) {
     return null;
 }
 
-function getPageHeight(tabId) {
-    return new Promise((resolve, reject) => {
-        chrome.scripting.executeScript(
-            {
-                target: { tabId },
-                func: () => {
-                    document.body.style.zoom = "";
-                    return Math.max(
-                        document.body.scrollHeight,
-                        document.documentElement.scrollHeight,
-                        document.body.offsetHeight,
-                        document.documentElement.offsetHeight,
-                        document.body.clientHeight,
-                        document.documentElement.clientHeight
-                    );
-                },
-            },
-            (results) => {
-                if (chrome.runtime.lastError)
-                    return reject(new Error(chrome.runtime.lastError.message));
-                resolve(results?.[0]?.result);
-            }
-        );
-    });
-}
-
 async function handleAction(request) {
     const tab = await getActiveTab();
     const settings = request.settings ?? {};
@@ -108,7 +94,7 @@ async function handleAction(request) {
     switch (request.action) {
         case "getPageHeight": {
             if (isRestrictedUrl(tab.url)) return { pageHeight: null };
-            const pageHeight = await getPageHeight(tab.id);
+            const pageHeight = await measurePageHeight(tab.id);
             return { pageHeight };
         }
 
@@ -120,13 +106,7 @@ async function handleAction(request) {
             // preset captures this exact layout, so the popup number reflects
             // the layout pixels available. Output pixel size = this × the
             // quality multiplier.
-            const [{ result } = {}] = await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: () => ({
-                    width:  window.innerWidth,
-                    height: window.innerHeight,
-                }),
-            });
+            const result = await measureViewportSize(tab.id);
             return { width: result?.width ?? null, height: result?.height ?? null };
         }
 
@@ -236,13 +216,8 @@ async function handleAction(request) {
                 bitmap.close();
                 const pngBlob = await canvas.convertToBlob({ type: "image/png" });
                 const bytes   = new Uint8Array(await pngBlob.arrayBuffer());
-                const CHUNK   = 0x8000;
-                let binary = "";
-                for (let i = 0; i < bytes.length; i += CHUNK) {
-                    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-                }
                 await chrome.downloads.download({
-                    url:      `data:image/png;base64,${btoa(binary)}`,
+                    url:      `data:image/png;base64,${bytesToBase64(bytes)}`,
                     filename: `${baseName}.png`,
                     saveAs:   true,
                 });
@@ -279,13 +254,35 @@ async function handleAction(request) {
             bitmap.close();
             const pngBlob = await canvas.convertToBlob({ type: "image/png" });
             const bytes   = new Uint8Array(await pngBlob.arrayBuffer());
-            const CHUNK   = 0x8000;
-            let binary = "";
-            for (let i = 0; i < bytes.length; i += CHUNK) {
-                binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-            }
-            await handoffToCropEditor(btoa(binary), `${cropBase}.png`);
+            await handoffToCropEditor(bytesToBase64(bytes), `${cropBase}.png`);
             return {};
+        }
+
+        case "getTabCaptureFlags": {
+            if (isRestrictedUrl(tab.url)) return { domKillerUsed: false };
+            return { domKillerUsed: await wasDomKillerUsed(tab.id) };
+        }
+
+        case "startLegalCapture": {
+            try {
+                const result = await startLegalCapture({
+                    tabId: tab.id,
+                    url: tab.url,
+                    deviceMetrics: baseMetrics,
+                    presetType: settings.presetType,
+                    fullPageHeightCap: settings.fullPageHeightCap,
+                });
+                return result;
+            } catch (error) {
+                if (error instanceof DevToolsAttachedError) {
+                    return {
+                        ok: false,
+                        error: "DevTools is open on this tab. Close it and try again.",
+                        code: "devtools-attached",
+                    };
+                }
+                throw error;
+            }
         }
 
         case "stopDomKiller": {
@@ -324,6 +321,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "imageExtractor",
         "imageExtractorDownload",
         "imageExtractorCropUrl",
+        "getTabCaptureFlags",
+        "startLegalCapture",
     ]);
     if (!owned.has(request?.action)) return false;
 

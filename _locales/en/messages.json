@@ -28,6 +28,15 @@
     "removeElements": { "message": "Remove Elements" },
     "imageExtractor": { "message": "Extract Image" },
 
+    "legalCaptureLabel": { "message": "Legal Capture" },
+    "legalCapture": { "message": "Legal Capture" },
+    "legalCaptureNote": {
+        "message": "Reloads the page, records the full network exchange, and produces a hash-sealed, independently timestamped evidence package (.wacz + screenshot + report)."
+    },
+    "legalWarningDomKiller": {
+        "message": "This tab's HTML was hand-edited with Remove Elements. Legal Capture always reloads the page first to restore the original content."
+    },
+
     "output": { "message": "Output" },
     "fmtPng": { "message": "PNG" },
     "fmtJpeg": { "message": "JPEG" },
@@ -75,6 +84,10 @@
     "navTooltipNote": {
         "message": "Shows a small tip next to the highlight frame in Capture Element and Remove Elements, explaining how to walk the DOM with the scroll wheel, arrow keys and mouse (↑↓ for depth, ←→ for siblings)."
     },
+    "legalCaptureEnabled": { "message": "Enable Legal Capture" },
+    "legalCaptureEnabledNote": {
+        "message": "Adds a specialist capture mode that produces a forensic evidence package (WACZ archive + independent RFC 3161 timestamp) for legal / investigative use. Off by default to keep the main popup simple."
+    },
 
     "appearance": { "message": "Appearance" },
     "theme": { "message": "Theme" },
@@ -119,6 +132,12 @@
     "ovManualRemovalHint": {
         "message": "Hover to target · Click or Enter to remove\nWheel / ↑ ↓ = depth · ← → = siblings · Ctrl/Cmd+Z to undo · ESC to stop"
     },
+    "ovLegalCapture": { "message": "Legal Capture" },
+    "ovLegalCaptureHint": {
+        "message": "Reloading the page and recording the network exchange — this can take a little longer than a normal capture."
+    },
+    "stLegalCaptureDone": { "message": "Legal Capture package downloaded" },
+    "stDevToolsOpen": { "message": "DevTools is open on this tab. Close it and try again." },
     "ovImageExtractorHint": {
         "message": "Hover to target · Click or Enter to extract images\nWheel / ↑ ↓ = depth · ← → = siblings · ESC to cancel"
     },

@@ -6,6 +6,8 @@
 // IndexedDB (not chrome.storage.session) because large page captures
 // commonly exceed the 10 MiB session-storage quota.
 
+import { base64ToBlob } from "../../support/binary.js";
+
 const DB_NAME    = "sharpshooter-crop";
 const STORE_NAME = "blobs";
 const DB_VERSION = 1;
@@ -60,17 +62,10 @@ function makeToken() {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// Convert base64 PNG → Blob without round-tripping through atob (which
-// chokes on multi-MB strings on some Chromium builds).
-async function base64PngToBlob(base64) {
-    const res = await fetch(`data:image/png;base64,${base64}`);
-    return await res.blob();
-}
-
 // Stash the screenshot and open the crop editor. The editor takes
 // ownership of the blob — this function returns once the tab is open.
 export async function handoffToCropEditor(base64, filename) {
-    const blob = await base64PngToBlob(base64);
+    const blob = await base64ToBlob(base64);
     const token = makeToken();
     await putCropBlob(token, { blob, filename });
     const url = chrome.runtime.getURL(

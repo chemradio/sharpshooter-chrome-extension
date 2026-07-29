@@ -7,6 +7,7 @@ import {
 import { withZoomReset } from "../../support/zoomReset.js";
 import { takeScreenshotClip } from "../capture/captureScreenshot.js";
 import { downloadScreenshot } from "../capture/downloadScreenshot.js";
+import { bytesToBase64 } from "../../support/binary.js";
 
 // ─── Approach ────────────────────────────────────────────────────────────────
 //
@@ -193,14 +194,7 @@ async function cropBase64Png(base64, sx, sy, sw, sh) {
 
     const outBlob = await canvas.convertToBlob({ type: "image/png" });
     const bytes = new Uint8Array(await outBlob.arrayBuffer());
-
-    // Chunked btoa — large canvases overflow String.fromCharCode otherwise.
-    let bin = "";
-    const CHUNK = 0x8000;
-    for (let i = 0; i < bytes.length; i += CHUNK) {
-        bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-    }
-    return btoa(bin);
+    return bytesToBase64(bytes);
 }
 
 // ─── Feedback to popup ───────────────────────────────────────────────────────

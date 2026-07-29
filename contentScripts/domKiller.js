@@ -36,6 +36,15 @@
     // Cmd+Z pops the last removal and reinserts it.
     const removalHistory = [];
 
+    // Fires once, on the first actual removal — lets Legal Capture warn that
+    // this tab's DOM was hand-edited and should be reloaded before capture.
+    let usedBroadcast = false;
+    function reportUsedOnce() {
+        if (usedBroadcast) return;
+        usedBroadcast = true;
+        chrome.runtime.sendMessage({ action: "domKillerUsed" }).catch(() => {});
+    }
+
     // ─── Styles ───────────────────────────────────────────────────────────────
 
     if (!document.getElementById(STYLE_ID)) {
@@ -541,6 +550,8 @@
         // whole link block disappears, not just the inner node the cursor hit.
         const link = element.closest("a");
         const target = link ?? element;
+
+        reportUsedOnce();
 
         // Record position before detaching so Ctrl/Cmd+Z can splice it back.
         removalHistory.push({

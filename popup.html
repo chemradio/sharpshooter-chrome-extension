@@ -358,6 +358,53 @@
                             </button>
                         </div>
                     </section>
+
+                    <div class="divider" id="legal-capture-divider" hidden></div>
+
+                    <!-- Legal Capture — forensic evidence package (WACZ +
+                         independent timestamp). Hidden unless enabled in
+                         Settings; a specialist feature kept out of the
+                         default flow. -->
+                    <section id="legal-capture-section" hidden>
+                        <div class="section-label" data-i18n="legalCaptureLabel">
+                            Legal Capture
+                        </div>
+                        <div id="legal-warning" class="site-prompt legal-warning" hidden>
+                            <div
+                                class="site-prompt-hint"
+                                data-i18n="legalWarningDomKiller"
+                            >
+                                This tab's HTML was hand-edited with Remove
+                                Elements. Legal Capture always reloads the
+                                page first to restore the original content.
+                            </div>
+                        </div>
+                        <button
+                            id="legal-capture"
+                            class="btn-capture btn-capture--primary btn-capture--main"
+                        >
+                            <svg
+                                class="btn-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.75"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                <path d="m9 12 2 2 4-4" />
+                            </svg>
+                            <span data-i18n="legalCapture">Legal Capture</span>
+                        </button>
+                        <p class="setting-note" data-i18n="legalCaptureNote">
+                            Reloads the page, records the full network
+                            exchange, and produces a hash-sealed,
+                            independently timestamped evidence package
+                            (.wacz + screenshot + report).
+                        </p>
+                    </section>
                 </div>
             </div>
 
@@ -552,6 +599,20 @@
                             Rotating tips and per-button hints in the popup's
                             bottom bar. Off shrinks the popup — it ends after
                             Remove Elements.
+                        </p>
+                        <div class="setting-divider"></div>
+                        <label class="setting-row" for="legal-capture-enabled">
+                            <input type="checkbox" id="legal-capture-enabled" />
+                            <span data-i18n="legalCaptureEnabled"
+                                >Enable Legal Capture</span
+                            >
+                        </label>
+                        <p class="setting-note" data-i18n="legalCaptureEnabledNote">
+                            Adds a specialist capture mode that produces a
+                            forensic evidence package (WACZ archive +
+                            independent RFC 3161 timestamp) for legal /
+                            investigative use. Off by default to keep the
+                            main popup simple.
                         </p>
                     </section>
 

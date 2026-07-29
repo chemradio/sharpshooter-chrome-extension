@@ -1,5 +1,17 @@
 const PROTOCOL_VERSION = "1.3";
 
+// Thrown when a tab's debugger slot is held by something we don't own — in
+// practice, native DevTools open on the same tab. Distinguishable from a
+// generic attach failure so callers (Legal Capture) can show a specific
+// "close DevTools and try again" message instead of a raw Chrome error.
+export class DevToolsAttachedError extends Error {
+    constructor(tabId) {
+        super(`DevTools is already attached to tab ${tabId}`);
+        this.name = "DevToolsAttachedError";
+        this.tabId = tabId;
+    }
+}
+
 // Track tabs this extension has the debugger attached to. The service worker
 // can be terminated between captures, so we also reconcile with onDetach.
 const attached = new Set();
@@ -40,9 +52,18 @@ export async function attachDebugger(tabId) {
         // untouchable from here so this can't hijack the user's debugger.
         if (/already attached/i.test(err.message)) {
             await rawDetach(tabId);
-            await rawAttach(tabId);
-            attached.add(tabId);
-            return;
+            try {
+                await rawAttach(tabId);
+                attached.add(tabId);
+                return;
+            } catch (retryErr) {
+                // Our own detach didn't free the slot — something else (native
+                // DevTools) genuinely holds it, not a leaked prior session of ours.
+                if (/already attached/i.test(retryErr.message)) {
+                    throw new DevToolsAttachedError(tabId);
+                }
+                throw retryErr;
+            }
         }
         throw err;
     }

@@ -10,7 +10,31 @@
       "PowerShell",
       "Bash(python internal-guides/build_extension.py)",
       "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/en/messages.json','utf8'\\)\\); console.log\\('en OK'\\)\")",
-      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/ru/messages.json','utf8'\\)\\); console.log\\('ru OK'\\)\")"
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/ru/messages.json','utf8'\\)\\); console.log\\('ru OK'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/en/messages.json','utf8'\\)\\); JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/ru/messages.json','utf8'\\)\\); console.log\\('OK'\\)\")",
+      "Bash(node --check /tmp/check_legalCaptureSession.mjs)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(rm -f /tmp/check_*.mjs)",
+      "Bash(node testLegalCapture.mjs)",
+      "Bash(unzip -l test-basic.zip)",
+      "Bash(unzip -t test-basic.zip)",
+      "Bash(unzip -l test.wacz)",
+      "Bash(unzip -t test.wacz)",
+      "Bash(python -c ' *)",
+      "Bash(openssl version *)",
+      "Bash(node testTsa.mjs)",
+      "Bash(openssl ts *)",
+      "Bash(npm ls *)",
+      "Bash(pip show *)",
+      "Bash(python -c \"import playwright; print\\(playwright.__file__\\)\")",
+      "Bash(node -e \"console.log\\(typeof WebSocket\\)\")",
+      "Bash('/c/Program Files/Google/Chrome/Application/chrome.exe' --remote-debugging-port=9333 --user-data-dir=C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/809be9d1-b5a6-497b-9d6d-aa47e3aedb5e/scratchpad/chrome-profile --load-extension=c:/Users/TimaevT/Desktop/Code/sharpshooter-chrome-extension --disable-extensions-except=c:/Users/TimaevT/Desktop/Code/sharpshooter-chrome-extension --no-first-run --no-default-browser-check https://example.com)",
+      "Bash(disown)",
+      "Bash(curl -s http://127.0.0.1:9333/json/version)",
+      "Bash(curl -s http://127.0.0.1:9333/json/list)",
+      "Bash(node -e ' *)",
+      "Bash(tasklist)",
+      "Bash(taskkill //PID 43712 //T //F)"
     ]
   }
 }

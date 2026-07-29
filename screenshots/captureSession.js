@@ -14,7 +14,12 @@ import {
 
 const SCROLLBAR_STYLE_ID = "__no-scroll";
 
-const hideScrollbars = (tabId) =>
+// Exported so support/legalCapture/legalCaptureSession.js can compose its own
+// attach → record → reload → emulate → settle sequence (it needs the debugger
+// attached and Network recording active *before* the forced reload, so it
+// can't just call withEmulatedCapture as a black box the way page/element
+// capture do).
+export const hideScrollbars = (tabId) =>
     chrome.scripting.executeScript({
         target: { tabId },
         func: (id) => {
@@ -28,7 +33,7 @@ const hideScrollbars = (tabId) =>
         args: [SCROLLBAR_STYLE_ID],
     });
 
-const restoreScrollbars = (tabId) =>
+export const restoreScrollbars = (tabId) =>
     chrome.scripting
         .executeScript({
             target: { tabId },
@@ -43,7 +48,7 @@ const restoreScrollbars = (tabId) =>
 // animation frames + a short delay so resize handlers can queue their work
 // before we start counting "quiet" time.
 const POST_EMULATION_BREATHER_MS = 150;
-const postEmulationBreather = (tabId) =>
+export const postEmulationBreather = (tabId) =>
     chrome.scripting.executeScript({
         target: { tabId },
         func: (ms) =>
