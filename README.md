@@ -94,9 +94,43 @@ The header **gear** icon opens the Settings panel:
 - **Downloads** — filename prefix prepended to every saved file. Chrome's
   native "Save as" dialog always shows — there is no setting to skip it.
 - **Capture** — always open the crop editor; full-page height limit
-  (capped at Chrome's 16384 px maximum).
+  (capped at Chrome's 16384 px maximum); **Enable Legal Capture** (see below).
 - **Appearance** — theme override (Auto / Light / Dark) and language override
   (Auto / English / Русский) for the popup.
+
+## Legal Capture
+
+An opt-in specialist mode for when a plain screenshot isn't strong enough
+evidence — e.g. investigative or legal use. Turn it on via **Enable Legal
+Capture** in Settings; a **Legal Capture** section then appears at the bottom
+of the main popup view.
+
+Instead of a single image, it produces a downloaded zip containing:
+
+- **`capture.wacz`** — a byte-exact recording of the actual network exchange
+  for the page (all requests/responses, headers, and bodies), replayable
+  independently of this extension at [replayweb.page](https://replayweb.page).
+- **`screenshot.png`** — a visual capture taken during the same session.
+- **`capture.tsr`** — an RFC 3161 timestamp token from the public FreeTSA
+  authority, requested automatically for every capture, proving the capture's
+  hash existed at a given time independent of this tool's own clock. Verify it
+  yourself with `openssl ts -reply -in capture.tsr -text`.
+- **`manifest.json`** / **`report.txt`** — the capture's hash, TLS summary, and
+  a plain-language explanation of what the package does and doesn't prove.
+
+Before recording, Legal Capture always force-reloads the page (bypassing the
+cache) — this both ensures the network recording reflects the real page load
+and undoes any DOM edits made via **Remove Elements** or a live DevTools
+session, so there's no separate step to remember. If a tab has had Remove
+Elements used on it, a banner in the Legal Capture section says so; if native
+DevTools is open on the tab, Legal Capture will ask you to close it first
+(Chrome only allows one debugger client per tab at a time).
+
+**This is supporting technical evidence, not a legal determination** —
+`report.txt` spells out exactly what is and isn't proven; consult counsel on
+how to present it. See [CLAUDE.md](CLAUDE.md#legal-capture) for the full
+technical breakdown, and [PRIVACY.md](PRIVACY.md) for what the FreeTSA request
+does and doesn't send.
 
 ## How it works
 

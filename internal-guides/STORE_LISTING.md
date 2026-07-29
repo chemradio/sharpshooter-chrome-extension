@@ -27,9 +27,16 @@ page, a chosen resolution, or a single element you click on.
 - **Crop editor** — optionally route any capture through a built-in crop editor.
 - **Remove Elements** — manually click to remove distracting elements from the
   page before capturing.
+- **Legal Capture** (opt-in, off by default) — for investigative/legal use
+  cases where a plain screenshot isn't strong enough evidence: records the
+  full network exchange for the page into a hash-sealed archive, gets an
+  independent timestamp for it from a public authority, and downloads all of
+  it alongside the screenshot.
 
-All processing happens locally in your browser. No data is collected, and the
-extension makes no network requests.
+All processing happens locally in your browser. No data is collected. The
+only outbound requests are fetching an image URL you explicitly chose to
+extract, and — only if you turn on the optional Legal Capture feature — a
+hash sent to a public timestamping authority (never your browsing content).
 
 ## Permission justifications
 
@@ -41,14 +48,16 @@ Sharpshooter captures screenshots through the Chrome DevTools Protocol
 tab, emulate device metrics for the requested resolution and scale factor, and
 take the screenshot. This is the core capture mechanism and the extension
 cannot function without it. The debugger is attached only during a capture and
-detached immediately after.
+detached immediately after. The optional Legal Capture feature also uses it to
+record the tab's network traffic for the duration of one capture.
 
 **downloads**
 Used to save the captured screenshot image file to the user's Downloads folder.
 
 **scripting**
-Used to inject the extension's own bundled scripts (element highlighter and
-page-height measurement) into the tab being captured.
+Used to inject the extension's own bundled scripts (element highlighter,
+page-height measurement, DOM element remover, image extractor) into the tab
+being captured.
 
 **storage**
 Used to store the user's capture preferences locally on the user's device.
@@ -56,15 +65,24 @@ Used to store the user's capture preferences locally on the user's device.
 **activeTab**
 Screenshot capture acts on the tab the user explicitly invokes the extension
 on. activeTab grants access to that single tab only when the user opens the
-popup or clicks a capture button — the extension does not request standing
-access to all websites.
+popup or clicks a capture button.
 
 **Host permissions**
-None. The extension requests no host permissions.
+`<all_urls>`. Required by the Extract Image helper: the background service
+worker fetches a user-selected image's URL, which can be hosted on any
+domain (e.g. a CDN different from the page's own origin) — activeTab alone
+does not cover that background-initiated cross-origin fetch. Not used to run
+scripts automatically or in the background; every script injection is still
+triggered by an explicit user action.
 
 **Remote code use**
-The extension does not execute remote code and makes no network requests. All
-scripts are bundled with the extension.
+The extension does not execute remote code — no code is fetched from a URL
+and `eval`ed; every script is bundled in the package. It does make network
+requests: Extract Image fetches a user-selected image URL directly, and the
+optional, off-by-default Legal Capture feature sends a SHA-256 hash (never
+page content or the captured URL) to the public FreeTSA RFC 3161 timestamping
+authority to obtain an independent timestamp for the capture. Neither goes to
+a developer-operated server.
 
 ## Data usage disclosures (Privacy tab — check these)
 

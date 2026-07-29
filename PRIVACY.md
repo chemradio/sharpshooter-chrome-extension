@@ -1,6 +1,6 @@
 # Privacy Policy — Sharpshooter
 
-_Last updated: 2026-07-20_
+_Last updated: 2026-07-29_
 
 Sharpshooter is a Chrome extension for capturing high-resolution screenshots of
 web pages and page elements, and for extracting source images from a page.
@@ -9,10 +9,11 @@ web pages and page elements, and for extracting source images from a page.
 
 **Sharpshooter does not collect, transmit, or sell any personal data.** All
 processing happens locally in your browser. There is no analytics, no
-tracking, and no remote server operated by the developer. The only outbound
-network requests are the ones described below, made directly from your
-browser to the image URL you choose to extract — never to the developer or
-any third party.
+tracking, and no remote server operated by the developer. Outbound network
+requests are limited to the ones described below — fetching an image URL you
+chose to extract, and (only if you turn on the optional Legal Capture feature)
+a hash sent to a public timestamping authority. Neither goes to the developer,
+and neither includes your browsing content.
 
 ## What the extension stores
 
@@ -21,6 +22,9 @@ device for:
 
 - **Extension preferences** — your capture settings (output format, scale,
   filename prefix, theme, language, and similar options).
+- **A temporary, per-tab flag** (`chrome.storage.session`, cleared automatically
+  on that tab's next page load) noting whether you used Remove Elements on that
+  tab — used only to show an informational note in Legal Capture.
 
 This data never leaves your device. It is not synced to the developer or any
 third party.
@@ -43,8 +47,25 @@ This requires the `host_permissions: ["<all_urls>"]` grant in the manifest,
 since the image being extracted can be hosted on any domain (see
 [Permissions](#permissions) below).
 
-No other feature makes network requests. In particular, screenshot capture is
+It also makes one other kind of outbound request, but **only if you turn on
+the optional Legal Capture feature** (off by default; enabled via the
+"Enable Legal Capture" toggle in Settings): every time you use Legal Capture,
+the extension sends a SHA-256 hash of the capture package to
+[FreeTSA](https://freetsa.org), a free, independent, public timestamping
+authority, to get back a signed proof of when that hash existed (an RFC 3161
+timestamp). This request contains **only the hash** — a short string of
+characters that does not reveal the URL you captured, the page's content, or
+anything else about your browsing. FreeTSA is not operated by the developer;
+it's a widely-used, publicly-documented service that Sharpshooter's code
+talks to directly, the same way your browser talks to any website.
+
+Screenshot capture itself (Page Capture, Capture Element, Remove Elements) is
 entirely local: nothing about the page you capture is ever sent anywhere.
+Legal Capture additionally downloads a byte-exact recording of the page's
+network traffic (headers and bodies, including anything sent in requests
+your browser made while loading the page) into the zip it saves to your
+Downloads folder — that file stays on your device like any other capture;
+only the hash described above leaves your browser, and only to FreeTSA.
 
 ## Screenshots
 
@@ -55,7 +76,7 @@ via Chrome's downloads API. They are never uploaded anywhere.
 
 | Permission | Why it is needed |
 |---|---|
-| `debugger` | Captures screenshots through the Chrome DevTools Protocol (`Page.captureScreenshot`) with device-metric emulation — the core capture mechanism. |
+| `debugger` | Captures screenshots through the Chrome DevTools Protocol (`Page.captureScreenshot`) with device-metric emulation — the core capture mechanism. Also used by the optional Legal Capture feature to record the page's network traffic via CDP's `Network` domain. |
 | `downloads` | Saves captured screenshots and extracted images to your Downloads folder. |
 | `scripting` | Injects the highlighter, page-measurement, and element/image-selection scripts into the page being captured. |
 | `storage` | Stores your capture preferences locally. |
