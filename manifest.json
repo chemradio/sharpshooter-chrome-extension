@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "__MSG_extName__",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "minimum_chrome_version": "127",
     "description": "__MSG_extDescription__",
     "default_locale": "en",
@@ -29,6 +29,12 @@
         "activeTab",
         "scripting",
         "storage"
+    ],
+    "optional_permissions": [
+        "system.cpu",
+        "system.memory",
+        "system.display",
+        "identity"
     ],
     "host_permissions": ["<all_urls>"],
     "content_security_policy": {

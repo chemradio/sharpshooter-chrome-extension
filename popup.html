@@ -20,7 +20,7 @@
         />
         <link
             rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300..700;1,300..700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300..700;1,300..700&display=optional"
         />
     </head>
     <body>
@@ -240,7 +240,7 @@
                         </div>
                     </section>
 
-                    <div class="divider divider--strong"></div>
+                    <div class="divider"></div>
 
                     <!-- Capture Element -->
                     <section>
@@ -309,9 +309,22 @@
                             <button
                                 id="dom-killer"
                                 class="btn-helper btn-helper--danger"
-                                data-i18n="removeElements"
                             >
-                                Remove Elements
+                                <svg
+                                    class="btn-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+                                    <path d="M22 21H7" />
+                                    <path d="m5 11 9 9" />
+                                </svg>
+                                <span data-i18n="removeElements">Remove Elements</span>
                             </button>
                         </div>
                         <div class="capture-segmented">
@@ -366,8 +379,31 @@
                          Settings; a specialist feature kept out of the
                          default flow. -->
                     <section id="legal-capture-section" hidden>
-                        <div class="section-label" data-i18n="legalCaptureLabel">
-                            Legal Capture
+                        <div class="section-label--row">
+                            <span class="section-label" data-i18n="legalCaptureLabel">Legal Capture</span>
+                            <button
+                                type="button"
+                                id="legal-settings-toggle"
+                                class="legal-settings-toggle"
+                                title="Legal Capture Settings"
+                                data-i18n-title="legalSettingsBtnTitle"
+                                aria-label="Legal Capture Settings"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <circle cx="12" cy="12" r="3" />
+                                    <path
+                                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                                    />
+                                </svg>
+                            </button>
                         </div>
                         <div id="legal-warning" class="site-prompt legal-warning" hidden>
                             <div
@@ -398,12 +434,6 @@
                             </svg>
                             <span data-i18n="legalCapture">Legal Capture</span>
                         </button>
-                        <p class="setting-note" data-i18n="legalCaptureNote">
-                            Reloads the page, records the full network
-                            exchange, and produces a hash-sealed,
-                            independently timestamped evidence package
-                            (.wacz + screenshot + report).
-                        </p>
                     </section>
                 </div>
             </div>
@@ -688,6 +718,319 @@
                             Overrides the browser language for this popup.
                         </p>
                     </section>
+            </div>
+
+            <!-- Legal Capture Settings — every evidentiary component of the
+                 Legal Capture package is individually switchable here, each
+                 with a plain-language note on what it does and what it adds
+                 for legal admissibility. Opened via the small gear icon next
+                 to the "Legal Capture" section label on the main view. -->
+            <div id="view-legal-settings" class="settings-view" hidden>
+                <section>
+                    <div class="settings-header settings-header--row">
+                        <span data-i18n="legalSettingsTitle">Legal Capture Settings</span>
+                        <button
+                            type="button"
+                            id="legal-settings-close"
+                            class="settings-close-btn"
+                            title="Close Legal Capture Settings"
+                            data-i18n-title="legalSettingsCloseBtnTitle"
+                            aria-label="Close Legal Capture Settings"
+                        >
+                            ×
+                        </button>
+                    </div>
+                    <p class="setting-note" data-i18n="legalSettingsIntro">
+                        Every artifact Legal Capture can produce is optional.
+                        Turn off anything you don't want collected — the
+                        capture still runs and still produces a hash-sealed
+                        package with whatever is left on.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div class="section-label" data-i18n="legalSettingsGroupEvidence">
+                        Evidence Artifacts
+                    </div>
+
+                    <label class="setting-row" for="legal-opt-network">
+                        <input type="checkbox" id="legal-opt-network" checked />
+                        <span data-i18n="legalOptNetwork">Network exchange recording (WARC/WACZ)</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptNetworkNote">
+                        Records the full HTTP request/response exchange for
+                        the page (headers, bodies, redirect chain, TLS
+                        details) into a standard WARC/WACZ archive, playable
+                        independently at replayweb.page. This is the core
+                        evidence that the page's content came from the real
+                        server, not a locally edited copy — turning it off
+                        removes capture.wacz, TLS details, and the redirect
+                        chain from the package entirely.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-websocket">
+                        <input type="checkbox" id="legal-opt-websocket" checked />
+                        <span data-i18n="legalOptWebSocket">WebSocket capture</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptWebSocketNote">
+                        Records WebSocket handshakes and every frame sent or
+                        received, as a transcript inside the WARC. Relevant
+                        for sites (chat, live feeds) where the visible content
+                        arrives over a WebSocket rather than a plain HTTP
+                        response — without this, that content is on screen
+                        but has no corresponding entry in the archive.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-serviceworker">
+                        <input type="checkbox" id="legal-opt-serviceworker" checked />
+                        <span data-i18n="legalOptServiceWorker">Service Worker network capture</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptServiceWorkerNote">
+                        Best-effort attach to the page's Service Worker (if
+                        any) to capture requests it intercepts or serves from
+                        its own cache — traffic a normal tab-scoped recording
+                        can't see. Matters for PWA-style sites that render
+                        content without a visible network round trip.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-screenshot">
+                        <input type="checkbox" id="legal-opt-screenshot" checked />
+                        <span data-i18n="legalOptScreenshot">Screenshot</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptScreenshotNote">
+                        The visual capture itself (screenshot.png) — the
+                        human-readable "what did the page look like" evidence
+                        most people expect from this tool. Turning this off
+                        still produces a package, but with no image in it.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-dom">
+                        <input type="checkbox" id="legal-opt-dom" checked />
+                        <span data-i18n="legalOptDom">DOM snapshot (page.html)</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptDomNote">
+                        Serializes the live, post-JavaScript-execution page
+                        markup (document.documentElement.outerHTML) at the
+                        same instant as the screenshot. Machine-readable
+                        evidence independent of both the raster screenshot
+                        and the raw HTTP bodies in the WARC — ties what was
+                        visually shown to the actual markup that produced it.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-mhtml">
+                        <input type="checkbox" id="legal-opt-mhtml" checked />
+                        <span data-i18n="legalOptMhtml">Full-page MHTML archive (page.mhtml)</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptMhtmlNote">
+                        A complete, self-contained snapshot of the rendered
+                        page — markup, stylesheets, scripts, images, and
+                        fonts bundled into one file, built by Chrome itself
+                        (Page.captureSnapshot), not this extension's own
+                        code. Opens directly in Chrome/Edge or any
+                        MHTML-capable tool, independent of Sharpshooter —
+                        the strongest "the whole page, everything" artifact
+                        in the package.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div class="section-label" data-i18n="legalSettingsGroupIntegrity">
+                        Timestamping &amp; Integrity
+                    </div>
+
+                    <label class="setting-row" for="legal-opt-timestamps">
+                        <input type="checkbox" id="legal-opt-timestamps" checked />
+                        <span data-i18n="legalOptTimestamps">Independent RFC 3161 timestamps</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptTimestampsNote">
+                        Sends manifest.json's SHA-256 hash (never the page
+                        content itself) to independent public timestamping
+                        authorities, who sign back proof that hash existed at
+                        that moment. This is what lets you prove the capture
+                        wasn't put together after the fact — without it, the
+                        package is still hash-sealed, but the only clock
+                        backing the capture time is this computer's own.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-tsa-freetsa">
+                        <input type="checkbox" id="legal-opt-tsa-freetsa" checked />
+                        <span data-i18n="legalOptTsaFreeTsa">Use FreeTSA</span>
+                    </label>
+                    <label class="setting-row" for="legal-opt-tsa-digicert">
+                        <input type="checkbox" id="legal-opt-tsa-digicert" checked />
+                        <span data-i18n="legalOptTsaDigiCert">Use DigiCert</span>
+                    </label>
+                    <label class="setting-row" for="legal-opt-tsa-sectigo">
+                        <input type="checkbox" id="legal-opt-tsa-sectigo" checked />
+                        <span data-i18n="legalOptTsaSectigo">Use Sectigo</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptTsaProvidersNote">
+                        Each additional independent authority you enable adds
+                        a separate, cross-checkable witness to the capture
+                        time — useful if one authority's availability or
+                        trustworthiness is ever questioned. Any one succeeding
+                        is enough to timestamp the capture; more is simply
+                        stronger. These only apply while the timestamps toggle
+                        above is on.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-sha256sums">
+                        <input type="checkbox" id="legal-opt-sha256sums" checked />
+                        <span data-i18n="legalOptSha256Sums">SHA256SUMS.txt convenience checksums</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptSha256SumsNote">
+                        A plain-text list of the SHA-256 of every file
+                        physically inside the zip, so anyone can do a
+                        five-second check that nothing was swapped after the
+                        package was assembled. Not the core integrity
+                        mechanism — manifest.json's own sealed hash (always
+                        computed) is — this is just a convenience on top.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div class="section-label" data-i18n="legalSettingsGroupOperator">
+                        Machine &amp; Operator Data
+                    </div>
+
+                    <div class="legal-capture-fields">
+                        <input
+                            type="text"
+                            id="legal-operator-name"
+                            class="setting-text"
+                            data-i18n-ph="legalOperatorNamePlaceholder"
+                            placeholder="Operator name (optional, printed on the report)"
+                            autocomplete="off"
+                        />
+                        <input
+                            type="text"
+                            id="legal-case-reference"
+                            class="setting-text"
+                            data-i18n-ph="legalCaseReferencePlaceholder"
+                            placeholder="Case / matter reference (optional)"
+                            autocomplete="off"
+                        />
+                    </div>
+                    <p class="setting-note" data-i18n="legalOperatorFieldsNote">
+                        Free-text, optional, printed on report.txt and
+                        recorded (unverified) in manifest.json — always
+                        included when filled in, not gated by a toggle.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-pageenv">
+                        <input type="checkbox" id="legal-opt-pageenv" checked />
+                        <span data-i18n="legalOptPageEnv">Browser/page environment info</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptPageEnvNote">
+                        Records the captured tab's screen size, pixel ratio,
+                        color depth, locale, IANA timezone name, hardware
+                        thread count, and basic document metadata (title,
+                        referrer). Documents the rendering context the
+                        screenshot was taken under — no special browser
+                        permission required.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-machine">
+                        <input type="checkbox" id="legal-opt-machine" />
+                        <span data-i18n="legalOptMachine">Machine info (CPU / memory / displays)</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptMachineNote">
+                        Records the operator's own computer's CPU
+                        model/core count, installed RAM, and connected
+                        display layout/resolution — a hardware fingerprint of
+                        the device that produced the capture, for
+                        chain-of-custody purposes. Requires a one-time browser
+                        permission grant the first time you turn this on.
+                        Off by default since it's new information about your
+                        own machine, not the captured page.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-geolocation">
+                        <input type="checkbox" id="legal-opt-geolocation" />
+                        <span data-i18n="legalOptGeolocation">Operator geolocation</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptGeolocationNote">
+                        Records the operator's physical location (via the
+                        browser's Geolocation API — GPS, Wi-Fi, or IP-based,
+                        whichever the OS provides) at the moment of capture.
+                        Can support a chain-of-custody claim of where the
+                        capture was performed. Requires a one-time browser
+                        permission grant, and the browser will prompt for
+                        location access on first use. Off by default — this
+                        is sensitive personal data about you, the operator,
+                        not the page you're capturing.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-accountemail">
+                        <input type="checkbox" id="legal-opt-accountemail" />
+                        <span data-i18n="legalOptAccountEmail">Operator's Chrome account email</span>
+                    </label>
+                    <p class="setting-note" data-i18n="legalOptAccountEmailNote">
+                        Records the email of the Google account currently
+                        signed into this Chrome profile, if any — a stronger
+                        operator-identity signal than the free-text Operator
+                        Name field on the main view, since it comes from
+                        account ownership rather than a typed string.
+                        Requires a one-time browser permission grant. Off by
+                        default, since your Chrome account may not be the
+                        identity you want tied to a specific capture.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div class="section-label" data-i18n="legalSettingsGroupAbout">
+                        How Legal Capture Works
+                    </div>
+                    <p class="setting-note" data-i18n="legalSettingsAbout">
+                        Legal Capture is built to let a screenshot be
+                        presented as evidence with a case for its own
+                        authenticity, not just an image someone could have
+                        edited. With everything above left on, one click:
+                        (1) starts recording the page's real network traffic,
+                        (2) forces a fresh, cache-bypassed reload — so any
+                        prior manual DOM edit (e.g. Remove Elements) or live
+                        DevTools tampering is undone before anything is
+                        captured, (3) takes the screenshot plus independent
+                        DOM and full-page MHTML snapshots of the exact same
+                        moment, (4) bundles the recorded network traffic into
+                        a standard WARC/WACZ archive anyone can replay
+                        independently of this extension, (5) builds a
+                        manifest listing the SHA-256 hash of every file in
+                        the package and freezes it, (6) sends only that
+                        manifest's hash — never the page content — to
+                        independent public timestamping authorities (RFC
+                        3161), who sign back cryptographic proof the hash
+                        existed at that moment, and (7) zips everything,
+                        including a plain-language report explaining exactly
+                        what was and wasn't captured, into one file you save
+                        yourself. Every step above is individually optional;
+                        manifest.json always records exactly which options
+                        were on for a given capture, so the package itself is
+                        the audit trail of what it does and doesn't contain.
+                        This tool produces supporting technical evidence, not
+                        a legal determination — consult counsel on how to
+                        present it.
+                    </p>
+                </section>
             </div>
 
             <div id="view-help" class="help-view" hidden>

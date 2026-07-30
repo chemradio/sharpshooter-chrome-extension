@@ -30,11 +30,94 @@
 
     "legalCaptureLabel": { "message": "Legal Capture" },
     "legalCapture": { "message": "Legal Capture" },
-    "legalCaptureNote": {
-        "message": "Reloads the page, records the full network exchange, and produces a hash-sealed, independently timestamped evidence package (.wacz + screenshot + report)."
-    },
     "legalWarningDomKiller": {
         "message": "This tab's HTML was hand-edited with Remove Elements. Legal Capture always reloads the page first to restore the original content."
+    },
+    "legalOperatorNamePlaceholder": {
+        "message": "Operator name (optional, printed on the report)"
+    },
+    "legalCaseReferencePlaceholder": {
+        "message": "Case / matter reference (optional)"
+    },
+    "legalSettingsBtnTitle": { "message": "Legal Capture Settings" },
+    "legalSettingsCloseBtnTitle": { "message": "Close Legal Capture Settings" },
+    "stPermissionDenied": {
+        "message": "Permission denied — this option needs the browser permission you were just prompted for."
+    },
+    "stGeolocationPending": {
+        "message": "Respond to the location prompt in the window that just opened. This popup will close — reopen Legal Capture Settings afterward to see the result."
+    },
+
+    "legalSettingsTitle": { "message": "Legal Capture Settings" },
+    "legalSettingsIntro": {
+        "message": "Every artifact Legal Capture can produce is optional. Turn off anything you don't want collected — the capture still runs and still produces a hash-sealed package with whatever is left on."
+    },
+    "legalSettingsGroupEvidence": { "message": "Evidence Artifacts" },
+    "legalOptNetwork": { "message": "Network exchange recording (WARC/WACZ)" },
+    "legalOptNetworkNote": {
+        "message": "Records the full HTTP request/response exchange for the page (headers, bodies, redirect chain, TLS details) into a standard WARC/WACZ archive, playable independently at replayweb.page. This is the core evidence that the page's content came from the real server, not a locally edited copy — turning it off removes capture.wacz, TLS details, and the redirect chain from the package entirely."
+    },
+    "legalOptWebSocket": { "message": "WebSocket capture" },
+    "legalOptWebSocketNote": {
+        "message": "Records WebSocket handshakes and every frame sent or received, as a transcript inside the WARC. Relevant for sites (chat, live feeds) where the visible content arrives over a WebSocket rather than a plain HTTP response — without this, that content is on screen but has no corresponding entry in the archive."
+    },
+    "legalOptServiceWorker": { "message": "Service Worker network capture" },
+    "legalOptServiceWorkerNote": {
+        "message": "Best-effort attach to the page's Service Worker (if any) to capture requests it intercepts or serves from its own cache — traffic a normal tab-scoped recording can't see. Matters for PWA-style sites that render content without a visible network round trip."
+    },
+    "legalOptScreenshot": { "message": "Screenshot" },
+    "legalOptScreenshotNote": {
+        "message": "The visual capture itself (screenshot.png) — the human-readable \"what did the page look like\" evidence most people expect from this tool. Turning this off still produces a package, but with no image in it."
+    },
+    "legalOptDom": { "message": "DOM snapshot (page.html)" },
+    "legalOptDomNote": {
+        "message": "Serializes the live, post-JavaScript-execution page markup (document.documentElement.outerHTML) at the same instant as the screenshot. Machine-readable evidence independent of both the raster screenshot and the raw HTTP bodies in the WARC — ties what was visually shown to the actual markup that produced it."
+    },
+    "legalOptMhtml": { "message": "Full-page MHTML archive (page.mhtml)" },
+    "legalOptMhtmlNote": {
+        "message": "A complete, self-contained snapshot of the rendered page — markup, stylesheets, scripts, images, and fonts bundled into one file, built by Chrome itself (Page.captureSnapshot), not this extension's own code. Opens directly in Chrome/Edge or any MHTML-capable tool, independent of Sharpshooter — the strongest \"the whole page, everything\" artifact in the package."
+    },
+
+    "legalSettingsGroupIntegrity": { "message": "Timestamping & Integrity" },
+    "legalOptTimestamps": { "message": "Independent RFC 3161 timestamps" },
+    "legalOptTimestampsNote": {
+        "message": "Sends manifest.json's SHA-256 hash (never the page content itself) to independent public timestamping authorities, who sign back proof that hash existed at that moment. This is what lets you prove the capture wasn't put together after the fact — without it, the package is still hash-sealed, but the only clock backing the capture time is this computer's own."
+    },
+    "legalOptTsaFreeTsa": { "message": "Use FreeTSA" },
+    "legalOptTsaDigiCert": { "message": "Use DigiCert" },
+    "legalOptTsaSectigo": { "message": "Use Sectigo" },
+    "legalOptTsaProvidersNote": {
+        "message": "Each additional independent authority you enable adds a separate, cross-checkable witness to the capture time — useful if one authority's availability or trustworthiness is ever questioned. Any one succeeding is enough to timestamp the capture; more is simply stronger. These only apply while the timestamps toggle above is on."
+    },
+    "legalOptSha256Sums": { "message": "SHA256SUMS.txt convenience checksums" },
+    "legalOptSha256SumsNote": {
+        "message": "A plain-text list of the SHA-256 of every file physically inside the zip, so anyone can do a five-second check that nothing was swapped after the package was assembled. Not the core integrity mechanism — manifest.json's own sealed hash (always computed) is — this is just a convenience on top."
+    },
+
+    "legalSettingsGroupOperator": { "message": "Machine & Operator Data" },
+    "legalOperatorFieldsNote": {
+        "message": "Free-text, optional, printed on report.txt and recorded (unverified) in manifest.json — always included when filled in, not gated by a toggle."
+    },
+    "legalOptPageEnv": { "message": "Browser/page environment info" },
+    "legalOptPageEnvNote": {
+        "message": "Records the captured tab's screen size, pixel ratio, color depth, locale, IANA timezone name, hardware thread count, and basic document metadata (title, referrer). Documents the rendering context the screenshot was taken under — no special browser permission required."
+    },
+    "legalOptMachine": { "message": "Machine info (CPU / memory / displays)" },
+    "legalOptMachineNote": {
+        "message": "Records the operator's own computer's CPU model/core count, installed RAM, and connected display layout/resolution — a hardware fingerprint of the device that produced the capture, for chain-of-custody purposes. Requires a one-time browser permission grant the first time you turn this on. Off by default since it's new information about your own machine, not the captured page."
+    },
+    "legalOptGeolocation": { "message": "Operator geolocation" },
+    "legalOptGeolocationNote": {
+        "message": "Records the operator's physical location (via the browser's Geolocation API — GPS, Wi-Fi, or IP-based, whichever the OS provides) at the moment of capture. Can support a chain-of-custody claim of where the capture was performed. Requires a one-time browser permission grant, and the browser will prompt for location access on first use. Off by default — this is sensitive personal data about you, the operator, not the page you're capturing."
+    },
+    "legalOptAccountEmail": { "message": "Operator's Chrome account email" },
+    "legalOptAccountEmailNote": {
+        "message": "Records the email of the Google account currently signed into this Chrome profile, if any — a stronger operator-identity signal than the free-text Operator Name field on the main view, since it comes from account ownership rather than a typed string. Requires a one-time browser permission grant. Off by default, since your Chrome account may not be the identity you want tied to a specific capture."
+    },
+
+    "legalSettingsGroupAbout": { "message": "How Legal Capture Works" },
+    "legalSettingsAbout": {
+        "message": "Legal Capture is built to let a screenshot be presented as evidence with a case for its own authenticity, not just an image someone could have edited. With everything above left on, one click: (1) starts recording the page's real network traffic, (2) forces a fresh, cache-bypassed reload — so any prior manual DOM edit (e.g. Remove Elements) or live DevTools tampering is undone before anything is captured, (3) takes the screenshot plus independent DOM and full-page MHTML snapshots of the exact same moment, (4) bundles the recorded network traffic into a standard WARC/WACZ archive anyone can replay independently of this extension, (5) builds a manifest listing the SHA-256 hash of every file in the package and freezes it, (6) sends only that manifest's hash — never the page content — to independent public timestamping authorities (RFC 3161), who sign back cryptographic proof the hash existed at that moment, and (7) zips everything, including a plain-language report explaining exactly what was and wasn't captured, into one file you save yourself. Every step above is individually optional; manifest.json always records exactly which options were on for a given capture, so the package itself is the audit trail of what it does and doesn't contain. This tool produces supporting technical evidence, not a legal determination — consult counsel on how to present it."
     },
 
     "output": { "message": "Output" },
@@ -188,6 +271,9 @@
     },
     "tipCropSegment": {
         "message": "Same capture, then route through the manual crop editor"
+    },
+    "tipLegalCapture": {
+        "message": "Legal Capture: hash-sealed, timestamped evidence package — see the gear icon for details"
     },
     "tipHelp": {
         "message": "Help — what each capture mode does and how to use them"

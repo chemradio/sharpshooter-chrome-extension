@@ -89,31 +89,70 @@
             <circle cx="176" cy="24" r="1.6" fill="#DEE5EC" opacity="0.55" />
             <circle cx="24" cy="176" r="1.6" fill="#DEE5EC" opacity="0.55" />
             <circle cx="176" cy="176" r="1.6" fill="#DEE5EC" opacity="0.55" />
-            <g clip-path="url(#screen)">
+            <g clip-path="url(#screen)" data-screen>
                 <animate
+                    data-flicker
                     attributeName="opacity"
                     values="1;1;0.6;1;0.75;1;1"
                     keyTimes="0;0.92;0.93;0.95;0.97;0.98;1"
                     dur="6s"
                     repeatCount="indefinite"
                 />
-                <rect x="22" y="22" width="156" height="156" fill="#102C44" />
+                <g data-guts>
+                <rect data-screen-bg x="22" y="22" width="156" height="156" fill="#102C44" />
                 <rect
+                    data-scanlines
                     x="22"
                     y="22"
                     width="156"
                     height="156"
                     fill="url(#scan-dim)"
                 />
-                <g stroke="#0ECAE3" stroke-width="10" fill="none">
-                    <circle cx="100" cy="100" r="44" />
-                    <line x1="44" y1="100" x2="78" y2="100" />
-                    <line x1="122" y1="100" x2="156" y2="100" />
-                    <line x1="100" y1="44" x2="100" y2="78" />
-                    <line x1="100" y1="122" x2="100" y2="156" />
+                <circle
+                    cx="100"
+                    cy="100"
+                    r="7"
+                    fill="#FF0055"
+                    data-crosshair-dot
+                    style="transition: transform 0.15s ease-out"
+                >
+                    <animate
+                        data-eye-pulse
+                        attributeName="r"
+                        values="7;21;7"
+                        dur="1.6s"
+                        repeatCount="indefinite"
+                    />
+                </circle>
+                <g transform="translate(100,100)" data-reticle>
+                    <g data-reticle-aim>
+                    <g>
+                        <animateTransform
+                            data-reticle-pulse
+                            attributeName="transform"
+                            type="scale"
+                            values="1.1;1;1.1"
+                            dur="1.6s"
+                            repeatCount="indefinite"
+                        />
+                        <g
+                            data-reticle-stroke
+                            transform="translate(-100,-100)"
+                            stroke="#0ECAE3"
+                            stroke-width="10"
+                            fill="none"
+                        >
+                            <circle cx="100" cy="100" r="44" />
+                            <line x1="44" y1="100" x2="78" y2="100" />
+                            <line x1="122" y1="100" x2="156" y2="100" />
+                            <line x1="100" y1="44" x2="100" y2="78" />
+                            <line x1="100" y1="122" x2="100" y2="156" />
+                        </g>
+                    </g>
+                    </g>
                 </g>
-                <circle cx="100" cy="100" r="7" fill="#FF0055" />
                 <g
+                    data-corners
                     stroke="#DEE5EC"
                     stroke-width="4.5"
                     fill="none"
@@ -124,8 +163,9 @@
                     <path d="M170 152 V170 H152" />
                     <path d="M48 170 H30 V152" />
                 </g>
-                <g>
+                <g data-beam>
                     <animateTransform
+                        data-beam-anim
                         attributeName="transform"
                         type="translate"
                         values="0,-78; 0,78; 0,-78"
@@ -136,6 +176,7 @@
                         repeatCount="indefinite"
                     />
                     <rect
+                        data-beam-glow
                         x="22"
                         y="78"
                         width="156"
@@ -143,6 +184,7 @@
                         fill="url(#beam-grad)"
                     />
                     <rect
+                        data-beam-core
                         x="22"
                         y="86"
                         width="156"
@@ -182,6 +224,7 @@
                     fill="url(#vig)"
                     pointer-events="none"
                 />
+                </g>
             </g>
             <rect
                 x="12"

@@ -179,6 +179,13 @@ header {
     display: block;
     border-radius: 7px;
     filter: drop-shadow(0 0 6px rgba(14, 202, 227, 0.5));
+    /* Targeting affordance — the mark reacts to hover/click (brandMark.js). */
+    cursor: crosshair;
+    user-select: none;
+    transition: filter 0.35s ease;
+}
+.header-icon:hover {
+    filter: drop-shadow(0 0 9px rgba(255, 0, 70, 0.55));
 }
 .header-icon > svg,
 .help-hero-icon > svg {
@@ -338,18 +345,6 @@ header {
     margin: 10px 0;
 }
 
-/* Stronger separator — used to break the popup into "Auto" vs
-   "Manual" capture halves so the eye lands on the grouping before
-   any individual control. */
-.divider--strong {
-    height: 3px;
-    background: linear-gradient(90deg,
-        transparent 0%, var(--accent) 15%, var(--accent) 85%, transparent 100%);
-    box-shadow: 0 0 8px var(--accent), 0 0 2px var(--accent);
-    margin: 16px 0;
-    opacity: 0.85;
-}
-
 .section-label--sub {
     font-size: 9px;
     opacity: 0.75;
@@ -382,6 +377,40 @@ section[hidden] { display: none; }
     margin-right: 7px;
     vertical-align: 1px;
     background: var(--accent);
+    box-shadow: var(--glow-cyan);
+}
+
+.section-label--row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.legal-settings-toggle {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.legal-settings-toggle svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
+.legal-settings-toggle:hover,
+.popup.is-legal-settings .legal-settings-toggle {
+    background: var(--accent);
+    color: var(--void);
     box-shadow: var(--glow-cyan);
 }
 
@@ -730,6 +759,10 @@ button:active { opacity: 0.75; }
 .btn-helper {
     position: relative;
     z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     background: var(--void);
     color: var(--text-muted);
     border: 2px solid var(--border);
@@ -741,11 +774,23 @@ button:active { opacity: 0.75; }
     text-transform: uppercase;
 }
 
+.btn-helper .btn-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: currentColor;
+    transition: color 0.12s, transform 0.12s;
+}
+
 .btn-helper:hover {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--void);
     box-shadow: var(--glow-cyan);
+}
+
+.btn-helper:hover .btn-icon {
+    transform: scale(1.05);
 }
 
 .btn-helper--danger {
@@ -782,8 +827,21 @@ button:active { opacity: 0.75; }
 .popup.is-settings .status { display: none; }
 .popup.is-settings .settings-view { display: flex; }
 
+.popup.is-legal-settings .body   { display: none; }
+.popup.is-legal-settings .status { display: none; }
+.popup.is-legal-settings .settings-view { display: flex; }
+
 #view-normal[hidden],
-#view-settings[hidden] { display: none; }
+#view-settings[hidden],
+#view-legal-settings[hidden] { display: none; }
+
+/* Legal Capture Settings reads dense (many toggles + notes) — bump the
+   type scale for this view specifically rather than the shared Settings
+   page. */
+#view-legal-settings .settings-header { font-size: 15px; }
+#view-legal-settings .section-label { font-size: 12px; }
+#view-legal-settings .setting-row { font-size: 14px; }
+#view-legal-settings .setting-note { font-size: 12px; }
 
 .settings-header {
     font-size: 13px;
@@ -791,6 +849,37 @@ button:active { opacity: 0.75; }
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--accent);
+}
+
+.settings-header--row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.settings-close-btn {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+}
+
+.settings-close-btn:hover {
+    background: var(--accent);
+    color: var(--void);
+    box-shadow: var(--glow-cyan);
 }
 
 .setting-row {
@@ -815,6 +904,13 @@ button:active { opacity: 0.75; }
     font-size: 10px;
     line-height: 1.45;
     color: var(--text-muted);
+}
+
+.legal-capture-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
 }
 
 /* ── Status bar — terminal readout ─────────────────────── */

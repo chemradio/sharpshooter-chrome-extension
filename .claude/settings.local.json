@@ -34,7 +34,14 @@
       "Bash(curl -s http://127.0.0.1:9333/json/list)",
       "Bash(node -e ' *)",
       "Bash(tasklist)",
-      "Bash(taskkill //PID 43712 //T //F)"
+      "Bash(taskkill //PID 43712 //T //F)",
+      "Bash(node --check support/legalCapture/legalCaptureSession.js)",
+      "Bash(node --check support/legalCapture/tsaClient.js)",
+      "Bash(node --check backgroundScript.js)",
+      "Bash(node --check popup.js)",
+      "Bash(python3 -c ' *)",
+      "Bash(node --check support/legalCapture/legalCaptureOptions.js)",
+      "Bash(node --check support/legalCapture/networkRecorder.js)"
     ]
   }
 }

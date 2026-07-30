@@ -14,10 +14,12 @@ import {
     registerDomKillerUsedListener,
 } from "./support/tabState.js";
 import { startLegalCapture } from "./support/legalCapture/legalCaptureSession.js";
+import { registerGeoPermissionRelay } from "./support/legalCapture/geoPermissionRelay.js";
 import { DevToolsAttachedError } from "./support/debugerAttachment.js";
 
 registerTabResetListener();
 registerDomKillerUsedListener();
+registerGeoPermissionRelay();
 
 addElementClickedListener();
 
@@ -271,6 +273,10 @@ async function handleAction(request) {
                     deviceMetrics: baseMetrics,
                     presetType: settings.presetType,
                     fullPageHeightCap: settings.fullPageHeightCap,
+                    operatorName: request.operatorName || null,
+                    caseReference: request.caseReference || null,
+                    options: request.options,
+                    geolocation: request.geolocation || null,
                 });
                 return result;
             } catch (error) {

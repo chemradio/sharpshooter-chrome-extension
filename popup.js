@@ -192,6 +192,7 @@ const BUTTON_TIPS = [
     ["#dom-killer",           "tipRemoveElements"],
     ["#image-extractor",      "tipImageExtractor"],
     ["#image-extractor-crop", "tipCropSegment"],
+    ["#legal-capture",        "tipLegalCapture"],
     ["#help-toggle",          "tipHelp"],
     ["#settings-toggle",      "tipSettings"],
     ["#width",                "tipResolution"],
@@ -597,6 +598,8 @@ const legalCaptureSection  = document.getElementById("legal-capture-section");
 const legalCaptureDivider  = document.getElementById("legal-capture-divider");
 const legalCaptureBtn      = document.getElementById("legal-capture");
 const legalWarning         = document.getElementById("legal-warning");
+const legalOperatorName    = document.getElementById("legal-operator-name");
+const legalCaseReference   = document.getElementById("legal-case-reference");
 
 function applyLegalCaptureVisible(enabled) {
     legalCaptureSection.hidden = !enabled;
@@ -607,7 +610,15 @@ legalCaptureBtn.addEventListener("click", async () => {
     stopDomKillerSession();
     showCapturing(t("ovLegalCapture"), t("ovLegalCaptureHint"));
     try {
-        await sendMessage({ action: "startLegalCapture", settings: getSettings() });
+        const geolocation = await gatherGeolocation();
+        await sendMessage({
+            action: "startLegalCapture",
+            settings: getSettings(),
+            operatorName: legalOperatorName.value.trim(),
+            caseReference: legalCaseReference.value.trim(),
+            options: legalCaptureOptions,
+            geolocation,
+        });
         stopCapturing();
         setStatus(t("stLegalCaptureDone"), "ok", 6000);
     } catch (e) {
@@ -855,8 +866,10 @@ function setSettings(open) {
 }
 
 settingsToggle.addEventListener("click", () => {
-    // Leaving help open while switching views would be confusing — close it.
+    // Leaving help/legal-settings open while switching views would be
+    // confusing — close them.
     if (popupEl.classList.contains("is-helping")) setHelp(false);
+    if (popupEl.classList.contains("is-legal-settings")) setLegalSettingsView(false);
     setSettings(!popupEl.classList.contains("is-settings"));
 });
 
@@ -874,8 +887,216 @@ function setHelp(open) {
 
 helpToggleBtn.addEventListener("click", () => {
     if (popupEl.classList.contains("is-settings")) setSettings(false);
+    if (popupEl.classList.contains("is-legal-settings")) setLegalSettingsView(false);
     setHelp(!popupEl.classList.contains("is-helping"));
 });
+
+// ─── Legal Capture Settings ─────────────────────────────────────────────────
+//
+// Every evidentiary component of the Legal Capture package is individually
+// toggleable. This default set must stay in sync with
+// LEGAL_CAPTURE_OPTION_DEFAULTS in support/legalCapture/legalCaptureOptions.js
+// — popup.js is a classic script (not an ES module), so it can't import that
+// file directly.
+const LEGAL_OPTION_DEFAULTS = {
+    networkRecording: true,
+    webSocketCapture: true,
+    serviceWorkerCapture: true,
+    screenshot: true,
+    domSnapshot: true,
+    mhtmlSnapshot: true,
+    timestampsEnabled: true,
+    tsaFreeTSA: true,
+    tsaDigiCert: true,
+    tsaSectigo: true,
+    sha256Sums: true,
+    machineInfo: false,
+    browserPageInfo: true,
+    geolocation: false,
+    accountEmail: false,
+};
+
+// option key -> chrome optional_permissions it needs before it can be
+// switched on (see manifest.json's optional_permissions). Kept in sync with
+// LEGAL_CAPTURE_OPTION_PERMISSIONS in support/legalCapture/legalCaptureOptions.js.
+//
+// geolocation is deliberately absent — Chrome rejects "geolocation" in
+// optional_permissions entirely (it can only be a standing permission, never
+// optional; declaring it gets it silently dropped with a console warning at
+// install). Its toggle is handled separately below via the ordinary
+// per-origin Geolocation API prompt instead.
+const LEGAL_OPTION_PERMISSIONS = {
+    machineInfo: ["system.cpu", "system.memory", "system.display"],
+    accountEmail: ["identity"],
+};
+
+const LEGAL_OPTION_CHECKBOXES = {
+    networkRecording: document.getElementById("legal-opt-network"),
+    webSocketCapture: document.getElementById("legal-opt-websocket"),
+    serviceWorkerCapture: document.getElementById("legal-opt-serviceworker"),
+    screenshot: document.getElementById("legal-opt-screenshot"),
+    domSnapshot: document.getElementById("legal-opt-dom"),
+    mhtmlSnapshot: document.getElementById("legal-opt-mhtml"),
+    timestampsEnabled: document.getElementById("legal-opt-timestamps"),
+    tsaFreeTSA: document.getElementById("legal-opt-tsa-freetsa"),
+    tsaDigiCert: document.getElementById("legal-opt-tsa-digicert"),
+    tsaSectigo: document.getElementById("legal-opt-tsa-sectigo"),
+    sha256Sums: document.getElementById("legal-opt-sha256sums"),
+    machineInfo: document.getElementById("legal-opt-machine"),
+    browserPageInfo: document.getElementById("legal-opt-pageenv"),
+    geolocation: document.getElementById("legal-opt-geolocation"),
+    accountEmail: document.getElementById("legal-opt-accountemail"),
+};
+
+let legalCaptureOptions = { ...LEGAL_OPTION_DEFAULTS };
+
+function saveLegalCaptureOptions() {
+    chrome.storage.local.set({ legalCaptureOptions });
+}
+
+chrome.storage.local.get(["legalCaptureOptions"]).then((s) => {
+    legalCaptureOptions = { ...LEGAL_OPTION_DEFAULTS, ...(s.legalCaptureOptions || {}) };
+    for (const [key, cb] of Object.entries(LEGAL_OPTION_CHECKBOXES)) {
+        if (cb) cb.checked = !!legalCaptureOptions[key];
+    }
+});
+
+// Calling navigator.geolocation.getCurrentPosition() directly from this
+// popup only works silently when permission was already resolved (granted
+// or denied) — a fresh, undecided permission triggers a native prompt that
+// steals focus and Chrome closes action popups on blur, killing this script
+// (and the toggle's checked state) before an answer arrives. So: use the
+// fast path when the state is already known, and hand off to a separate
+// window (which survives its own popup closing) only when it isn't.
+async function requestGeolocationPermission() {
+    if (!("geolocation" in navigator)) return false;
+    try {
+        const status = await navigator.permissions.query({ name: "geolocation" });
+        if (status.state === "granted") return true;
+        if (status.state === "denied") return false;
+    } catch {
+        // navigator.permissions.query({name:"geolocation"}) isn't supported
+        // everywhere — fall through and let the relay window sort it out.
+    }
+    try {
+        await sendMessage({ action: "openGeolocationPermissionWindow" });
+    } catch {
+        return false;
+    }
+    return "pending";
+}
+
+for (const [key, cb] of Object.entries(LEGAL_OPTION_CHECKBOXES)) {
+    if (!cb) continue;
+    cb.addEventListener("change", async () => {
+        const wantsOn = cb.checked;
+        const neededPermissions = LEGAL_OPTION_PERMISSIONS[key];
+        if (wantsOn && key === "geolocation") {
+            const outcome = await requestGeolocationPermission();
+            if (outcome === false) {
+                cb.checked = false;
+                setStatus(t("stPermissionDenied"), "error", 4000);
+                return;
+            }
+            if (outcome === "pending") {
+                // A relay window just opened to show the native prompt; this
+                // popup is about to lose focus and Chrome will close it
+                // before an answer comes back. The relay window persists the
+                // result to storage directly, so there's nothing left to do
+                // here — the checkbox will reflect it next time this view
+                // opens.
+                setStatus(t("stGeolocationPending"), "ok", 5000);
+                return;
+            }
+        } else if (wantsOn && neededPermissions) {
+            let granted = false;
+            try {
+                granted = await chrome.permissions.request({ permissions: neededPermissions });
+            } catch {
+                granted = false;
+            }
+            if (!granted) {
+                cb.checked = false;
+                setStatus(t("stPermissionDenied"), "error", 4000);
+                return;
+            }
+        } else if (!wantsOn && neededPermissions) {
+            // Best-effort relinquish once nothing else needs the grant —
+            // failure to remove isn't user-visible or capture-affecting,
+            // the toggle being off is what actually matters.
+            chrome.permissions.remove({ permissions: neededPermissions }).catch(() => {});
+        }
+        legalCaptureOptions[key] = wantsOn;
+        saveLegalCaptureOptions();
+    });
+}
+
+// Only meaningful when the Operator Geolocation toggle is on; resolves null
+// otherwise, on any failure, or if the operator dismisses the browser's
+// permission prompt. Gathered here (not in the background service worker)
+// because the Geolocation API isn't available in a Manifest V3 service
+// worker context — the popup, as a normal window, is the closest context
+// that has it and is guaranteed open for the duration of the click.
+async function gatherGeolocation() {
+    if (!legalCaptureOptions.geolocation || !("geolocation" in navigator)) return null;
+    // The Legal Capture Settings toggle only turns on once permission is
+    // already granted (see requestGeolocationPermission above), so this is
+    // normally a silent, no-prompt call. Guard anyway: if the grant was since
+    // revoked (e.g. via chrome://settings), calling getCurrentPosition here
+    // would trigger a fresh native prompt that closes this popup mid-capture
+    // — better to skip geolocation for this capture than break the whole
+    // thing silently.
+    try {
+        const status = await navigator.permissions.query({ name: "geolocation" });
+        if (status.state !== "granted") return null;
+    } catch {
+        // Unsupported — fall through and try anyway, as before.
+    }
+    return new Promise((resolve) => {
+        let settled = false;
+        const finish = (value) => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+        };
+        const timeout = setTimeout(() => finish(null), 8000);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                clearTimeout(timeout);
+                finish({
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    accuracyMeters: pos.coords.accuracy,
+                    obtainedAt: new Date(pos.timestamp).toISOString(),
+                });
+            },
+            () => {
+                clearTimeout(timeout);
+                finish(null);
+            },
+            { timeout: 7000, maximumAge: 0 }
+        );
+    });
+}
+
+const viewLegalSettings     = document.getElementById("view-legal-settings");
+const legalSettingsToggleBtn = document.getElementById("legal-settings-toggle");
+const legalSettingsCloseBtn  = document.getElementById("legal-settings-close");
+
+function setLegalSettingsView(open) {
+    viewLegalSettings.hidden = !open;
+    viewNormal.hidden = open;
+    popupEl.classList.toggle("is-legal-settings", open);
+}
+
+legalSettingsToggleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (popupEl.classList.contains("is-helping")) setHelp(false);
+    if (popupEl.classList.contains("is-settings")) setSettings(false);
+    setLegalSettingsView(!popupEl.classList.contains("is-legal-settings"));
+});
+
+legalSettingsCloseBtn.addEventListener("click", () => setLegalSettingsView(false));
 
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.action !== "domKillerEnded") return false;
