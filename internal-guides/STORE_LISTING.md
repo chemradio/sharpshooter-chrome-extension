@@ -84,6 +84,34 @@ page content or the captured URL) to the public FreeTSA RFC 3161 timestamping
 authority to obtain an independent timestamp for the capture. Neither goes to
 a developer-operated server.
 
+# Chrome Web Store Permission Justifications
+
+Text for the "Privacy practices" tab in the Chrome Web Store developer dashboard. These four are all `optional_permissions`, tied to the Legal Capture feature's "Machine Info" toggle (`system.cpu` / `system.memory` / `system.display`) and "Account Email" toggle (`identity`). Each is requested via `chrome.permissions.request()` only when the operator explicitly enables the corresponding toggle in Legal Capture Settings — never at install. See `legalCaptureOptions.js` for the single source of truth on these defaults/permission mapping.
+
+## identity
+
+```
+The "identity" permission is used only by the optional "Legal Capture" feature, which produces a hash-sealed evidentiary package for investigative/legal use. If the operator explicitly enables the "Account Email" toggle in Legal Capture Settings, the extension calls chrome.identity.getProfileUserInfo() to record the operator's Chrome account email in the capture's manifest.json — an unverified provenance label identifying who performed the capture, for legal accountability purposes. This permission is declared under optional_permissions and is requested via chrome.permissions.request() only at the moment the toggle is switched on; it is off by default and never requested at install. No other feature of the extension (standard page/element screenshots, image extraction, etc.) uses this permission.
+```
+
+## system.cpu
+
+```
+The "system.cpu" permission is used only by the optional "Legal Capture" feature. If the operator explicitly enables the "Machine Info" toggle in Legal Capture Settings, the extension reads the CPU model and core count via chrome.system.cpu and includes it in the capture's manifest.json as part of a tool/machine provenance block, strengthening the evidentiary record of what device produced the capture. This permission is declared under optional_permissions and is requested only when the toggle is turned on; it is off by default. No other feature uses this permission.
+```
+
+## system.memory
+
+```
+The "system.memory" permission is used only by the optional "Legal Capture" feature. If the operator explicitly enables the "Machine Info" toggle in Legal Capture Settings, the extension reads installed RAM via chrome.system.memory and records it in the capture's manifest.json alongside CPU and display data, as part of the machine provenance block for the evidentiary package. This permission is declared under optional_permissions and is requested only when the toggle is turned on; it is off by default. No other feature uses this permission.
+```
+
+## system.display
+
+```
+The "system.display" permission is used only by the optional "Legal Capture" feature. If the operator explicitly enables the "Machine Info" toggle in Legal Capture Settings, the extension reads connected display layout and resolution via chrome.system.display and records it in the capture's manifest.json as part of the machine provenance block, documenting the operator's display setup at the time of capture. This permission is declared under optional_permissions and is requested only when the toggle is turned on; it is off by default. No other feature uses this permission.
+```
+
 ## Data usage disclosures (Privacy tab — check these)
 
 - Does NOT collect or use personal/sensitive user data.
