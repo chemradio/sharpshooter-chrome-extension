@@ -47,10 +47,12 @@ This requires the `host_permissions: ["<all_urls>"]` grant in the manifest,
 since the image being extracted can be hosted on any domain (see
 [Permissions](#permissions) below).
 
-It also makes one other kind of outbound request, but **only if you turn on
-the optional Legal Capture feature** (off by default; enabled via the
-"Enable Legal Capture" toggle in Settings) **and** leave its timestamping
-option on (on by default, individually switchable — see below): every time
+It also makes one other kind of outbound request, but **only if you actually
+use the Legal Capture feature** (its section is shown in the popup by
+default and can be hidden via the "Enable Legal Capture" toggle in Settings —
+but merely having it visible sends nothing; nothing leaves your machine
+unless you run a capture with it) **and** leave its timestamping option on
+(on by default, individually switchable — see below): every time
 you use Legal Capture, the extension sends a SHA-256 hash of the capture
 package to whichever of three independent, free, public timestamping
 authorities you have enabled — [FreeTSA](https://freetsa.org),

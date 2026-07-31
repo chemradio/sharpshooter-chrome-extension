@@ -5,6 +5,7 @@
     },
 
     "popupTitle": { "message": "Sharpshooter" },
+    "appTagline": { "message": "Screenshot tool" },
     "helpBtnTitle": { "message": "Help" },
     "helpBtnTitleClose": { "message": "Close help" },
     "settingsBtnTitle": { "message": "Settings" },
@@ -184,10 +185,7 @@
 
     "helpTitleNormal": { "message": "How capture works" },
     "helpDisclaimer": {
-        "message": "<b>Heads up:</b> social websites change their page structure constantly. When they do, the extension can stop working correctly until it is updated — most often it will fail to detect a post or story for capture. If a capture looks wrong, try Page Capture or Capture Element as a fallback."
-    },
-    "helpCaptureSite": {
-        "message": "<div class=\"help-heading\">Capture this post / story</div><p>When you open the popup on Facebook, Instagram, Telegram (t.me), X / Twitter or VK, the extension checks whether the page contains a post or a story. If it does, a \"Capture this post\" (or \"story\") button appears at the top. Click it to remove comments, sidebars and other clutter around the target and capture just that element.</p>"
+        "message": "<b>Heads up:</b> websites change their page structure over time. If a capture looks wrong, try Page Capture or a different target element with Capture Element."
     },
     "helpPageCapture": {
         "message": "<div class=\"help-heading\">Page Capture</div><p>Captures the whole page at a chosen resolution. Pick a preset:</p><ul><li><b>User</b> — the current tab's viewport size (default). Combined with the 2× quality multiplier, gives you a sharp shot at the exact size you see in the browser.</li><li><b>Full Page</b> — viewport width, full document height (measured live).</li><li><b>Vertical</b> — viewport width × (width × 3.5), good for long social posts.</li><li><b>FullHD</b> — 1920 × 1080.</li><li><b>4K</b> — 3840 × 2160.</li><li><b>Custom</b> — your own width × height.</li></ul><p>The page is emulated at this resolution before capture, so layouts adapt as if the window were that size.</p>"
@@ -239,16 +237,6 @@
     "stOpaqueOff": { "message": "Opaque PNG re-encode off" },
     "stManualRemovalStopped": { "message": "Manual removal stopped" },
 
-    "promptPost": { "message": "Capture this post" },
-    "promptStory": { "message": "Capture this story" },
-    "promptDetectedOn": {
-        "message": "Detected on $site$",
-        "placeholders": {
-            "site": { "content": "$1" }
-        }
-    },
-    "promptDetectedHere": { "message": "Detected on this page" },
-
     "showTooltips": { "message": "Show popup tooltips" },
     "showTooltipsNote": {
         "message": "Rotating tips and per-button hints in the popup's bottom bar. Off shrinks the popup — it ends after Remove Elements."
@@ -259,9 +247,6 @@
     },
     "tipCaptureElement": {
         "message": "Capture Element: hover a node, wheel to walk the DOM, click to commit"
-    },
-    "tipCaptureSite": {
-        "message": "Capture this post or story — site-aware element shot"
     },
     "tipRemoveElements": {
         "message": "Remove Elements: click to delete a node; Ctrl+Z undoes the last kill"

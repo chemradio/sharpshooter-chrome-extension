@@ -53,6 +53,14 @@ body {
 .popup {
     position: relative;
     width: 360px;
+    /* Every view is sized from the main view so switching never resizes the
+       popup. popup.js measures the main view and writes both:
+         --popup-content-h : the main view's own content height (.body)
+         --popup-view-h    : that plus the status bar, which subpages drop
+       Subpages therefore end up exactly as tall as the main view overall.
+       These are only the pre-JS fallbacks. */
+    --popup-content-h: 480px;
+    --popup-view-h: 539px;
     display: flex;
     flex-direction: column;
     background:
@@ -156,14 +164,58 @@ header {
 
 .header-title {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    cursor: default;
+    user-select: none;
+}
+
+.header-title-line {
     color: var(--white);
     font-size: 17px;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     text-shadow: var(--glow-cyan);
-    cursor: default;
-    user-select: none;
+    line-height: 1;
+}
+
+/* Second line (tagline) — same layout, much smaller, not uppercased. Fixed
+   height + nowrap so typing it in character-by-character can never wrap or
+   grow the header. Kept short so the two-line block doesn't end up taller
+   than the 26px header buttons beside it. */
+.header-title-line-sub {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: none;
+    text-shadow: none;
+    opacity: 0.65;
+    height: 9px;
+    line-height: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Blinking terminal cursor. Trails the title as it types; popup.js then
+   re-parents this same node into the sub-line so it keeps trailing the
+   tagline, inheriting the smaller font-size from its new container. */
+.header-title-cursor {
+    display: inline-block;
+    font-size: inherit;
+    margin-left: 1px;
+    animation: header-cursor-blink 1s step-end infinite;
+}
+
+@keyframes header-cursor-blink {
+    0%, 49%   { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .header-title-cursor { animation: none; }
 }
 
 /* Oversized brand mark — absolutely positioned so it deliberately
@@ -237,12 +289,10 @@ header {
     font-size: 14px;
     line-height: 1.55;
     color: var(--text);
-    max-height: 480px;
+    height: var(--popup-view-h);
     overflow-y: auto;
 }
 
-.popup.is-helping .body   { display: none; }
-.popup.is-helping .status { display: none; }
 .popup.is-helping .help-view { display: block; }
 .help-view[hidden] { display: none; }
 
@@ -336,6 +386,20 @@ header {
     display: flex;
     flex-direction: column;
     gap: 0;
+    /* Sized to its own content by popup.js, so this never actually scrolls;
+       `auto` is only a safety valve if a translation overflows. */
+    height: var(--popup-content-h);
+    overflow-y: auto;
+}
+
+/* .body is genuinely removed when another view is active — popup.js measures
+   it by temporarily stripping these view classes off .popup, so it doesn't
+   need to stay laid out just to be measurable. */
+.popup.is-helping .body,
+.popup.is-settings .body,
+.popup.is-legal-settings .body,
+.popup.is-capturing .body {
+    display: none;
 }
 
 .divider {
@@ -817,18 +881,14 @@ button:active { opacity: 0.75; }
     position: relative;
     z-index: 1;
     padding: 22px 14px 12px;
-    max-height: 480px;
+    height: var(--popup-view-h);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
 }
 
-.popup.is-settings .body   { display: none; }
-.popup.is-settings .status { display: none; }
 .popup.is-settings .settings-view { display: flex; }
 
-.popup.is-legal-settings .body   { display: none; }
-.popup.is-legal-settings .status { display: none; }
 .popup.is-legal-settings .settings-view { display: flex; }
 
 #view-normal[hidden],
@@ -934,6 +994,17 @@ button:active { opacity: 0.75; }
     -webkit-box-orient: vertical;
 }
 
+/* The status / tooltips bar belongs to the main view only — fully removed on
+   every subpage, not merely made invisible. Subpages still match the main
+   view's total height because they size to --popup-view-h, which already
+   accounts for this bar. */
+.popup.is-helping .status,
+.popup.is-settings .status,
+.popup.is-legal-settings .status,
+.popup.is-capturing .status {
+    display: none;
+}
+
 .status:not(:empty)::before {
     content: '> ';
     color: var(--accent);
@@ -990,8 +1061,6 @@ button:active { opacity: 0.75; }
 }
 
 .popup.is-capturing .capture-overlay { display: flex; }
-.popup.is-capturing .body            { display: none; }
-.popup.is-capturing .status          { display: none; }
 
 /* Targeting reticle — a pumping cyan ring with a hot-red dot at its core,
    plus two outward-expanding shockwave rings. */

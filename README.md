@@ -23,9 +23,6 @@ emulation + `Page.captureScreenshot`.
 
 All captures start from the toolbar popup.
 
-- **Capture this post / story** — appears at the top of the popup only when the
-  active tab is a single post or story on a supported social site. One click
-  cleans up the page and captures just that post/story element.
 - **Page Capture** — captures the page at a chosen resolution preset and scale.
 - **Capture Element** — interactively pick any DOM element: hover to highlight
   (cyan glow), scroll wheel to walk the DOM tree (up = parent, down = child),
@@ -55,20 +52,6 @@ Presets can be reordered, shown/hidden, and the fixed-dimension ones edited or d
 
 **Quality multiplier** — 1× / 2× / 3× / 4× (`deviceScaleFactor`); default 2×.
 Max output is 16384 px per side (CDP limit).
-
-## Supported social sites
-
-| Site            | Post | Story | Notes                          |
-| --------------- | :--: | :---: | ------------------------------ |
-| Facebook        |  ✓   |   ✓   | also detects group posts       |
-| Instagram       |  ✓   |   ✓   |                                |
-| X / Twitter     |  ✓   |       |                                |
-| Telegram (t.me) |  ✓   |       |                                |
-| VK              |  ✓   |       |                                |
-| Threads         |  ✓   |       |                                |
-
-The "Capture this post/story" prompt only shows when the URL looks like a
-single post/story page. Feed and profile pages fall through to Page Capture.
 
 ## Helpers
 
@@ -100,10 +83,10 @@ The header **gear** icon opens the Settings panel:
 
 ## Legal Capture
 
-An opt-in specialist mode for when a plain screenshot isn't strong enough
-evidence — e.g. investigative or legal use. Turn it on via **Enable Legal
-Capture** in Settings; a **Legal Capture** section then appears at the bottom
-of the main popup view.
+A specialist mode for when a plain screenshot isn't strong enough evidence —
+e.g. investigative or legal use. The **Legal Capture** section appears at the
+bottom of the main popup view by default; if you don't need it, turn it off
+via **Enable Legal Capture** in Settings to hide it.
 
 Instead of a single image, it produces a downloaded zip containing:
 

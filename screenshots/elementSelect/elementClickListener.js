@@ -12,17 +12,17 @@ import { bytesToBase64 } from "../../support/binary.js";
 // ─── Approach ────────────────────────────────────────────────────────────────
 //
 // Element capture is a viewport screenshot + canvas crop. CDP page-absolute
-// clip is unreliable on sites with custom scroll containers (Facebook), CSS
-// zoom, or CSS transforms — viewport-relative getBoundingClientRect always
-// matches what's on screen, so we measure in the viewport and crop in JS.
+// clip is unreliable on pages with custom scroll containers, CSS zoom, or
+// CSS transforms — viewport-relative getBoundingClientRect always matches
+// what's on screen, so we measure in the viewport and crop in JS.
 //
 // Two non-obvious choices below:
 //
 //   1. Measure via CDP Runtime.evaluate (not chrome.scripting.executeScript).
 //      Same debugger channel as the screenshot → no content-script round-trip
 //      → the measure→capture gap shrinks to the minimum possible. Pages that
-//      run scroll-restoration on rAF (e.g. Facebook) get less chance to undo
-//      our scrollIntoView between the two calls.
+//      run scroll-restoration on rAF get less chance to undo our
+//      scrollIntoView between the two calls.
 //
 //   2. NO requestAnimationFrame wait between measure and screenshot.
 //      scrollIntoView({behavior:"instant"}) is synchronous and

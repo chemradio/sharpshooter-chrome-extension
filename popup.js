@@ -3,8 +3,68 @@ const widthInput     = document.getElementById("width");
 const heightInput    = document.getElementById("height");
 const statusEl       = document.getElementById("status");
 const popupEl        = document.querySelector(".popup");
+const bodyEl         = document.querySelector(".body");
+const viewNormalEl   = document.getElementById("view-normal");
 const captureLabelEl = document.getElementById("capture-label");
 const captureHintEl  = document.getElementById("capture-hint");
+
+// Sizes every view from the main view so switching pages never resizes the
+// popup window. Writes two custom properties (consumed in popup.css):
+//
+//   --popup-content-h  the main view's own content height  -> .body
+//   --popup-view-h     that plus the status bar            -> .settings-view,
+//                                                             .help-view
+//
+// Subpages drop the status bar entirely, so adding its height back is what
+// makes them come out exactly as tall as the main view overall.
+//
+// Called at load and wherever the main view's height can change (Legal
+// Capture toggle, preset list, runtime language switch).
+//
+// Measuring correctly needs all three overrides below — each one silently
+// produced a wrong number when it was missing:
+//
+//   - strip the view classes: this often runs while Settings is open, where
+//     `.body` and `.status` are `display: none`. A display:none element
+//     reports zero height, which collapsed every view at once.
+//   - un-hide #view-normal: opening Settings also sets `#view-normal.hidden`,
+//     so .body would measure as its own padding and nothing else (34px).
+//   - height:auto on .body: it carries the pinned height plus
+//     `overflow-y: auto`, and scrollHeight there returns
+//     max(contentHeight, clientHeight) — so with the pin still applied a
+//     shrinking main view could never report anything smaller than what was
+//     already pinned. The value only ratcheted upward, leaving a dead gap
+//     the size of whatever had just been hidden.
+//
+// Only the content height is rounded up — it becomes .body's pinned height,
+// and flooring a fractional content height left a sub-pixel overflow that
+// showed a permanent scrollbar in the main view. The status height is added
+// raw: rounding it too would make ceil(a) + ceil(b) overshoot the main
+// view's real total by a pixel and put the subpages 1px out.
+//
+// Everything is restored before returning and it's all synchronous, so
+// nothing paints mid-measurement and there's no flicker.
+const VIEW_CLASSES = ["is-settings", "is-legal-settings", "is-helping", "is-capturing"];
+
+function syncPopupContentHeight() {
+    const activeViews     = VIEW_CLASSES.filter((c) => popupEl.classList.contains(c));
+    const prevBodyHeight  = bodyEl.style.height;
+    const prevViewHidden  = viewNormalEl.hidden;
+
+    popupEl.classList.remove(...activeViews);
+    viewNormalEl.hidden = false;
+    bodyEl.style.height = "auto";
+
+    const contentH = Math.ceil(bodyEl.getBoundingClientRect().height);
+    const statusH  = statusEl.getBoundingClientRect().height;
+
+    bodyEl.style.height = prevBodyHeight;
+    viewNormalEl.hidden = prevViewHidden;
+    popupEl.classList.add(...activeViews);
+
+    popupEl.style.setProperty("--popup-content-h", `${contentH}px`);
+    popupEl.style.setProperty("--popup-view-h", `${contentH + statusH}px`);
+}
 
 // Localized-string helper. Resolves through window.__i18n (see localize.js),
 // which honors the Settings language override; positional substitutions
@@ -187,8 +247,6 @@ const BUTTON_TIPS = [
     ["#capture-page-crop",    "tipCropSegment"],
     ["#capture-element",      "tipCaptureElement"],
     ["#capture-element-crop", "tipCropSegment"],
-    ["#capture-site",         "tipCaptureSite"],
-    ["#capture-site-crop",    "tipCropSegment"],
     ["#dom-killer",           "tipRemoveElements"],
     ["#image-extractor",      "tipImageExtractor"],
     ["#image-extractor-crop", "tipCropSegment"],
@@ -483,70 +541,6 @@ document.getElementById("capture-page-crop").addEventListener("click", () => run
 document.getElementById("capture-element").addEventListener("click", () => runElementCapture(cropDefault));
 document.getElementById("capture-element-crop").addEventListener("click", () => runElementCapture(true));
 
-// ─── Site-detection prompt ────────────────────────────────────────────────────
-//
-// On open, ask the background to run a non-destructive detection pass on
-// the active tab. If the site module recognizes a capturable target (post,
-// story, group post), surface a single-click "Capture this <X>" button at
-// the top of the popup. Click → site-aware element capture using the same
-// pipeline Auto Mode used to dispatch to.
-
-const sitePromptSection = document.getElementById("site-prompt");
-const sitePromptDivider = document.getElementById("site-prompt-divider");
-const captureSiteBtn    = document.getElementById("capture-site");
-const captureSiteLabel  = document.getElementById("capture-site-label");
-const captureSiteHint   = document.getElementById("capture-site-hint");
-
-// Page-type → button label. Types not listed (profile, unknown) don't get
-// a prompt — those pages should fall through to Auto/Page Capture. Populated
-// once __i18n is ready so a language override is honored.
-let PROMPT_LABELS = {};
-
-const SITE_DISPLAY_NAMES = {
-    facebook:  "Facebook",
-    instagram: "Instagram",
-    telegram:  "Telegram",
-    vk:        "VK",
-    x:         "X / Twitter",
-    threads:   "Threads",
-};
-
-function showSitePrompt(module, pageType) {
-    captureSiteLabel.textContent = PROMPT_LABELS[pageType];
-    captureSiteHint.textContent  =
-        t("promptDetectedOn", SITE_DISPLAY_NAMES[module] ?? module);
-    sitePromptSection.hidden = false;
-    sitePromptDivider.hidden = false;
-}
-
-// Wait for __i18n so the prompt labels reflect any language override, then
-// run the non-destructive site detection pass.
-window.__i18n.ready.then(() => {
-    PROMPT_LABELS = {
-        post:      t("promptPost"),
-        story:     t("promptStory"),
-        groupPost: t("promptPost"),
-    };
-    sendMessage({ action: "detectSite" })
-        .then((res) => {
-            if (res?.module && PROMPT_LABELS[res.pageType]) {
-                showSitePrompt(res.module, res.pageType);
-            }
-        })
-        .catch(() => { /* detection is best-effort — silent on failure */ });
-});
-
-function runSiteCapture(manualCrop) {
-    stopDomKillerSession();
-    showCapturing(t("ovCapturing"));
-    sendMessage({ action: "captureSiteElement", settings: getSettings({ manualCrop }) })
-        .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stDone"), "ok", 4000); })
-        .catch((e) => { stopCapturing(); setStatus(e.message ?? t("stError"), "error", 5000); });
-}
-
-captureSiteBtn.addEventListener("click", () => runSiteCapture(false));
-document.getElementById("capture-site-crop").addEventListener("click", () => runSiteCapture(true));
-
 // Element capture result — fires if the popup is still open when capture ends.
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.action !== "elementCaptureResult") return false;
@@ -589,8 +583,9 @@ document.getElementById("image-extractor-crop").addEventListener("click", () => 
 
 // ─── Legal Capture ────────────────────────────────────────────────────────────
 //
-// Specialist mode, hidden unless enabled in Settings (see legalCaptureEnabled
-// wiring below). Always forces a clean reload before recording, so unlike
+// Specialist mode, shown by default and hideable via Settings (see
+// legalCaptureEnabled wiring below). Always forces a clean reload before
+// recording, so unlike
 // other capture buttons there's no separate "did you forget to reload"
 // gate — the warning banner is purely informational.
 
@@ -604,6 +599,7 @@ const legalCaseReference   = document.getElementById("legal-case-reference");
 function applyLegalCaptureVisible(enabled) {
     legalCaptureSection.hidden = !enabled;
     legalCaptureDivider.hidden = !enabled;
+    syncPopupContentHeight();
 }
 
 legalCaptureBtn.addEventListener("click", async () => {
@@ -738,7 +734,9 @@ chrome.storage.local.get([
     setRadio(langInputs,  s.langOverride  || "auto");
     applyTheme(s.themeOverride || "auto");
 
-    const legalCaptureEnabled = s.legalCaptureEnabled === true;
+    // Defaults ON — only an explicit `false` hides the section, so a user who
+    // has never touched the toggle sees the feature.
+    const legalCaptureEnabled = s.legalCaptureEnabled !== false;
     legalCaptureEnabledCb.checked = legalCaptureEnabled;
     applyLegalCaptureVisible(legalCaptureEnabled);
     if (legalCaptureEnabled) {
@@ -856,6 +854,7 @@ function refreshDynamicStrings() {
     renderPresetsEditor();
     // Re-render the bottom-bar hint in the new language.
     if (!actionLocked) renderCurrentHint();
+    syncPopupContentHeight();
 }
 
 function setSettings(open) {
@@ -1489,6 +1488,7 @@ chrome.storage.local
             if (s.customWidth)  widthInput.value  = s.customWidth;
             if (s.customHeight) heightInput.value = s.customHeight;
         }
+        syncPopupContentHeight();
     });
 
 // Pull the active tab's viewport size and refresh the smart presets.
@@ -1539,3 +1539,49 @@ chrome.storage.session.get("elementCaptureInProgress", (data) => {
         showCapturing(t("ovCapturingElement"));
     }
 });
+
+// Header intro: types the extension name letter-by-letter with a trailing
+// blinking cursor, then re-parents that same cursor node onto the line
+// below and types the tagline there too — a terminal-boot flourish. Runs
+// once per popup open; skipped (jumps straight to the final text) under
+// prefers-reduced-motion.
+const headerTitleMainEl   = document.getElementById("header-title-main");
+const headerTitleSubEl    = document.getElementById("header-title-sub");
+const headerTitleCursorEl = document.getElementById("header-title-cursor");
+const headerTitleSubLineEl = document.querySelector(".header-title-line-sub");
+
+function typeInto(el, text, speed) {
+    return new Promise((resolve) => {
+        let i = 0;
+        (function step() {
+            el.textContent = text.slice(0, i);
+            if (i++ >= text.length) { resolve(); return; }
+            setTimeout(step, speed);
+        })();
+    });
+}
+
+async function runHeaderTypewriter() {
+    await window.__i18n.ready;
+    const title   = t("popupTitle");
+    const tagline = t("appTagline");
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        headerTitleMainEl.textContent = title;
+        headerTitleSubEl.textContent  = tagline;
+        return;
+    }
+
+    await typeInto(headerTitleMainEl, title, 32);
+    await new Promise((r) => setTimeout(r, 180));
+    headerTitleSubLineEl.appendChild(headerTitleCursorEl);
+    await new Promise((r) => setTimeout(r, 100));
+    await typeInto(headerTitleSubEl, tagline, 16);
+}
+
+runHeaderTypewriter();
+
+// Baseline measurement for the current synchronous DOM state (before any
+// of the async Legal Capture / preset-restore paths above have resolved —
+// each of those re-syncs on its own once it lands).
+syncPopupContentHeight();

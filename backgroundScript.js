@@ -2,10 +2,6 @@ import { emulateCaptureViewport } from "./screenshots/emulatedViewportCapture.js
 import { addElementClickedListener } from "./screenshots/elementSelect/elementClickListener.js";
 import { withZoomReset } from "./support/zoomReset.js";
 import { handoffToCropEditor } from "./screenshots/capture/cropHandoff.js";
-import {
-    detectSite,
-    captureSiteElement,
-} from "./screenshots/autoCapture.js";
 import { bytesToBase64 } from "./support/binary.js";
 import { measurePageHeight, measureViewportSize } from "./support/pageMeasure.js";
 import {
@@ -148,21 +144,6 @@ async function handleAction(request) {
                 manualCrop: !!settings.manualCrop,
             });
             return {};
-        }
-
-        case "detectSite": {
-            if (isRestrictedUrl(tab.url)) return { module: null, pageType: null };
-            return await detectSite({ tabId: tab.id, url: tab.url });
-        }
-
-        case "captureSiteElement": {
-            const result = await captureSiteElement({
-                tabId: tab.id,
-                url: tab.url,
-                settings,
-                screenshotSuffix,
-            });
-            return result;
         }
 
         case "domKiller": {
@@ -320,8 +301,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "getViewportSize",
         "capturePage",
         "captureElement",
-        "detectSite",
-        "captureSiteElement",
         "domKiller",
         "stopDomKiller",
         "imageExtractor",

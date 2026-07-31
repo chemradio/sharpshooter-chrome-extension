@@ -19,15 +19,13 @@ page, a chosen resolution, or a single element you click on.
   FullHD, 4K) or a custom size, at up to 4× pixel density.
 - **Capture Element** — hover any element, scroll to change depth, click to
   capture just that part of the page.
-- **Post / story capture** — on Facebook, Instagram, Telegram, X, VK and
-  Threads, detects a post or story and captures it without surrounding clutter.
 - **Extract Image** — hover any element to scan its subtree for raster images
   and download the highest-resolution source as PNG, optionally through the crop
   editor.
 - **Crop editor** — optionally route any capture through a built-in crop editor.
 - **Remove Elements** — manually click to remove distracting elements from the
   page before capturing.
-- **Legal Capture** (opt-in, off by default) — for investigative/legal use
+- **Legal Capture** (shown by default; hideable in Settings) — for investigative/legal use
   cases where a plain screenshot isn't strong enough evidence: records the
   full network exchange for the page into a hash-sealed archive, gets an
   independent timestamp for it from a public authority, and downloads all of
@@ -35,8 +33,8 @@ page, a chosen resolution, or a single element you click on.
 
 All processing happens locally in your browser. No data is collected. The
 only outbound requests are fetching an image URL you explicitly chose to
-extract, and — only if you turn on the optional Legal Capture feature — a
-hash sent to a public timestamping authority (never your browsing content).
+extract, and — only if you actually run a Legal Capture — a hash sent to a
+public timestamping authority (never your browsing content).
 
 ## Permission justifications
 
@@ -79,10 +77,11 @@ triggered by an explicit user action.
 The extension does not execute remote code — no code is fetched from a URL
 and `eval`ed; every script is bundled in the package. It does make network
 requests: Extract Image fetches a user-selected image URL directly, and the
-optional, off-by-default Legal Capture feature sends a SHA-256 hash (never
-page content or the captured URL) to the public FreeTSA RFC 3161 timestamping
-authority to obtain an independent timestamp for the capture. Neither goes to
-a developer-operated server.
+Legal Capture feature — when the user runs one — sends a SHA-256 hash (never
+page content or the captured URL) to whichever of the public FreeTSA,
+DigiCert and Sectigo RFC 3161 timestamping authorities the user has enabled,
+to obtain an independent timestamp for the capture. Neither goes to a
+developer-operated server.
 
 # Chrome Web Store Permission Justifications
 

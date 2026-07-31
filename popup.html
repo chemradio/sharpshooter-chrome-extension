@@ -39,7 +39,15 @@
                     data-brand-mark
                     aria-hidden="true"
                 ></div>
-                <span class="header-title" id="header-title">Sharpshooter</span>
+                <span class="header-title" id="header-title">
+                    <span class="header-title-line">
+                        <span class="header-title-main" id="header-title-main"></span
+                        ><span class="header-title-cursor" id="header-title-cursor">_</span>
+                    </span>
+                    <span class="header-title-line header-title-line-sub">
+                        <span class="header-title-sub" id="header-title-sub"></span>
+                    </span>
+                </span>
                 <button
                     type="button"
                     id="help-toggle"
@@ -92,75 +100,6 @@
 
             <div class="body">
                 <div id="view-normal">
-                    <!-- Site detection prompt (shown only when a supported
-                         site exposes a capturable target — post / story / etc.) -->
-                    <section id="site-prompt" class="site-prompt" hidden>
-                        <div class="capture-segmented">
-                            <button
-                                id="capture-site"
-                                class="btn-capture btn-capture--primary btn-capture--main"
-                            >
-                                <svg
-                                    class="btn-icon"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.75"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <path
-                                        d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"
-                                    />
-                                    <path d="M5 3a2 2 0 0 0-2 2" />
-                                    <path d="M19 3a2 2 0 0 1 2 2" />
-                                    <path d="M5 21a2 2 0 0 1-2-2" />
-                                    <path d="M9 3h1" />
-                                    <path d="M9 21h2" />
-                                    <path d="M14 3h1" />
-                                    <path d="M3 9v1" />
-                                    <path d="M21 9v2" />
-                                    <path d="M3 14v1" />
-                                </svg>
-                                <span id="capture-site-label" data-i18n="promptPost"
-                                    >Capture this post</span
-                                >
-                            </button>
-                            <button
-                                id="capture-site-crop"
-                                class="btn-capture btn-capture--primary btn-capture--crop"
-                                title="Capture, then manually crop"
-                                data-i18n-title="cropSegmentTitle"
-                                aria-label="With manual crop"
-                            >
-                                <svg
-                                    class="btn-icon"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.75"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <path d="M6 2v14a2 2 0 0 0 2 2h14" />
-                                    <path d="M18 22V8a2 2 0 0 0-2-2H2" />
-                                </svg>
-                                <span class="crop-segment-label" data-i18n="cropSegmentLabel">with crop</span>
-                            </button>
-                        </div>
-                        <div
-                            class="site-prompt-hint"
-                            id="capture-site-hint"
-                            data-i18n="promptDetectedHere"
-                        >
-                            Detected on this page
-                        </div>
-                    </section>
-
-                    <div class="divider" id="site-prompt-divider" hidden></div>
-
                     <!-- Page Capture + resolution -->
                     <section>
                         <div class="section-label" data-i18n="resolution">
@@ -372,13 +311,16 @@
                         </div>
                     </section>
 
-                    <div class="divider" id="legal-capture-divider" hidden></div>
+                    <div class="divider" id="legal-capture-divider"></div>
 
                     <!-- Legal Capture — forensic evidence package (WACZ +
-                         independent timestamp). Hidden unless enabled in
-                         Settings; a specialist feature kept out of the
-                         default flow. -->
-                    <section id="legal-capture-section" hidden>
+                         independent timestamp). Shown by default; the Settings
+                         toggle hides it. Markup starts visible so it matches
+                         the default state on first paint — the storage read
+                         that resolves the real setting is async, and starting
+                         hidden made the section flash in for every user who
+                         hadn't turned it off. -->
+                    <section id="legal-capture-section">
                         <div class="section-label--row">
                             <span class="section-label" data-i18n="legalCaptureLabel">Legal Capture</span>
                             <button
@@ -632,7 +574,7 @@
                         </p>
                         <div class="setting-divider"></div>
                         <label class="setting-row" for="legal-capture-enabled">
-                            <input type="checkbox" id="legal-capture-enabled" />
+                            <input type="checkbox" id="legal-capture-enabled" checked />
                             <span data-i18n="legalCaptureEnabled"
                                 >Enable Legal Capture</span
                             >
@@ -1051,10 +993,6 @@
                     <div
                         class="help-disclaimer"
                         data-i18n-html="helpDisclaimer"
-                    ></div>
-                    <div
-                        class="help-block"
-                        data-i18n-html="helpCaptureSite"
                     ></div>
                     <div
                         class="help-block"

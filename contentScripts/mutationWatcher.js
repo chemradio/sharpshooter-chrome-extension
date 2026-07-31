@@ -6,11 +6,11 @@
         try { window.__MutationCleanup(); } catch {}
     }
 
-    // Site-tiered timing. Heavy SPAs (Facebook, X, Instagram, VK, Telegram)
-    // re-render in multiple chunks on resize and need a long debounce so we
-    // don't capture mid-rerender. Everything else — static pages, blogs,
-    // docs — gets a fast tier with an early-quiet exit that resolves
-    // immediately when no mutations arrive in the first window after inject.
+    // Site-tiered timing. Heavy SPAs re-render in multiple chunks on resize
+    // and need a long debounce so we don't capture mid-rerender. Everything
+    // else — static pages, blogs, docs — gets a fast tier with an
+    // early-quiet exit that resolves immediately when no mutations arrive
+    // in the first window after inject.
     const SLOW_HOSTS = [
         "facebook.com",
         "instagram.com",

@@ -49,6 +49,7 @@ import {
 } from "../debugerAttachment.js";
 import { withZoomReset } from "../zoomReset.js";
 import { showCaptureOverlay, hideCaptureOverlay } from "../captureOverlay.js";
+import { suppressPageInput, restorePageInput } from "../inputSuppression.js";
 import {
     hideScrollbars,
     restoreScrollbars,
@@ -149,12 +150,77 @@ function redirectChainFor(exchanges, mainDocumentRequestId) {
 function tlsSummaryFrom(mainExchange) {
     const sec = mainExchange?.response?.securityDetails;
     if (!sec) return null;
+
+    // Certificate Transparency is the single most useful anti-fabrication
+    // field in the whole securityDetails payload. A certificate minted by a
+    // locally-trusted root — the standard way to serve a forged page to a
+    // browser you control — cannot carry valid SCTs, because no public CT log
+    // will have signed it. It therefore looks perfectly valid to the browser
+    // (the operator installed the root) while being visibly non-compliant
+    // here. Issuer/subject/validity alone cannot distinguish that case.
+    const scts = Array.isArray(sec.signedCertificateTimestampList)
+        ? sec.signedCertificateTimestampList
+        : [];
+
     return {
         protocol: sec.protocol ?? null,
+        cipher: sec.cipher ?? null,
+        keyExchange: sec.keyExchange ?? null,
+        keyExchangeGroup: sec.keyExchangeGroup ?? null,
+        serverSignatureAlgorithm: sec.serverSignatureAlgorithm ?? null,
         issuer: sec.issuer ?? null,
         subjectName: sec.subjectName ?? null,
+        sanList: Array.isArray(sec.sanList) ? sec.sanList : null,
         validFrom: sec.validFrom ? new Date(sec.validFrom * 1000).toISOString() : null,
         validTo: sec.validTo ? new Date(sec.validTo * 1000).toISOString() : null,
+        certificateTransparencyCompliance: sec.certificateTransparencyCompliance ?? "unknown",
+        signedCertificateTimestampCount: scts.length,
+        signedCertificateTimestamps: scts.map((s) => ({
+            status: s.status ?? null,
+            origin: s.origin ?? null,
+            logDescription: s.logDescription ?? null,
+            logId: s.logId ?? null,
+            timestamp: s.timestamp ?? null,
+        })),
+    };
+}
+
+// RFC 1918 / loopback / link-local / unique-local. A main document served
+// from any of these is the signature of a locally-run server or proxy
+// standing in for the real site — the cheapest way to fabricate a capture on
+// a machine you control. Flagged rather than blocked: a genuine capture of an
+// intranet host is legitimate and must still work, it just needs to be
+// visible to whoever reads the package instead of silently indistinguishable
+// from a capture of the public internet.
+function isPrivateOrLoopbackAddress(ip) {
+    if (typeof ip !== "string" || !ip) return null;
+    const addr = ip.replace(/^\[|\]$/g, "").toLowerCase();
+    if (addr === "::1" || addr === "0:0:0:0:0:0:0:1") return true;
+    if (addr.startsWith("fc") || addr.startsWith("fd")) return true; // unique-local
+    if (addr.startsWith("fe80:")) return true; // link-local
+    const v4 = addr.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (!v4) return false;
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (a === 127 || a === 10 || a === 0) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 169 && b === 254) return true;
+    return false;
+}
+
+// Which host actually answered, at the IP level. Independently checkable
+// against passive DNS / the site's published ranges by anyone reading the
+// package — the recorder already captured this from Network.responseReceived,
+// it just never reached the manifest.
+function connectionSummaryFrom(mainExchange) {
+    const res = mainExchange?.response;
+    if (!res) return null;
+    const ip = res.remoteIPAddress ?? null;
+    return {
+        remoteIPAddress: ip,
+        remotePort: res.remotePort ?? null,
+        protocol: res.protocol ?? null,
+        remoteAddressIsPrivateOrLoopback: isPrivateOrLoopbackAddress(ip),
     };
 }
 
@@ -301,13 +367,63 @@ function collectAccountEmail() {
 // does let anyone independently confirm what tool/version/environment made
 // the capture, which is the kind of "process or system that produces an
 // accurate result" detail FRE 901(b)(9)/902(13) certifications rely on.
+// SHA-256 fingerprint of each DER certificate in the chain that served the
+// captured origin. `Network.getCertificate` is a CDP extra (not part of the
+// stable surface) and needs the debugger still attached, so this is
+// best-effort like every other collector — but when it works it is the
+// strongest single artifact here: a leaf fingerprint can be looked up in
+// public CT logs by anyone, with no trust in this extension at all. A
+// forged certificate from a locally-installed root simply will not be there.
+async function collectCertificateChain(tabId, origin) {
+    if (!origin || !origin.startsWith("https:")) return null;
+    try {
+        const result = await new Promise((resolve, reject) => {
+            chrome.debugger.sendCommand({ tabId }, "Network.getCertificate", { origin }, (res) => {
+                const err = chrome.runtime.lastError;
+                if (err) return reject(new Error(err.message));
+                resolve(res);
+            });
+        });
+        const derBase64List = Array.isArray(result?.tableNames) ? result.tableNames : [];
+        if (!derBase64List.length) return null;
+        return await Promise.all(
+            derBase64List.map(async (der, i) => ({
+                position: i === 0 ? "leaf" : `intermediate-${i}`,
+                sha256: await sha256Hex(base64ToBytes(der)),
+            }))
+        );
+    } catch {
+        return null;
+    }
+}
+
 async function collectToolProvenance(startedAt) {
     const platformInfo = await chrome.runtime.getPlatformInfo().catch(() => null);
     const ext = chrome.runtime.getManifest();
+
+    // How this extension was installed. `chrome.management.getSelf` is one of
+    // the few management APIs callable without the "management" permission.
+    // "normal" means it came from the Chrome Web Store — i.e. the code that
+    // produced this package is the published, reviewed build. "development"
+    // means an unpacked directory the operator can edit freely, which makes
+    // every other claim in this package only as good as that local copy.
+    //
+    // This is a tripwire, not a control: a modified build could patch out
+    // this very check. It catches the casual case and makes the honest case
+    // affirmatively verifiable, which is all an in-process check can ever do.
+    let installType = null;
+    try {
+        installType = (await chrome.management.getSelf())?.installType ?? null;
+    } catch {
+        installType = null;
+    }
+
     return {
         tool: "Sharpshooter Legal Capture",
         toolVersion: ext.version,
         extensionId: chrome.runtime.id,
+        installType,
+        installedFromWebStore: installType === null ? null : installType === "normal",
         userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
         platformOs: platformInfo?.os ?? null,
         platformArch: platformInfo?.arch ?? null,
@@ -333,6 +449,8 @@ function buildReport({
     tsaResults,
     tsaErrors,
     tlsSummary,
+    connectionSummary,
+    certificateChain,
     exchangeCount,
     redirectChain,
     stats,
@@ -346,6 +464,7 @@ function buildReport({
     accountEmail,
     options,
     timestampsRequestedCount,
+    pageInputSuppressed,
 }) {
     const lines = [
         "SHARPSHOOTER LEGAL CAPTURE — CAPTURE REPORT",
@@ -410,6 +529,48 @@ function buildReport({
         `  Browser:         ${provenance.userAgent ?? "unknown"}`,
         `  OS/Arch:         ${provenance.platformOs ?? "unknown"} / ${provenance.platformArch ?? "unknown"}`,
         `  Local TZ offset: ${provenance.captureTimezoneOffsetMinutes} minutes from UTC`,
+        `  Install type:    ${provenance.installType ?? "unknown"}`,
+        ""
+    );
+
+    if (provenance.installedFromWebStore === true) {
+        lines.push(
+            "  Installed from the Chrome Web Store: the extension that produced this",
+            "  package is the published, store-reviewed build at the version above,",
+            "  not a locally-modified copy.",
+            ""
+        );
+    } else if (provenance.installedFromWebStore === false) {
+        lines.push(
+            `  *** NOTE: install type is "${provenance.installType}", not a Chrome Web`,
+            "  Store installation. The extension was loaded from a local or sideloaded",
+            "  copy that the operator could have modified. Nothing here indicates that",
+            "  it was modified — but this package's technical claims are only as",
+            "  reliable as that local copy, and the artifacts should be verified",
+            "  independently (see LIMITS below) rather than taken on the tool's word.",
+            ""
+        );
+    }
+
+    lines.push(
+        "CAPTURE-TIME PAGE PROTECTION:",
+        "  Forced reload:   yes — the page was reloaded with the HTTP cache",
+        "                   bypassed before anything was captured, so any edit",
+        "                   made to the DOM beforehand (including via this",
+        "                   extension's Remove Elements helper or the browser's",
+        "                   own developer tools) was discarded.",
+        pageInputSuppressed
+            ? "  Input blocked:   yes — mouse, wheel, keyboard and touch input to the\n" +
+              "                   page were suppressed at the browser level for the whole\n" +
+              "                   capture, so the operator could not alter the page between\n" +
+              "                   the reload and the snapshots."
+            : "  Input blocked:   NO — the browser did not accept the input-suppression\n" +
+              "                   command, so the page remained interactive during the\n" +
+              "                   capture. Nothing indicates it was interacted with; this\n" +
+              "                   simply records that the protection was not in force.",
+        "  Note: this covers input to the page only. It does not, and cannot,",
+        "  constrain the browser itself, the page's own JavaScript, or anything",
+        "  the operator did before the capture was started.",
         ""
     );
 
@@ -445,19 +606,89 @@ function buildReport({
         lines.push("");
     }
 
+    if (connectionSummary) {
+        const priv = connectionSummary.remoteAddressIsPrivateOrLoopback;
+        lines.push(
+            "SERVING HOST (which machine actually answered, per the browser):",
+            `  Remote address: ${connectionSummary.remoteIPAddress ?? "unknown"}${
+                connectionSummary.remotePort != null ? `:${connectionSummary.remotePort}` : ""
+            }`,
+            `  HTTP protocol:  ${connectionSummary.protocol ?? "unknown"}`,
+            ""
+        );
+        if (priv === true) {
+            lines.push(
+                "  *** NOTE: this address is a loopback, private or link-local address.",
+                "  The content captured was served by a machine on the local network or",
+                "  the capture machine itself — NOT from the public internet. That is",
+                "  expected and legitimate for an intranet or local-development capture,",
+                "  but it means the address cannot be checked against public DNS records,",
+                "  and a reader should establish independently what host this was.",
+                ""
+            );
+        } else if (priv === false) {
+            lines.push(
+                "  This is a public address. It can be checked independently against DNS",
+                "  and passive-DNS records for the captured domain, by anyone, without",
+                "  trusting this extension or this package.",
+                ""
+            );
+        }
+    }
+
     if (tlsSummary) {
+        const ct = tlsSummary.certificateTransparencyCompliance;
         lines.push(
             "TLS connection (reported by the browser for the main document response):",
             `  Protocol:  ${tlsSummary.protocol ?? "unknown"}`,
+            `  Cipher:    ${tlsSummary.cipher ?? "unknown"}${
+                tlsSummary.keyExchange ? ` (key exchange: ${tlsSummary.keyExchange})` : ""
+            }`,
             `  Issuer:    ${tlsSummary.issuer ?? "unknown"}`,
             `  Subject:   ${tlsSummary.subjectName ?? "unknown"}`,
             `  Valid:     ${tlsSummary.validFrom ?? "?"} to ${tlsSummary.validTo ?? "?"}`,
+            `  CT status: ${ct} (${tlsSummary.signedCertificateTimestampCount} signed certificate timestamp(s))`,
             ""
         );
+        if (ct === "compliant") {
+            lines.push(
+                "  Certificate Transparency compliant: the certificate is published in",
+                "  public, append-only CT logs operated by independent parties. A",
+                "  certificate issued by a privately-installed root — the usual way to",
+                "  serve forged content to a browser under one's own control — cannot",
+                "  obtain valid CT log signatures, so this materially corroborates that",
+                "  the content came from the real certificate holder.",
+                ""
+            );
+        } else {
+            lines.push(
+                `  *** NOTE: Certificate Transparency status is "${ct}", not "compliant".`,
+                "  This is common and often innocuous (internal/enterprise certificates,",
+                "  older certificates, some proxies), but it does mean the certificate",
+                "  is NOT corroborated by independent public CT logs. Where the identity",
+                "  of the serving party is contested, this should be investigated rather",
+                "  than assumed.",
+                ""
+            );
+        }
     } else if (options.networkRecording) {
         lines.push(
             "TLS connection details were not available (e.g. a plain HTTP page, or the",
             "main document response wasn't recorded).",
+            ""
+        );
+    }
+
+    if (certificateChain?.length) {
+        lines.push(
+            "CERTIFICATE CHAIN (SHA-256 fingerprints of the DER certificates):",
+            ...certificateChain.map((c) => `  ${c.position.padEnd(14)} ${c.sha256}`),
+            "",
+            "  The leaf fingerprint can be searched directly in public Certificate",
+            "  Transparency log aggregators (e.g. crt.sh) by anyone, with no reliance",
+            "  on this extension. A match establishes that a publicly-logged",
+            "  certificate for this domain — not a locally-generated substitute —",
+            "  served the captured content.",
             ""
         );
     }
@@ -621,9 +852,12 @@ function buildReport({
     lines.push(
         "",
         "WHAT THIS DOES NOT PROVE:",
-        "  - It does not independently re-verify the TLS certificate chain against",
-        "    Certificate Transparency logs — the TLS summary above is only what",
-        "    the browser itself reported for this connection.",
+        "  - It does not itself validate the TLS certificate chain or query",
+        "    Certificate Transparency logs — the TLS summary, CT status and",
+        "    certificate fingerprints above are what the browser reported for this",
+        "    connection, recorded so that a reader can check them against public",
+        "    CT logs independently. That check is deliberately left to the reader",
+        "    rather than performed by this tool's own code.",
         "  - It cannot rule out tampering upstream of the browser (compromised DNS,",
         "    a malicious network path, etc.) beyond what a valid TLS handshake for",
         "    the target domain already implies.",
@@ -638,6 +872,53 @@ function buildReport({
         "    not independently verified by this tool.",
         "  - This is supporting technical evidence, not a legal determination —",
         "    consult counsel on how to present it."
+    );
+
+    // The single most important section for anyone weighing this package.
+    // Stated plainly and up front because a tool that overstates its own
+    // reach is worth less in front of a tribunal than one that marks its
+    // boundary precisely — and because a reader who assumes "tamper-proof"
+    // will draw conclusions this package cannot support.
+    lines.push(
+        "",
+        "LIMITS — PLEASE READ:",
+        "  This package was produced by a browser extension running on a machine",
+        "  the operator controlled. That is an unavoidable property of any capture",
+        "  tool of this kind, and it bounds what the package can establish.",
+        "",
+        "  What the hashes and timestamps establish is INTEGRITY SINCE CAPTURE:",
+        "  that these exact bytes existed at the timestamped moment and have not",
+        "  been altered since. That is a strong, independently checkable claim.",
+        "",
+        "  They do not, by themselves, establish PROVENANCE — that the captured",
+        "  bytes are what the named website actually served. An operator with",
+        "  control of their own machine could direct the browser to a server they",
+        "  ran, or use a locally-installed certificate authority, and then capture",
+        "  the result honestly: every hash would be correct and every timestamp",
+        "  genuine. A timestamp proves when bytes existed; it cannot prove where",
+        "  they came from.",
+        "",
+        "  Provenance is instead corroborated by the independently checkable",
+        "  facts recorded above, which a reader should actually check if the",
+        "  authenticity of this capture is contested:",
+        "    1. The serving host's IP address — verifiable against public DNS and",
+        "       passive-DNS history for the domain.",
+        "    2. The Certificate Transparency status and the leaf certificate",
+        "       fingerprint — searchable in public CT logs (e.g. crt.sh). A",
+        "       locally-forged certificate cannot appear there.",
+        "    3. The extension's install type — whether the tool was the published",
+        "       Chrome Web Store build or a locally-modifiable copy.",
+        "    4. The WACZ replay itself — openable in ReplayWeb.page by anyone,",
+        "       independently of this extension.",
+        "  Where those agree with the claimed source, fabrication would have",
+        "  required considerably more than a cooperative local machine. Where they",
+        "  are absent or inconsistent, that is worth investigating before relying",
+        "  on this package.",
+        "",
+        "  Note also that items 1-3 are reported by the same extension that wrote",
+        "  this file. A deliberately modified build could misreport them. They are",
+        "  meaningful because they are checkable against outside sources — not",
+        "  because this document asserts them."
     );
 
     return lines.join("\n");
@@ -669,7 +950,15 @@ export async function startLegalCapture({
         let domSnapshotHtml = null;
         let pageEnvironment = null;
         let mhtmlText = null;
+        let inputSuppressed = false;
+        let certificateChain = null;
         try {
+            // Before anything else: stop user input reaching the page, so
+            // nothing the operator does (deliberately or by accident) can
+            // alter the page between here and the snapshots. Survives the
+            // reload below, unlike the DOM overlay.
+            inputSuppressed = await suppressPageInput(tabId);
+
             if (options.networkRecording) {
                 await startRecording(tabId, {
                     captureWebSockets: options.webSocketCapture,
@@ -681,6 +970,14 @@ export async function startLegalCapture({
             // Elements edit) regardless of whether recording is enabled, so
             // it always runs.
             await reloadAndWaitForComplete(tabId);
+
+            // The reload destroyed the document the overlay lived in — put
+            // it back, so the page the operator is looking at explains why
+            // it has stopped responding. Re-assert the input flag too: it is
+            // session-scoped and expected to survive the navigation, but
+            // re-asserting is idempotent and cheap next to being wrong.
+            await showCaptureOverlay(tabId);
+            inputSuppressed = (await suppressPageInput(tabId)) || inputSuppressed;
 
             const effectiveMetrics = await reMeasureForPreset(
                 tabId,
@@ -696,6 +993,20 @@ export async function startLegalCapture({
             await waitForMutationSettle(tabId);
 
             if (options.screenshot) screenshotBase64 = await takeScreenshotClip(tabId);
+
+            // Strip this extension's own injected nodes — the capture overlay
+            // and the scrollbar-hiding <style> — before serializing the DOM.
+            // The screenshot only needs them *visually* absent (takeScreenshotClip
+            // handles that via withOverlayHidden), but page.html and page.mhtml
+            // are byte-level evidence of what the site served: an examiner
+            // finding a `__sharpshooter-capture-overlay` div in them has found
+            // proof the artifact was modified after loading, which is exactly
+            // the argument this feature exists to foreclose. Input stays
+            // suppressed throughout, so removing the overlay does not reopen
+            // the tampering window — it only makes the page look normal again
+            // for the remaining moments of the capture.
+            await Promise.all([hideCaptureOverlay(tabId), restoreScrollbars(tabId)]);
+
             // Taken immediately after the screenshot, same emulated/settled
             // page state, so all of these describe the same moment.
             ({ html: domSnapshotHtml, environment: pageEnvironment } = await captureDomAndEnvironment(
@@ -704,10 +1015,36 @@ export async function startLegalCapture({
                 options.browserPageInfo
             ));
             if (options.mhtmlSnapshot) mhtmlText = await captureMhtmlSnapshot(tabId);
+
+            // Needs the debugger still attached, so it happens here rather
+            // than alongside the other TLS bookkeeping after teardown. The
+            // tab's current URL is the post-redirect origin — the host that
+            // actually served what was captured.
+            const settledUrl = await chrome.tabs
+                .get(tabId)
+                .then((t) => t?.url ?? url)
+                .catch(() => url);
+            certificateChain = await collectCertificateChain(
+                tabId,
+                (() => {
+                    try {
+                        return new URL(settledUrl).origin;
+                    } catch {
+                        return null;
+                    }
+                })()
+            );
         } finally {
             ({ exchanges, webSockets, stats, mainDocumentRequestId } =
                 await stopRecording(tabId).catch(() => ({ exchanges: [], webSockets: [], stats: null, mainDocumentRequestId: null })));
-            await Promise.all([restoreScrollbars(tabId), clearEmulation(tabId)]);
+            // restorePageInput must run while the debugger is still attached.
+            // Detaching clears the flag anyway, so this is belt-and-braces
+            // for the case where detach itself fails.
+            await Promise.all([
+                restoreScrollbars(tabId),
+                clearEmulation(tabId),
+                restorePageInput(tabId),
+            ]);
             await detachDebugger(tabId);
             await hideCaptureOverlay(tabId);
         }
@@ -747,6 +1084,7 @@ export async function startLegalCapture({
         const mainExchange = options.networkRecording ? findMainDocumentExchange(exchanges, mainDocumentRequestId, url) : null;
         const finalUrl = mainExchange?.url ?? url;
         const tlsSummary = tlsSummaryFrom(mainExchange);
+        const connectionSummary = connectionSummaryFrom(mainExchange);
         const redirectChain = options.networkRecording ? redirectChainFor(exchanges, mainDocumentRequestId) : [];
         const toolProvenance = await collectToolProvenance(startedAt);
         const machineInfo = options.machineInfo ? await collectMachineInfo() : null;
@@ -756,7 +1094,10 @@ export async function startLegalCapture({
         // what gets independently timestamped (see file header). Nothing
         // added after this point may change these bytes.
         const manifestCore = {
-            formatVersion: 4,
+            // 5: added connection (server IP), certificateChain fingerprints,
+            // CT/SCT detail on tls, and provenance.installType /
+            // provenance.pageInputSuppressed.
+            formatVersion: 5,
             url,
             finalUrl,
             startedAt: startedAtIso,
@@ -772,6 +1113,10 @@ export async function startLegalCapture({
                 ...toolProvenance,
                 machine: machineInfo,
                 page: pageEnvironment,
+                // Recorded rather than asserted: if the browser refused the
+                // command, the package says so instead of report.txt claiming
+                // a protection that wasn't in force.
+                pageInputSuppressed: inputSuppressed,
             },
             files: {
                 ...(waczSha256 ? { "capture.wacz": { sha256: waczSha256 } } : {}),
@@ -780,6 +1125,8 @@ export async function startLegalCapture({
                 ...(mhtmlSha256 ? { "page.mhtml": { sha256: mhtmlSha256 } } : {}),
             },
             tls: tlsSummary,
+            certificateChain,
+            connection: connectionSummary,
             redirectChain,
             network: {
                 enabled: options.networkRecording,
@@ -847,6 +1194,8 @@ export async function startLegalCapture({
             tsaResults,
             tsaErrors,
             tlsSummary,
+            connectionSummary,
+            certificateChain,
             exchangeCount: exchanges.length,
             redirectChain,
             stats,
@@ -860,6 +1209,7 @@ export async function startLegalCapture({
             accountEmail,
             options,
             timestampsRequestedCount: enabledProviders.length,
+            pageInputSuppressed: inputSuppressed,
         });
         const reportBytes = encoder.encode(report);
 
