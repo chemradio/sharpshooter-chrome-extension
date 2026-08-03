@@ -529,11 +529,22 @@
         const element = currentElement;
         const xpath = getXPath(element);
 
+        // Positional XPath breaks when emulation crosses a responsive
+        // breakpoint and the page rebuilds its subtree (sibling indices and
+        // generated ids both shift). Tag the node with a one-shot marker
+        // attribute — the capture side locates it by this attribute first
+        // and only falls back to the XPath. The capture side removes it when
+        // the session ends.
+        const marker = Date.now().toString(36)
+            + Math.random().toString(36).slice(2);
+        element.setAttribute("data-sharpshooter-target", marker);
+
         destroy();
 
         chrome.runtime.sendMessage({
             action: "elementClicked",
             xpath,
+            marker,
             deviceMetrics,
             screenshotSuffix,
             manualCrop,

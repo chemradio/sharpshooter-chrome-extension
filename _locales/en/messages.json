@@ -274,5 +274,102 @@
     },
     "tipQualityScale": {
         "message": "Quality multiplier — 2× doubles pixel density (deviceScaleFactor)"
+    },
+
+    "arcadeTitle": {
+        "message": "Arcade"
+    },
+    "arcadeOpenTitle": {
+        "message": "Open the arcade"
+    },
+    "arcadeCloseTitle": {
+        "message": "Close the arcade"
+    },
+    "arcadeGameSnake": {
+        "message": "Snake"
+    },
+    "arcadeGame2048": {
+        "message": "2048"
+    },
+    "arcadeGameBreakout": {
+        "message": "Breakout"
+    },
+    "arcadeGameTargets": {
+        "message": "Targets"
+    },
+    "arcadeScore": {
+        "message": "Score"
+    },
+    "arcadeHighscore": {
+        "message": "Best"
+    },
+    "arcadeKeepState": {
+        "message": "Keep game on close"
+    },
+    "arcadeKeepStateNote": {
+        "message": "Off discards the current run when you close the popup or switch games. Highscores are always kept."
+    },
+    "arcadeResetGame": {
+        "message": "Reset game"
+    },
+    "arcadeResetHigh": {
+        "message": "Reset highscore"
+    },
+    "arcadeResetSure": {
+        "message": "Sure?"
+    },
+    "arcadePaused": {
+        "message": "Paused"
+    },
+    "arcadePausedHint": {
+        "message": "Press any key or click to continue"
+    },
+    "arcadeGameOver": {
+        "message": "Game over"
+    },
+    "arcadeRestartHint": {
+        "message": "Press any key to play again"
+    },
+    "arcadeRestartHintClick": {
+        "message": "Click or press any key to play again"
+    },
+    "arcadeSnakePrompt": {
+        "message": "Use the keyboard"
+    },
+    "arcadeSnakeHint": {
+        "message": "Arrow keys or WASD to steer. Walls and your own tail are fatal."
+    },
+    "arcade2048Prompt": {
+        "message": "Use the keyboard"
+    },
+    "arcade2048Hint": {
+        "message": "Arrow keys or WASD to slide the tiles. Matching tiles merge."
+    },
+    "arcadeBreakoutPrompt": {
+        "message": "Move to aim"
+    },
+    "arcadeLaunchHint": {
+        "message": "Move the mouse to steer the paddle, click or press Space to launch"
+    },
+    "arcadeLevelCleared": {
+        "message": "Wall cleared — level $1"
+    },
+    "arcadeLevelShort": {
+        "message": "LVL $1"
+    },
+    "arcadeTargetsPrompt": {
+        "message": "45-second round"
+    },
+    "arcadeTargetsHint": {
+        "message": "Click each reticle before it fades. Consecutive hits build the multiplier; a miss resets it."
+    },
+    "arcadeTimeLeft": {
+        "message": "$1s"
+    },
+    "arcadeRoundOver": {
+        "message": "Round over — $1"
+    },
+    "arcadeRoundAgainHint": {
+        "message": "Click to shoot another round"
     }
 }

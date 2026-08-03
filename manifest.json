@@ -26,6 +26,7 @@
     "permissions": [
         "debugger",
         "downloads",
+        "offscreen",
         "activeTab",
         "scripting",
         "storage"

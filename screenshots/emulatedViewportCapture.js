@@ -1,6 +1,7 @@
 import { withEmulatedCapture } from "./captureSession.js";
 import { takeScreenshotClip } from "./capture/captureScreenshot.js";
 import { downloadScreenshot } from "./capture/downloadScreenshot.js";
+import { step } from "../support/perfTrace.js";
 
 const DEFAULT_METRICS = {
     width: 1920,
@@ -16,6 +17,8 @@ export const emulateCaptureViewport = (
     deliveryOptions = {}
 ) =>
     withEmulatedCapture(tabId, deviceMetrics, async () => {
-        const screenshot = await takeScreenshotClip(tabId);
+        const screenshot = await step("captureScreenshot", () =>
+            takeScreenshotClip(tabId)
+        );
         await downloadScreenshot(screenshot, `page-${screenshotSuffix}`, deliveryOptions);
     });

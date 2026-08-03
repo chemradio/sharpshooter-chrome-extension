@@ -12,6 +12,7 @@ import {
 import { startLegalCapture } from "./support/legalCapture/legalCaptureSession.js";
 import { registerGeoPermissionRelay } from "./support/legalCapture/geoPermissionRelay.js";
 import { DevToolsAttachedError } from "./support/debugerAttachment.js";
+import { rasterizeSvgToPngBase64 } from "./support/svgRaster.js";
 
 registerTabResetListener();
 registerDomKillerUsedListener();
@@ -75,6 +76,48 @@ function stripCdnSuffix(urlStr) {
         }
     } catch { /* malformed URL */ }
     return null;
+}
+
+// Best-guess SVG detection for URLs whose Content-Type is missing or wrong
+// (some CDNs serve .svg as application/octet-stream or text/plain).
+const SVG_URL_RE = /\.svgz?(\?|#|$)/i;
+
+// Try the CDN-suffix-stripped URL first (often the original unprocessed
+// asset); fall back to the URL as given if the probe doesn't answer 200.
+async function resolveBestUrl(url) {
+    const stripped = stripCdnSuffix(url);
+    if (!stripped) return url;
+    try {
+        const probe = await fetch(stripped, { method: "HEAD" });
+        if (probe.ok) return stripped;
+    } catch { /* keep original */ }
+    return url;
+}
+
+// Fetch an image and return it as base64 PNG.
+//
+// SVG takes a separate path: it's vector, so it has no bitmap for
+// createImageBitmap() to decode (which is why SVGs used to fall through to
+// the raw-download fallback and land on disk as .svg). It's rasterized in
+// an offscreen document instead — transparency preserved in both paths,
+// since neither ever paints a background onto the canvas.
+async function fetchAsPngBase64(fetchUrl) {
+    const res = await fetch(fetchUrl);
+    if (!res.ok) throw new Error(`fetch ${res.status}`);
+
+    const contentType = (res.headers.get("content-type") || "").toLowerCase();
+    const isSvg = contentType.includes("image/svg")
+        || (!contentType.startsWith("image/") && SVG_URL_RE.test(fetchUrl));
+
+    if (isSvg) return rasterizeSvgToPngBase64(await res.text());
+
+    const blob   = await res.blob();
+    const bitmap = await createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const pngBlob = await canvas.convertToBlob({ type: "image/png" });
+    return bytesToBase64(new Uint8Array(await pngBlob.arrayBuffer()));
 }
 
 async function handleAction(request) {
@@ -179,28 +222,12 @@ async function handleAction(request) {
             const prefix   = (filenamePrefix || "").trim();
             const baseName = prefix ? `${prefix}-${suffix}` : suffix;
 
-            // Try stripped URL (CDN suffix removal) first; fall back to original
-            let fetchUrl = url;
-            const stripped = stripCdnSuffix(url);
-            if (stripped) {
-                try {
-                    const probe = await fetch(stripped, { method: "HEAD" });
-                    if (probe.ok) fetchUrl = stripped;
-                } catch { /* keep original */ }
-            }
+            const fetchUrl = await resolveBestUrl(url);
 
             try {
-                const res = await fetch(fetchUrl);
-                if (!res.ok) throw new Error(`fetch ${res.status}`);
-                const blob   = await res.blob();
-                const bitmap = await createImageBitmap(blob);
-                const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-                canvas.getContext("2d").drawImage(bitmap, 0, 0);
-                bitmap.close();
-                const pngBlob = await canvas.convertToBlob({ type: "image/png" });
-                const bytes   = new Uint8Array(await pngBlob.arrayBuffer());
+                const base64 = await fetchAsPngBase64(fetchUrl);
                 await chrome.downloads.download({
-                    url:      `data:image/png;base64,${bytesToBase64(bytes)}`,
+                    url:      `data:image/png;base64,${base64}`,
                     filename: `${baseName}.png`,
                     saveAs:   true,
                 });
@@ -219,25 +246,9 @@ async function handleAction(request) {
                 ? `${cropPrefix.trim()}-${cropSuffix}`
                 : cropSuffix;
 
-            let fetchUrl = cropUrl;
-            const stripped = stripCdnSuffix(cropUrl);
-            if (stripped) {
-                try {
-                    const probe = await fetch(stripped, { method: "HEAD" });
-                    if (probe.ok) fetchUrl = stripped;
-                } catch { /* keep original */ }
-            }
-
-            const res = await fetch(fetchUrl);
-            if (!res.ok) throw new Error(`fetch ${res.status}`);
-            const blob   = await res.blob();
-            const bitmap = await createImageBitmap(blob);
-            const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-            canvas.getContext("2d").drawImage(bitmap, 0, 0);
-            bitmap.close();
-            const pngBlob = await canvas.convertToBlob({ type: "image/png" });
-            const bytes   = new Uint8Array(await pngBlob.arrayBuffer());
-            await handoffToCropEditor(bytesToBase64(bytes), `${cropBase}.png`);
+            const fetchUrl = await resolveBestUrl(cropUrl);
+            const base64   = await fetchAsPngBase64(fetchUrl);
+            await handoffToCropEditor(base64, `${cropBase}.png`);
             return {};
         }
 

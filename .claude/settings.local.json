@@ -43,7 +43,8 @@
       "Bash(node --check support/legalCapture/legalCaptureOptions.js)",
       "Bash(node --check support/legalCapture/networkRecorder.js)",
       "Bash(node verify.js)",
-      "Bash(sed -i 's|rows\\\\[0\\\\]\\\\[1\\\\].statusVisible && rows.slice\\(1\\).every\\(r => !r\\\\[1\\\\].statusVisible\\)|rows.every\\(r => r[1].statusVisible === r[0].startsWith\\(\"main\"\\)\\)|' verify.js)"
+      "Bash(sed -i 's|rows\\\\[0\\\\]\\\\[1\\\\].statusVisible && rows.slice\\(1\\).every\\(r => !r\\\\[1\\\\].statusVisible\\)|rows.every\\(r => r[1].statusVisible === r[0].startsWith\\(\"main\"\\)\\)|' verify.js)",
+      "Bash(node --check screenshots/elementSelect/elementClickListener.js)"
     ]
   }
 }

@@ -234,7 +234,13 @@ header {
     /* Targeting affordance — the mark reacts to hover/click (brandMark.js). */
     cursor: crosshair;
     user-select: none;
-    transition: filter 0.35s ease;
+    /* transform-origin at the top-left keeps the arcade hero animation a
+       pure translate+scale off this same box — no layout is touched, so it
+       composites on the GPU and stays at 60fps. */
+    transform-origin: top left;
+    transition:
+        filter 0.35s ease,
+        transform 0.42s cubic-bezier(0.2, 0.85, 0.25, 1);
 }
 .header-icon:hover {
     filter: drop-shadow(0 0 9px rgba(255, 0, 70, 0.55));
@@ -398,7 +404,8 @@ header {
 .popup.is-helping .body,
 .popup.is-settings .body,
 .popup.is-legal-settings .body,
-.popup.is-capturing .body {
+.popup.is-capturing .body,
+.popup.is-arcade .body {
     display: none;
 }
 
@@ -1001,7 +1008,8 @@ button:active { opacity: 0.75; }
 .popup.is-helping .status,
 .popup.is-settings .status,
 .popup.is-legal-settings .status,
-.popup.is-capturing .status {
+.popup.is-capturing .status,
+.popup.is-arcade .status {
     display: none;
 }
 
@@ -1512,3 +1520,256 @@ button:active { opacity: 0.75; }
     border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+/* ════════════════════════════════════════════════════════════════
+   Arcade  (arcade/*.js)
+   The same cabinet showing a different screen: the header brand mark
+   grows into a hero slot, the capture controls give way to a framed
+   CRT playfield with its own scanlines, vignette and phosphor glow.
+   ════════════════════════════════════════════════════════════════ */
+
+:root {
+    --arcade-screen: #04121d;                    /* playfield glass */
+    --arcade-grid:   rgba(14, 202, 227, 0.09);   /* in-game grid lines */
+}
+
+/* ── Hero brand mark ────────────────────────────────────
+   Scaled 1.9× (48 -> 91px) and slid to the horizontal centre of the
+   360px popup, overshooting the header band into the arcade view's
+   reserved hero space below it. Pure transform — the header's own
+   layout is untouched, so nothing else moves. */
+.popup.is-arcade .header-icon {
+    transform: translate(120px, -8px) scale(1.9);
+    filter: drop-shadow(0 0 18px rgba(14, 202, 227, 0.55));
+}
+
+.popup.is-arcade .header-icon:hover {
+    filter: drop-shadow(0 0 22px rgba(255, 0, 70, 0.55));
+}
+
+/* The title would collide with the enlarged mark — fade it out rather
+   than removing it, so closing the arcade brings it back smoothly. */
+.popup.is-arcade .header-title {
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    pointer-events: none;
+}
+
+.header-title { transition: opacity 0.3s ease 0.12s; }
+
+/* ── View shell ────────────────────────────────────────
+   Sibling of .body like the other subpages, but sized with min-height
+   instead of a hard height: the cabinet screen is a fixed 330×270 and
+   is not worth putting behind an inner scrollbar on a short main view. */
+.arcade-view {
+    position: relative;
+    z-index: 1;
+    padding: 8px 14px 12px;
+    min-height: var(--popup-view-h);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.popup.is-arcade .arcade-view { display: flex; }
+#view-arcade[hidden] { display: none; }
+
+/* Reserved runway for the expanded brand mark — it overshoots the
+   header band by ~43px, and this keeps the picker clear of it. */
+.arcade-hero-space {
+    flex: 0 0 auto;
+    height: 52px;
+}
+
+.arcade-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ── Game picker ───────────────────────────────────────
+   Plain .radio-group chips (same hover glow, same checked state as the
+   resolution presets) sized down to fit four across 330px. */
+.arcade-games label {
+    padding: 6px 2px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+}
+
+/* ── Score readout ─────────────────────────────────────
+   Monospace terminal figures, matching the header's typed-title
+   treatment and the status bar's readout font. */
+.arcade-readout {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 5px 9px;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.arcade-readout-cell {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+}
+
+.arcade-readout-cell--right { flex-direction: row-reverse; }
+
+.arcade-readout-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--text-muted);
+}
+
+.arcade-readout-value {
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: var(--glow-cyan);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── The screen ────────────────────────────────────────
+   Bezel + glass: inner vignette, its own finer scanline wash over the
+   playfield, and a very slow brightness flicker. No barrel distortion. */
+.arcade-screen {
+    position: relative;
+    align-self: center;
+    width: 332px;              /* 330 playfield + 1px bezel each side */
+    height: 272px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--arcade-screen);
+    box-shadow:
+        inset 0 0 26px rgba(0, 0, 0, 0.75),
+        0 0 0 1px rgba(14, 202, 227, 0.10),
+        0 0 14px rgba(14, 202, 227, 0.10);
+    overflow: hidden;
+}
+
+.arcade-stage {
+    position: absolute;
+    inset: 0;
+    display: block;
+}
+
+.arcade-canvas {
+    display: block;
+    position: relative;
+    z-index: 1;
+}
+
+/* Target Practice swaps the pointer for a crosshair — it's a shooting
+   gallery, and the popup already uses crosshair for the brand mark. */
+.arcade-canvas--crosshair { cursor: crosshair; }
+
+/* Scanlines + vignette over the playfield, above the canvas but
+   click-through so pointer games still get their events. */
+.arcade-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            rgba(14, 202, 227, 0.035) 0px,
+            rgba(14, 202, 227, 0.035) 1px,
+            transparent 1px,
+            transparent 3px
+        ),
+        radial-gradient(ellipse 78% 74% at 50% 50%,
+            transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+    mix-blend-mode: screen;
+    animation: arcade-flicker 5.5s ease-in-out infinite;
+}
+
+/* Barely-there brightness wobble — a CRT settling, not a strobe. */
+@keyframes arcade-flicker {
+    0%, 100%   { opacity: 1; }
+    46%        { opacity: 0.94; }
+    48%        { opacity: 1; }
+    72%        { opacity: 0.96; }
+}
+
+/* ── Frozen-screen overlay ─────────────────────────────
+   Carries the pause prompt and each game's own "how to start" nudge.
+   Click-through by default: a game prompt must not eat the click that
+   launches the ball. Only the hub's pause prompt blocks (.is-blocking),
+   because dismissing it is the whole point of that click. */
+.arcade-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 26px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(1px);
+    pointer-events: none;
+}
+
+.arcade-overlay[hidden] { display: none; }
+.arcade-overlay.is-blocking { pointer-events: auto; cursor: pointer; }
+
+.arcade-overlay-text {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    text-shadow: var(--glow-cyan);
+}
+
+.arcade-overlay-sub {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.arcade-overlay-sub:empty { display: none; }
+
+/* ── Per-game controls ─────────────────────────────────── */
+
+.arcade-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.arcade-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.arcade-actions .btn-helper {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 11px;
+}
+
+/* Second click within 3s commits — inline, never a native confirm(),
+   which a popup can't survive. */
+.arcade-actions .btn-helper.is-confirming {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--void);
+    box-shadow: var(--glow-red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .header-icon { transition: filter 0.35s ease; }
+    .arcade-screen::before { animation: none; }
+}

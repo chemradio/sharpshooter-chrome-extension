@@ -1,5 +1,6 @@
 import { handoffToCropEditor } from "./cropHandoff.js";
 import { bytesToBase64 } from "../../support/binary.js";
+import { step, note } from "../../support/perfTrace.js";
 
 // Strip every ancillary chunk from a PNG byte stream, keeping only the
 // critical ones (IHDR, PLTE, IDAT, IEND). Adobe's ScriptUI Direct2D drawbot
@@ -45,21 +46,29 @@ function stripPngAncillaryChunks(bytes) {
 // The same canvas pass also produces JPEG output when requested — JPEG has no
 // alpha channel, so it is inherently opaque.
 async function reencode(base64, { type = "image/png", quality } = {}) {
-    const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
-    const bitmap = await createImageBitmap(blob);
+    const bitmap = await step("reencode:decode", async () => {
+        const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
+        return createImageBitmap(blob);
+    });
+    note("megapixels", Math.round((bitmap.width * bitmap.height) / 1e5) / 10);
 
-    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-    const ctx = canvas.getContext("2d", { alpha: false });
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bitmap, 0, 0);
+    const drawn = await step("reencode:draw", async () => {
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const ctx = canvas.getContext("2d", { alpha: false });
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0);
+        return canvas;
+    });
     bitmap.close();
 
     const opts = quality != null ? { type, quality } : { type };
-    const outBlob = await canvas.convertToBlob(opts);
-    let outBytes = new Uint8Array(await outBlob.arrayBuffer());
-    if (type === "image/png") outBytes = stripPngAncillaryChunks(outBytes);
-    return bytesToBase64(outBytes);
+    const outBytes = await step("reencode:encode", async () => {
+        const outBlob = await drawn.convertToBlob(opts);
+        const bytes = new Uint8Array(await outBlob.arrayBuffer());
+        return type === "image/png" ? stripPngAncillaryChunks(bytes) : bytes;
+    });
+    return step("reencode:base64", async () => bytesToBase64(outBytes));
 }
 
 export const downloadScreenshot = async (base64Data, screenshotName, options = {}) => {
@@ -123,7 +132,8 @@ export const downloadScreenshot = async (base64Data, screenshotName, options = {
         ext = "png";
     }
 
-    return new Promise((resolve, reject) => {
+    note("payloadMB", Math.round((data.length / 1048576) * 10) / 10);
+    return step("download", () => new Promise((resolve, reject) => {
         chrome.downloads.download(
             {
                 url: `data:${mime};base64,` + data,
@@ -139,5 +149,5 @@ export const downloadScreenshot = async (base64Data, screenshotName, options = {
                 resolve(downloadId);
             }
         );
-    });
+    }));
 };

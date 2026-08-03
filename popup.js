@@ -1,12 +1,12 @@
-const layoutGroupEl  = document.getElementById("layout-group");
-const widthInput     = document.getElementById("width");
-const heightInput    = document.getElementById("height");
-const statusEl       = document.getElementById("status");
-const popupEl        = document.querySelector(".popup");
-const bodyEl         = document.querySelector(".body");
-const viewNormalEl   = document.getElementById("view-normal");
+const layoutGroupEl = document.getElementById("layout-group");
+const widthInput = document.getElementById("width");
+const heightInput = document.getElementById("height");
+const statusEl = document.getElementById("status");
+const popupEl = document.querySelector(".popup");
+const bodyEl = document.querySelector(".body");
+const viewNormalEl = document.getElementById("view-normal");
 const captureLabelEl = document.getElementById("capture-label");
-const captureHintEl  = document.getElementById("capture-hint");
+const captureHintEl = document.getElementById("capture-hint");
 
 // Sizes every view from the main view so switching pages never resizes the
 // popup window. Writes two custom properties (consumed in popup.css):
@@ -44,19 +44,28 @@ const captureHintEl  = document.getElementById("capture-hint");
 //
 // Everything is restored before returning and it's all synchronous, so
 // nothing paints mid-measurement and there's no flicker.
-const VIEW_CLASSES = ["is-settings", "is-legal-settings", "is-helping", "is-capturing"];
+const VIEW_CLASSES = [
+    "is-settings",
+    "is-legal-settings",
+    "is-helping",
+    "is-capturing",
+    "is-arcade",
+];
 
 function syncPopupContentHeight() {
-    const activeViews     = VIEW_CLASSES.filter((c) => popupEl.classList.contains(c));
-    const prevBodyHeight  = bodyEl.style.height;
-    const prevViewHidden  = viewNormalEl.hidden;
+    const activeViews = VIEW_CLASSES.filter((c) =>
+        popupEl.classList.contains(c),
+    );
+    const prevBodyHeight = bodyEl.style.height;
+    const prevViewHidden = viewNormalEl.hidden;
 
     popupEl.classList.remove(...activeViews);
     viewNormalEl.hidden = false;
     bodyEl.style.height = "auto";
+    bodyEl.style.height = "auto";
 
     const contentH = Math.ceil(bodyEl.getBoundingClientRect().height);
-    const statusH  = statusEl.getBoundingClientRect().height;
+    const statusH = statusEl.getBoundingClientRect().height;
 
     bodyEl.style.height = prevBodyHeight;
     viewNormalEl.hidden = prevViewHidden;
@@ -82,7 +91,7 @@ let fullPageCap = 16000;
 // (`fullPageHeightCapUserSet` flag), this auto-default no longer applies.
 function computeDefaultFullPageCap() {
     const w = Number(window.screen?.width) || 1920;
-    const v = Math.round(w * 7000 / 1920);
+    const v = Math.round((w * 7000) / 1920);
     return Math.min(Math.max(v, 1000), 16384);
 }
 
@@ -94,7 +103,7 @@ let cropDefault = false;
 // (CSS pixels at the user's current zoom — what they actually see). The
 // background fetches it from the tab on popup open; until that resolves, fall
 // back to the popup's own screen dimensions so the UI never shows blank inputs.
-let viewportWidth  = window.screen.width;
+let viewportWidth = window.screen.width;
 let viewportHeight = window.screen.height;
 
 // Resolution presets are user-configurable (Settings → Resolution). Stored
@@ -114,12 +123,38 @@ let viewportHeight = window.screen.height;
 // `labelKey` (i18n key) is set for seeded presets so the language override
 // re-localizes them; user-added presets carry a plain `label`.
 const DEFAULT_PRESETS = [
-    { id: "user",         type: "viewport", labelKey: "presetUser",       scale: null },
-    { id: "fullpage",     type: "fullpage", labelKey: "presetFullPage",   scale: null },
-    { id: "vertical",     type: "fixed",    labelKey: "presetVerticalHd", scale: null, width: 1920, height: 7000 },
-    { id: "fullhd",       type: "fixed",    label: "FullHD",              scale: null, width: 1920, height: 1080 },
-    { id: "horizontal4k", type: "fixed",    label: "4K",                  scale: null, width: 3840, height: 2160 },
-    { id: "custom",       type: "custom",   labelKey: "presetCustom",     scale: null },
+    { id: "user", type: "viewport", labelKey: "presetUser", scale: null },
+    {
+        id: "fullpage",
+        type: "fullpage",
+        labelKey: "presetFullPage",
+        scale: null,
+    },
+    {
+        id: "vertical",
+        type: "fixed",
+        labelKey: "presetVerticalHd",
+        scale: null,
+        width: 1920,
+        height: 7000,
+    },
+    {
+        id: "fullhd",
+        type: "fixed",
+        label: "FullHD",
+        scale: null,
+        width: 1920,
+        height: 1080,
+    },
+    {
+        id: "horizontal4k",
+        type: "fixed",
+        label: "4K",
+        scale: null,
+        width: 3840,
+        height: 2160,
+    },
+    { id: "custom", type: "custom", labelKey: "presetCustom", scale: null },
 ];
 
 let presets = DEFAULT_PRESETS.map((p) => ({ ...p }));
@@ -138,9 +173,10 @@ function getPreset(id) {
 }
 
 function presetDimensions(p) {
-    if (p.type === "viewport") return { width: viewportWidth, height: viewportHeight };
+    if (p.type === "viewport")
+        return { width: viewportWidth, height: viewportHeight };
     if (p.type === "fullpage") return { width: viewportWidth, height: null };
-    if (p.type === "fixed")    return { width: p.width, height: p.height };
+    if (p.type === "fixed") return { width: p.width, height: p.height };
     return null; // custom
 }
 
@@ -159,8 +195,8 @@ function saveDefaultScale() {
 
 function showCapturing(label, hint = "") {
     captureLabelEl.textContent = label;
-    captureHintEl.textContent  = hint;
-    captureHintEl.hidden       = !hint;
+    captureHintEl.textContent = hint;
+    captureHintEl.hidden = !hint;
     popupEl.classList.add("is-capturing");
 }
 
@@ -176,9 +212,9 @@ let statusTypeTimer = null;
 const STATUS_CARET = '<span class="status-caret">_</span>';
 
 function escapeStatus(s) {
-    return String(s).replace(/[&<>]/g, (c) => (
-        c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"
-    ));
+    return String(s).replace(/[&<>]/g, (c) =>
+        c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;",
+    );
 }
 
 // Typewriter readout — characters land one at a time and a blinking
@@ -235,27 +271,27 @@ function setStatus(msg, type = "busy", autoClear = 0) {
 // Action status is currently displayed — hint renders are suppressed until it
 // clears (autoClear timer, or setStatus("")).
 let actionLocked = false;
-let hoverTipKey  = null;
-let generalIdx   = 0;
+let hoverTipKey = null;
+let generalIdx = 0;
 let generalTimer = null;
 // Settings → "Show popup tooltips". When off, hover hints and rotating tips
 // are suppressed and CSS hides the status row entirely (popup shrinks).
 let tooltipsEnabled = true;
 
 const BUTTON_TIPS = [
-    ["#capture-page",         "tipPageCapture"],
-    ["#capture-page-crop",    "tipCropSegment"],
-    ["#capture-element",      "tipCaptureElement"],
+    ["#capture-page", "tipPageCapture"],
+    ["#capture-page-crop", "tipCropSegment"],
+    ["#capture-element", "tipCaptureElement"],
     ["#capture-element-crop", "tipCropSegment"],
-    ["#dom-killer",           "tipRemoveElements"],
-    ["#image-extractor",      "tipImageExtractor"],
+    ["#dom-killer", "tipRemoveElements"],
+    ["#image-extractor", "tipImageExtractor"],
     ["#image-extractor-crop", "tipCropSegment"],
-    ["#legal-capture",        "tipLegalCapture"],
-    ["#help-toggle",          "tipHelp"],
-    ["#settings-toggle",      "tipSettings"],
-    ["#width",                "tipResolution"],
-    ["#height",               "tipResolution"],
-    ["#layout-group",         "tipPresets"],
+    ["#legal-capture", "tipLegalCapture"],
+    ["#help-toggle", "tipHelp"],
+    ["#settings-toggle", "tipSettings"],
+    ["#width", "tipResolution"],
+    ["#height", "tipResolution"],
+    ["#layout-group", "tipPresets"],
 ];
 
 // Generic rotating tips live in tips/genericTips.json so they can be edited
@@ -265,9 +301,10 @@ let GENERAL_TIPS = [];
 
 function currentLangCode() {
     const override = window.__i18n?.lang;
-    const raw = (override && override !== "auto")
-        ? override
-        : (chrome.i18n.getUILanguage?.() || navigator.language || "en");
+    const raw =
+        override && override !== "auto"
+            ? override
+            : chrome.i18n.getUILanguage?.() || navigator.language || "en";
     return String(raw).split("-")[0].toLowerCase();
 }
 
@@ -277,10 +314,14 @@ async function loadGenericTips() {
         const res = await fetch(url);
         const data = await res.json();
         const lang = currentLangCode();
-        const list = Array.isArray(data[lang]) ? data[lang]
-                   : Array.isArray(data.en)   ? data.en
-                   : [];
-        GENERAL_TIPS = list.filter((s) => typeof s === "string" && s.length > 0);
+        const list = Array.isArray(data[lang])
+            ? data[lang]
+            : Array.isArray(data.en)
+              ? data.en
+              : [];
+        GENERAL_TIPS = list.filter(
+            (s) => typeof s === "string" && s.length > 0,
+        );
     } catch {
         GENERAL_TIPS = [];
     }
@@ -290,7 +331,10 @@ function applyTooltipsEnabled(on) {
     tooltipsEnabled = !!on;
     popupEl.classList.toggle("no-tooltips", !tooltipsEnabled);
     if (!tooltipsEnabled) {
-        if (generalTimer) { clearInterval(generalTimer); generalTimer = null; }
+        if (generalTimer) {
+            clearInterval(generalTimer);
+            generalTimer = null;
+        }
         clearTimeout(statusTimer);
         clearInterval(statusTypeTimer);
         statusTypeTimer = null;
@@ -360,7 +404,7 @@ function wireHoverTips() {
         el.addEventListener("mouseleave", () => setHoverTip(null));
         // Keyboard parity — keep accessible focus showing the same tip.
         el.addEventListener("focus", () => setHoverTip(key));
-        el.addEventListener("blur",  () => setHoverTip(null));
+        el.addEventListener("blur", () => setHoverTip(null));
     }
 }
 
@@ -374,7 +418,8 @@ function startGeneralTipRotation() {
     renderCurrentHint();
     generalTimer = setInterval(() => {
         generalIdx += 1;
-        if (!hoverTipKey && !actionLocked) renderHintText(currentGeneralTipText());
+        if (!hoverTipKey && !actionLocked)
+            renderHintText(currentGeneralTipText());
     }, 35000);
 }
 
@@ -388,7 +433,8 @@ statusEl.addEventListener("click", () => {
     if (generalTimer) clearInterval(generalTimer);
     generalTimer = setInterval(() => {
         generalIdx += 1;
-        if (!hoverTipKey && !actionLocked) renderHintText(currentGeneralTipText());
+        if (!hoverTipKey && !actionLocked)
+            renderHintText(currentGeneralTipText());
     }, 35000);
 });
 statusEl.style.cursor = "pointer";
@@ -397,7 +443,7 @@ statusEl.style.cursor = "pointer";
 
 function getSelectedLayout() {
     const checked = document.querySelector('input[name="layout"]:checked');
-    return checked ? checked.value : (presets[0]?.id || "custom");
+    return checked ? checked.value : presets[0]?.id || "custom";
 }
 
 function updateResolutionInputs() {
@@ -406,34 +452,41 @@ function updateResolutionInputs() {
     if (!preset) return;
 
     if (preset.type === "custom") {
-        widthInput.disabled  = false;
+        widthInput.disabled = false;
         heightInput.disabled = false;
         return;
     }
 
     if (preset.type === "fullpage") {
-        widthInput.disabled  = true;
+        widthInput.disabled = true;
         heightInput.disabled = true;
-        widthInput.value     = viewportWidth;
-        heightInput.value    = "";
+        widthInput.value = viewportWidth;
+        heightInput.value = "";
         setStatus(t("stMeasuringHeight"));
         chrome.runtime.sendMessage({ action: "getPageHeight" }, (response) => {
-            if (chrome.runtime.lastError || !response || response.ok === false) {
+            if (
+                chrome.runtime.lastError ||
+                !response ||
+                response.ok === false
+            ) {
                 heightInput.value = fullPageCap;
                 setStatus(t("stMeasureFailed"), "error", 3000);
                 return;
             }
-            heightInput.value = Math.min(response.pageHeight ?? fullPageCap, fullPageCap);
+            heightInput.value = Math.min(
+                response.pageHeight ?? fullPageCap,
+                fullPageCap,
+            );
             setStatus("");
         });
         return;
     }
 
     const dims = presetDimensions(preset);
-    widthInput.disabled  = false;
+    widthInput.disabled = false;
     heightInput.disabled = false;
     if (dims) {
-        widthInput.value  = dims.width;
+        widthInput.value = dims.width;
         heightInput.value = dims.height;
     }
 }
@@ -441,27 +494,35 @@ function updateResolutionInputs() {
 function checkCustomResolution() {
     const layout = getSelectedLayout();
     const preset = getPreset(layout);
-    if (!preset || preset.type === "custom" || preset.type === "fullpage") return;
+    if (!preset || preset.type === "custom" || preset.type === "fullpage")
+        return;
 
     const dims = presetDimensions(preset);
     if (!dims) return;
     if (
-        parseInt(widthInput.value)  !== dims.width ||
+        parseInt(widthInput.value) !== dims.width ||
         parseInt(heightInput.value) !== dims.height
     ) {
         // Switch to the custom preset (which is always present).
         const custom = presets.find((p) => p.type === "custom");
         if (!custom) return;
-        const radio = document.querySelector(`input[name="layout"][value="${custom.id}"]`);
+        const radio = document.querySelector(
+            `input[name="layout"][value="${custom.id}"]`,
+        );
         if (radio) radio.checked = true;
-        widthInput.disabled  = false;
+        widthInput.disabled = false;
         heightInput.disabled = false;
     }
 }
 
 function getScaleFactor() {
     const preset = getPreset(getSelectedLayout());
-    if (preset && Number.isFinite(preset.scale) && preset.scale >= 1 && preset.scale <= 4) {
+    if (
+        preset &&
+        Number.isFinite(preset.scale) &&
+        preset.scale >= 1 &&
+        preset.scale <= 4
+    ) {
         return preset.scale;
     }
     return defaultScaleFactor;
@@ -469,15 +530,15 @@ function getScaleFactor() {
 
 function getSettings(extras = {}) {
     return {
-        layout:            getSelectedLayout(),
-        width:             parseInt(widthInput.value)  || 1920,
-        height:            parseInt(heightInput.value) || 1080,
+        layout: getSelectedLayout(),
+        width: parseInt(widthInput.value) || 1920,
+        height: parseInt(heightInput.value) || 1080,
         deviceScaleFactor: getScaleFactor(),
         // Legal Capture forces a fresh reload before it screenshots, which can
         // invalidate a "User"/"Full Page" preset's numbers (measured from the
         // pre-reload page — a fresh load may have less lazy-loaded content).
         // These let it re-measure post-reload instead of trusting stale numbers.
-        presetType:        getPreset(getSelectedLayout())?.type ?? "fixed",
+        presetType: getPreset(getSelectedLayout())?.type ?? "fixed",
         fullPageHeightCap: fullPageCap,
         ...extras,
     };
@@ -492,7 +553,9 @@ const sendMessage = (message) =>
                 return reject(new Error(chrome.runtime.lastError.message));
             }
             if (response && response.ok === false) {
-                return reject(new Error(response.error || t("stRequestFailed")));
+                return reject(
+                    new Error(response.error || t("stRequestFailed")),
+                );
             }
             resolve(response);
         });
@@ -511,9 +574,18 @@ function stopDomKillerSession() {
 function runPageCapture(manualCrop) {
     stopDomKillerSession();
     showCapturing(t("stCapturingPage"));
-    sendMessage({ action: "capturePage", settings: getSettings({ manualCrop }) })
-        .then(() => { stopCapturing(); setStatus(t(manualCrop ? "stCropReady" : "stDone"), "ok", 4000); })
-        .catch((e) => { stopCapturing(); setStatus(e.message ?? t("stError"), "error", 5000); });
+    sendMessage({
+        action: "capturePage",
+        settings: getSettings({ manualCrop }),
+    })
+        .then(() => {
+            stopCapturing();
+            setStatus(t(manualCrop ? "stCropReady" : "stDone"), "ok", 4000);
+        })
+        .catch((e) => {
+            stopCapturing();
+            setStatus(e.message ?? t("stError"), "error", 5000);
+        });
 }
 
 async function runElementCapture(manualCrop) {
@@ -524,7 +596,10 @@ async function runElementCapture(manualCrop) {
         // Closing immediately afterward avoids the two-click trap: if the popup is
         // open when the user clicks the page, Chrome dismisses the popup and swallows
         // that first click — it never reaches the highlighter's listener.
-        await sendMessage({ action: "captureElement", settings: getSettings({ manualCrop }) });
+        await sendMessage({
+            action: "captureElement",
+            settings: getSettings({ manualCrop }),
+        });
         window.close();
     } catch (e) {
         stopCapturing();
@@ -535,11 +610,19 @@ async function runElementCapture(manualCrop) {
 // The "main" capture buttons route to the crop editor when the Settings
 // "Always open the crop editor" option is on (cropDefault). The dedicated
 // "-crop" buttons always crop; they are hidden by CSS when cropDefault is on.
-document.getElementById("capture-page").addEventListener("click", () => runPageCapture(cropDefault));
-document.getElementById("capture-page-crop").addEventListener("click", () => runPageCapture(true));
+document
+    .getElementById("capture-page")
+    .addEventListener("click", () => runPageCapture(cropDefault));
+document
+    .getElementById("capture-page-crop")
+    .addEventListener("click", () => runPageCapture(true));
 
-document.getElementById("capture-element").addEventListener("click", () => runElementCapture(cropDefault));
-document.getElementById("capture-element-crop").addEventListener("click", () => runElementCapture(true));
+document
+    .getElementById("capture-element")
+    .addEventListener("click", () => runElementCapture(cropDefault));
+document
+    .getElementById("capture-element-crop")
+    .addEventListener("click", () => runElementCapture(true));
 
 // Element capture result — fires if the popup is still open when capture ends.
 chrome.runtime.onMessage.addListener((msg) => {
@@ -578,8 +661,12 @@ async function runImageExtractor(manualCrop) {
     }
 }
 
-document.getElementById("image-extractor").addEventListener("click", () => runImageExtractor(false));
-document.getElementById("image-extractor-crop").addEventListener("click", () => runImageExtractor(true));
+document
+    .getElementById("image-extractor")
+    .addEventListener("click", () => runImageExtractor(false));
+document
+    .getElementById("image-extractor-crop")
+    .addEventListener("click", () => runImageExtractor(true));
 
 // ─── Legal Capture ────────────────────────────────────────────────────────────
 //
@@ -589,12 +676,12 @@ document.getElementById("image-extractor-crop").addEventListener("click", () => 
 // other capture buttons there's no separate "did you forget to reload"
 // gate — the warning banner is purely informational.
 
-const legalCaptureSection  = document.getElementById("legal-capture-section");
-const legalCaptureDivider  = document.getElementById("legal-capture-divider");
-const legalCaptureBtn      = document.getElementById("legal-capture");
-const legalWarning         = document.getElementById("legal-warning");
-const legalOperatorName    = document.getElementById("legal-operator-name");
-const legalCaseReference   = document.getElementById("legal-case-reference");
+const legalCaptureSection = document.getElementById("legal-capture-section");
+const legalCaptureDivider = document.getElementById("legal-capture-divider");
+const legalCaptureBtn = document.getElementById("legal-capture");
+const legalWarning = document.getElementById("legal-warning");
+const legalOperatorName = document.getElementById("legal-operator-name");
+const legalCaseReference = document.getElementById("legal-case-reference");
 
 function applyLegalCaptureVisible(enabled) {
     legalCaptureSection.hidden = !enabled;
@@ -621,9 +708,11 @@ legalCaptureBtn.addEventListener("click", async () => {
         stopCapturing();
         const message = e.message ?? "";
         setStatus(
-            message.startsWith("DevTools is open") ? t("stDevToolsOpen") : (message || t("stError")),
+            message.startsWith("DevTools is open")
+                ? t("stDevToolsOpen")
+                : message || t("stError"),
             "error",
-            8000
+            8000,
         );
     }
 });
@@ -633,40 +722,40 @@ legalCaptureBtn.addEventListener("click", async () => {
 // The former "Expert mode" view is now a plain Settings panel, opened from
 // the gear icon in the header.
 
-const viewNormal       = document.getElementById("view-normal");
-const viewSettings     = document.getElementById("view-settings");
-const settingsToggle   = document.getElementById("settings-toggle");
+const viewNormal = document.getElementById("view-normal");
+const viewSettings = document.getElementById("view-settings");
+const settingsToggle = document.getElementById("settings-toggle");
 
 const reencodeOpaqueCb = document.getElementById("reencode-opaque");
-const reencodeBlock    = document.getElementById("reencode-block");
-const formatInputs     = document.getElementsByName("output-format");
-const jpegQualityRow   = document.getElementById("jpeg-quality-row");
+const reencodeBlock = document.getElementById("reencode-block");
+const formatInputs = document.getElementsByName("output-format");
+const jpegQualityRow = document.getElementById("jpeg-quality-row");
 const jpegQualityInput = document.getElementById("jpeg-quality");
 const jpegQualityValue = document.getElementById("jpeg-quality-value");
 const filenamePrefixIn = document.getElementById("filename-prefix");
-const defaultCropCb    = document.getElementById("default-crop");
-const fullpageCapIn    = document.getElementById("fullpage-cap");
-const navTooltipCb     = document.getElementById("nav-tooltip");
-const showTooltipsCb   = document.getElementById("show-tooltips");
+const defaultCropCb = document.getElementById("default-crop");
+const fullpageCapIn = document.getElementById("fullpage-cap");
+const navTooltipCb = document.getElementById("nav-tooltip");
+const showTooltipsCb = document.getElementById("show-tooltips");
 const legalCaptureEnabledCb = document.getElementById("legal-capture-enabled");
-const themeInputs      = document.getElementsByName("theme");
-const langInputs       = document.getElementsByName("lang");
+const themeInputs = document.getElementsByName("theme");
+const langInputs = document.getElementsByName("lang");
 
 const cssLight = document.getElementById("css-light");
-const cssDark  = document.getElementById("css-dark");
+const cssDark = document.getElementById("css-dark");
 
 // Theme override — flip the media attribute on the two gated stylesheets so
 // exactly one applies. "auto" restores the prefers-color-scheme queries.
 function applyTheme(theme) {
     if (theme === "light") {
         cssLight.media = "all";
-        cssDark.media  = "not all";
+        cssDark.media = "not all";
     } else if (theme === "dark") {
         cssLight.media = "not all";
-        cssDark.media  = "all";
+        cssDark.media = "all";
     } else {
         cssLight.media = "(prefers-color-scheme: light)";
-        cssDark.media  = "(prefers-color-scheme: dark)";
+        cssDark.media = "(prefers-color-scheme: dark)";
     }
     window.__paintBrandMark?.(theme);
 }
@@ -690,61 +779,74 @@ function setRadio(inputs, value) {
 }
 
 // Load every persisted setting and reflect it into the controls.
-chrome.storage.local.get([
-    "reencodeOpaquePng", "outputFormat", "jpegQuality",
-    "filenamePrefix", "defaultCrop", "fullPageHeightCap",
-    "fullPageHeightCapUserSet", "themeOverride",
-    "langOverride", "showNavTooltip", "showPopupTooltips",
-    "legalCaptureEnabled",
-]).then((s) => {
-    reencodeOpaqueCb.checked = s.reencodeOpaquePng !== false;
+chrome.storage.local
+    .get([
+        "reencodeOpaquePng",
+        "outputFormat",
+        "jpegQuality",
+        "filenamePrefix",
+        "defaultCrop",
+        "fullPageHeightCap",
+        "fullPageHeightCapUserSet",
+        "themeOverride",
+        "langOverride",
+        "showNavTooltip",
+        "showPopupTooltips",
+        "legalCaptureEnabled",
+    ])
+    .then((s) => {
+        reencodeOpaqueCb.checked = s.reencodeOpaquePng !== false;
 
-    const format = s.outputFormat === "jpeg" ? "jpeg" : "png";
-    setRadio(formatInputs, format);
-    setFormatUi(format);
+        const format = s.outputFormat === "jpeg" ? "jpeg" : "png";
+        setRadio(formatInputs, format);
+        setFormatUi(format);
 
-    const q = typeof s.jpegQuality === "number" ? s.jpegQuality : 0.92;
-    jpegQualityInput.value = Math.round(q * 100);
-    jpegQualityValue.textContent = `${Math.round(q * 100)}%`;
+        const q = typeof s.jpegQuality === "number" ? s.jpegQuality : 0.92;
+        jpegQualityInput.value = Math.round(q * 100);
+        jpegQualityValue.textContent = `${Math.round(q * 100)}%`;
 
-    filenamePrefixIn.value = s.filenamePrefix || "";
+        filenamePrefixIn.value = s.filenamePrefix || "";
 
-    applyCropDefault(s.defaultCrop === true);
-    defaultCropCb.checked = cropDefault;
+        applyCropDefault(s.defaultCrop === true);
+        defaultCropCb.checked = cropDefault;
 
-    const cap = Number(s.fullPageHeightCap);
-    if (s.fullPageHeightCapUserSet && Number.isFinite(cap) && cap > 0) {
-        fullPageCap = Math.min(cap, 16384);
-    } else {
-        fullPageCap = computeDefaultFullPageCap();
-        // Persist the computed default so the next popup open on this screen
-        // shows the same value instead of flickering. Not flagged as
-        // user-set, so a different screen on next open recomputes.
-        chrome.storage.local.set({ fullPageHeightCap: fullPageCap });
-    }
-    fullpageCapIn.value = fullPageCap;
+        const cap = Number(s.fullPageHeightCap);
+        if (s.fullPageHeightCapUserSet && Number.isFinite(cap) && cap > 0) {
+            fullPageCap = Math.min(cap, 16384);
+        } else {
+            fullPageCap = computeDefaultFullPageCap();
+            // Persist the computed default so the next popup open on this screen
+            // shows the same value instead of flickering. Not flagged as
+            // user-set, so a different screen on next open recomputes.
+            chrome.storage.local.set({ fullPageHeightCap: fullPageCap });
+        }
+        fullpageCapIn.value = fullPageCap;
 
-    navTooltipCb.checked = s.showNavTooltip !== false;
+        navTooltipCb.checked = s.showNavTooltip !== false;
 
-    tooltipsEnabled = s.showPopupTooltips !== false;
-    showTooltipsCb.checked = tooltipsEnabled;
-    applyTooltipsEnabled(tooltipsEnabled);
+        tooltipsEnabled = s.showPopupTooltips !== false;
+        showTooltipsCb.checked = tooltipsEnabled;
+        applyTooltipsEnabled(tooltipsEnabled);
 
-    setRadio(themeInputs, s.themeOverride || "auto");
-    setRadio(langInputs,  s.langOverride  || "auto");
-    applyTheme(s.themeOverride || "auto");
+        setRadio(themeInputs, s.themeOverride || "auto");
+        setRadio(langInputs, s.langOverride || "auto");
+        applyTheme(s.themeOverride || "auto");
 
-    // Defaults ON — only an explicit `false` hides the section, so a user who
-    // has never touched the toggle sees the feature.
-    const legalCaptureEnabled = s.legalCaptureEnabled !== false;
-    legalCaptureEnabledCb.checked = legalCaptureEnabled;
-    applyLegalCaptureVisible(legalCaptureEnabled);
-    if (legalCaptureEnabled) {
-        sendMessage({ action: "getTabCaptureFlags" })
-            .then((flags) => { legalWarning.hidden = !flags?.domKillerUsed; })
-            .catch(() => { /* best-effort — silent on failure */ });
-    }
-});
+        // Defaults ON — only an explicit `false` hides the section, so a user who
+        // has never touched the toggle sees the feature.
+        const legalCaptureEnabled = s.legalCaptureEnabled !== false;
+        legalCaptureEnabledCb.checked = legalCaptureEnabled;
+        applyLegalCaptureVisible(legalCaptureEnabled);
+        if (legalCaptureEnabled) {
+            sendMessage({ action: "getTabCaptureFlags" })
+                .then((flags) => {
+                    legalWarning.hidden = !flags?.domKillerUsed;
+                })
+                .catch(() => {
+                    /* best-effort — silent on failure */
+                });
+        }
+    });
 
 reencodeOpaqueCb.addEventListener("change", () => {
     const enabled = reencodeOpaqueCb.checked;
@@ -798,7 +900,9 @@ showTooltipsCb.addEventListener("change", () => {
 
 legalCaptureEnabledCb.addEventListener("change", () => {
     applyLegalCaptureVisible(legalCaptureEnabledCb.checked);
-    chrome.storage.local.set({ legalCaptureEnabled: legalCaptureEnabledCb.checked });
+    chrome.storage.local.set({
+        legalCaptureEnabled: legalCaptureEnabledCb.checked,
+    });
     setStatus(t("stSettingSaved"), "ok", 1500);
 });
 
@@ -845,15 +949,20 @@ for (const r of langInputs) {
 // Re-applied after a runtime language change.
 function refreshDynamicStrings() {
     settingsToggle.title = popupEl.classList.contains("is-settings")
-        ? t("settingsBtnTitleClose") : t("settingsBtnTitle");
+        ? t("settingsBtnTitleClose")
+        : t("settingsBtnTitle");
     helpToggleBtn.title = popupEl.classList.contains("is-helping")
-        ? t("helpBtnTitleClose") : t("helpBtnTitle");
+        ? t("helpBtnTitleClose")
+        : t("helpBtnTitle");
     // Preset labels resolve through __i18n for seeded presets — re-render so
     // a language change shows localized names in both views.
     renderLayoutGroup();
     renderPresetsEditor();
     // Re-render the bottom-bar hint in the new language.
     if (!actionLocked) renderCurrentHint();
+    // The arcade builds its picker and reset buttons imperatively, so it
+    // re-renders its own strings.
+    window.__Arcade?.relocalize?.();
     syncPopupContentHeight();
 }
 
@@ -861,21 +970,25 @@ function setSettings(open) {
     viewSettings.hidden = !open;
     viewNormal.hidden = open;
     popupEl.classList.toggle("is-settings", open);
-    settingsToggle.title = open ? t("settingsBtnTitleClose") : t("settingsBtnTitle");
+    settingsToggle.title = open
+        ? t("settingsBtnTitleClose")
+        : t("settingsBtnTitle");
 }
 
 settingsToggle.addEventListener("click", () => {
-    // Leaving help/legal-settings open while switching views would be
+    // Leaving help/legal-settings/arcade open while switching views would be
     // confusing — close them.
     if (popupEl.classList.contains("is-helping")) setHelp(false);
-    if (popupEl.classList.contains("is-legal-settings")) setLegalSettingsView(false);
+    if (popupEl.classList.contains("is-legal-settings"))
+        setLegalSettingsView(false);
+    window.__Arcade?.close?.();
     setSettings(!popupEl.classList.contains("is-settings"));
 });
 
 // ─── Help view ────────────────────────────────────────────────────────────────
 
 const helpToggleBtn = document.getElementById("help-toggle");
-const helpView      = document.getElementById("view-help");
+const helpView = document.getElementById("view-help");
 
 function setHelp(open) {
     popupEl.classList.toggle("is-helping", open);
@@ -886,7 +999,9 @@ function setHelp(open) {
 
 helpToggleBtn.addEventListener("click", () => {
     if (popupEl.classList.contains("is-settings")) setSettings(false);
-    if (popupEl.classList.contains("is-legal-settings")) setLegalSettingsView(false);
+    if (popupEl.classList.contains("is-legal-settings"))
+        setLegalSettingsView(false);
+    window.__Arcade?.close?.();
     setHelp(!popupEl.classList.contains("is-helping"));
 });
 
@@ -954,7 +1069,10 @@ function saveLegalCaptureOptions() {
 }
 
 chrome.storage.local.get(["legalCaptureOptions"]).then((s) => {
-    legalCaptureOptions = { ...LEGAL_OPTION_DEFAULTS, ...(s.legalCaptureOptions || {}) };
+    legalCaptureOptions = {
+        ...LEGAL_OPTION_DEFAULTS,
+        ...(s.legalCaptureOptions || {}),
+    };
     for (const [key, cb] of Object.entries(LEGAL_OPTION_CHECKBOXES)) {
         if (cb) cb.checked = !!legalCaptureOptions[key];
     }
@@ -970,7 +1088,9 @@ chrome.storage.local.get(["legalCaptureOptions"]).then((s) => {
 async function requestGeolocationPermission() {
     if (!("geolocation" in navigator)) return false;
     try {
-        const status = await navigator.permissions.query({ name: "geolocation" });
+        const status = await navigator.permissions.query({
+            name: "geolocation",
+        });
         if (status.state === "granted") return true;
         if (status.state === "denied") return false;
     } catch {
@@ -1010,7 +1130,9 @@ for (const [key, cb] of Object.entries(LEGAL_OPTION_CHECKBOXES)) {
         } else if (wantsOn && neededPermissions) {
             let granted = false;
             try {
-                granted = await chrome.permissions.request({ permissions: neededPermissions });
+                granted = await chrome.permissions.request({
+                    permissions: neededPermissions,
+                });
             } catch {
                 granted = false;
             }
@@ -1023,7 +1145,9 @@ for (const [key, cb] of Object.entries(LEGAL_OPTION_CHECKBOXES)) {
             // Best-effort relinquish once nothing else needs the grant —
             // failure to remove isn't user-visible or capture-affecting,
             // the toggle being off is what actually matters.
-            chrome.permissions.remove({ permissions: neededPermissions }).catch(() => {});
+            chrome.permissions
+                .remove({ permissions: neededPermissions })
+                .catch(() => {});
         }
         legalCaptureOptions[key] = wantsOn;
         saveLegalCaptureOptions();
@@ -1037,7 +1161,8 @@ for (const [key, cb] of Object.entries(LEGAL_OPTION_CHECKBOXES)) {
 // worker context — the popup, as a normal window, is the closest context
 // that has it and is guaranteed open for the duration of the click.
 async function gatherGeolocation() {
-    if (!legalCaptureOptions.geolocation || !("geolocation" in navigator)) return null;
+    if (!legalCaptureOptions.geolocation || !("geolocation" in navigator))
+        return null;
     // The Legal Capture Settings toggle only turns on once permission is
     // already granted (see requestGeolocationPermission above), so this is
     // normally a silent, no-prompt call. Guard anyway: if the grant was since
@@ -1046,7 +1171,9 @@ async function gatherGeolocation() {
     // — better to skip geolocation for this capture than break the whole
     // thing silently.
     try {
-        const status = await navigator.permissions.query({ name: "geolocation" });
+        const status = await navigator.permissions.query({
+            name: "geolocation",
+        });
         if (status.state !== "granted") return null;
     } catch {
         // Unsupported — fall through and try anyway, as before.
@@ -1073,14 +1200,14 @@ async function gatherGeolocation() {
                 clearTimeout(timeout);
                 finish(null);
             },
-            { timeout: 7000, maximumAge: 0 }
+            { timeout: 7000, maximumAge: 0 },
         );
     });
 }
 
-const viewLegalSettings     = document.getElementById("view-legal-settings");
+const viewLegalSettings = document.getElementById("view-legal-settings");
 const legalSettingsToggleBtn = document.getElementById("legal-settings-toggle");
-const legalSettingsCloseBtn  = document.getElementById("legal-settings-close");
+const legalSettingsCloseBtn = document.getElementById("legal-settings-close");
 
 function setLegalSettingsView(open) {
     viewLegalSettings.hidden = !open;
@@ -1092,10 +1219,13 @@ legalSettingsToggleBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     if (popupEl.classList.contains("is-helping")) setHelp(false);
     if (popupEl.classList.contains("is-settings")) setSettings(false);
+    window.__Arcade?.close?.();
     setLegalSettingsView(!popupEl.classList.contains("is-legal-settings"));
 });
 
-legalSettingsCloseBtn.addEventListener("click", () => setLegalSettingsView(false));
+legalSettingsCloseBtn.addEventListener("click", () =>
+    setLegalSettingsView(false),
+);
 
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.action !== "domKillerEnded") return false;
@@ -1106,23 +1236,25 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 // ─── Presets: rendering ───────────────────────────────────────────────────────
 
-const presetsEditorEl  = document.getElementById("presets-editor");
-const addPresetBtn     = document.getElementById("add-preset");
-const defaultScaleEls  = document.getElementsByName("default-scale");
+const presetsEditorEl = document.getElementById("presets-editor");
+const addPresetBtn = document.getElementById("add-preset");
+const defaultScaleEls = document.getElementsByName("default-scale");
 
 // Build the radio group on the main view. Preserves the currently checked id
 // when possible; falls back to the first preset.
 function renderLayoutGroup() {
-    const prev = layoutGroupEl.querySelector('input[name="layout"]:checked')?.value;
+    const prev = layoutGroupEl.querySelector(
+        'input[name="layout"]:checked',
+    )?.value;
     layoutGroupEl.innerHTML = "";
     const visible = presets.filter((p) => !p.hidden);
     let pickedId = null;
     for (const p of visible) {
         const input = document.createElement("input");
-        input.type    = "radio";
-        input.name    = "layout";
-        input.id      = `layout-${p.id}`;
-        input.value   = p.id;
+        input.type = "radio";
+        input.name = "layout";
+        input.id = `layout-${p.id}`;
+        input.value = p.id;
         const label = document.createElement("label");
         label.setAttribute("for", input.id);
         label.textContent = presetLabel(p);
@@ -1140,7 +1272,9 @@ function renderLayoutGroup() {
     }
     if (!pickedId) pickedId = visible[0]?.id;
     if (pickedId) {
-        const chosen = layoutGroupEl.querySelector(`input[value="${pickedId}"]`);
+        const chosen = layoutGroupEl.querySelector(
+            `input[value="${pickedId}"]`,
+        );
         if (chosen) chosen.checked = true;
     }
 }
@@ -1161,8 +1295,12 @@ function renderPresetsEditor() {
         handle.title = t("presetReorder");
         handle.setAttribute("aria-label", handle.title);
         handle.innerHTML = DRAG_HANDLE_SVG;
-        handle.addEventListener("mousedown", () => { row.draggable = true; });
-        handle.addEventListener("mouseup",   () => { row.draggable = false; });
+        handle.addEventListener("mousedown", () => {
+            row.draggable = true;
+        });
+        handle.addEventListener("mouseup", () => {
+            row.draggable = false;
+        });
         row.appendChild(handle);
         attachRowDrag(row, p.id);
 
@@ -1177,7 +1315,10 @@ function renderPresetsEditor() {
         } else {
             labelInput.addEventListener("change", () => {
                 const v = labelInput.value.trim();
-                if (!v) { labelInput.value = presetLabel(p); return; }
+                if (!v) {
+                    labelInput.value = presetLabel(p);
+                    return;
+                }
                 p.label = v;
                 delete p.labelKey;
                 savePresets();
@@ -1190,19 +1331,29 @@ function renderPresetsEditor() {
         const w = document.createElement("input");
         w.type = "number";
         w.className = "preset-dim";
-        w.min = 300; w.max = 16384;
+        w.min = 300;
+        w.max = 16384;
         const h = document.createElement("input");
         h.type = "number";
         h.className = "preset-dim";
-        h.min = 300; h.max = 16384;
+        h.min = 300;
+        h.max = 16384;
         if (p.type === "fixed") {
             w.value = p.width;
             h.value = p.height;
             const onDimChange = () => {
-                const wv = Math.max(300, Math.min(16384, parseInt(w.value, 10) || p.width));
-                const hv = Math.max(300, Math.min(16384, parseInt(h.value, 10) || p.height));
-                w.value = wv; h.value = hv;
-                p.width = wv; p.height = hv;
+                const wv = Math.max(
+                    300,
+                    Math.min(16384, parseInt(w.value, 10) || p.width),
+                );
+                const hv = Math.max(
+                    300,
+                    Math.min(16384, parseInt(h.value, 10) || p.height),
+                );
+                w.value = wv;
+                h.value = hv;
+                p.width = wv;
+                p.height = hv;
                 savePresets();
                 if (getSelectedLayout() === p.id) updateResolutionInputs();
             };
@@ -1237,7 +1388,7 @@ function renderPresetsEditor() {
             o.textContent = `${n}×`;
             sel.appendChild(o);
         }
-        sel.value = (p.scale == null) ? "" : String(p.scale);
+        sel.value = p.scale == null ? "" : String(p.scale);
         sel.addEventListener("change", () => {
             p.scale = sel.value === "" ? null : parseInt(sel.value, 10);
             savePresets();
@@ -1268,7 +1419,8 @@ function renderPresetsEditor() {
                 // back to the first visible preset — persist the new selection
                 // and refresh the resolution inputs.
                 const newLayout = getSelectedLayout();
-                if (newLayout) chrome.storage.local.set({ layoutPreset: newLayout });
+                if (newLayout)
+                    chrome.storage.local.set({ layoutPreset: newLayout });
                 updateResolutionInputs();
             });
             row.appendChild(toggle);
@@ -1296,7 +1448,8 @@ function renderPresetsEditor() {
                 renderPresetsEditor();
                 renderLayoutGroup();
                 const newLayout = getSelectedLayout();
-                if (newLayout) chrome.storage.local.set({ layoutPreset: newLayout });
+                if (newLayout)
+                    chrome.storage.local.set({ layoutPreset: newLayout });
                 updateResolutionInputs();
             });
             row.appendChild(del);
@@ -1325,7 +1478,9 @@ function attachRowDrag(row, id) {
         row.classList.add("dragging");
         e.dataTransfer.effectAllowed = "move";
         // Some browsers won't initiate a drag without payload set.
-        try { e.dataTransfer.setData("text/plain", id); } catch {}
+        try {
+            e.dataTransfer.setData("text/plain", id);
+        } catch {}
     });
     row.addEventListener("dragend", () => {
         row.classList.remove("dragging");
@@ -1340,9 +1495,9 @@ function attachRowDrag(row, id) {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
         const rect = row.getBoundingClientRect();
-        const after = (e.clientY - rect.top) > rect.height / 2;
+        const after = e.clientY - rect.top > rect.height / 2;
         row.classList.toggle("drop-before", !after);
-        row.classList.toggle("drop-after",   after);
+        row.classList.toggle("drop-after", after);
     });
     row.addEventListener("dragleave", () => {
         row.classList.remove("drop-before", "drop-after");
@@ -1351,7 +1506,7 @@ function attachRowDrag(row, id) {
         if (!dragSrcId || dragSrcId === id) return;
         e.preventDefault();
         const rect = row.getBoundingClientRect();
-        const after = (e.clientY - rect.top) > rect.height / 2;
+        const after = e.clientY - rect.top > rect.height / 2;
         const srcIdx = presets.findIndex((p) => p.id === dragSrcId);
         if (srcIdx < 0) return;
         const [moved] = presets.splice(srcIdx, 1);
@@ -1379,11 +1534,11 @@ addPresetBtn.addEventListener("click", () => {
     const id = `user-${Date.now().toString(36)}`;
     presets.push({
         id,
-        type:   "fixed",
-        label:  "New preset",
-        width:  1920,
+        type: "fixed",
+        label: "New preset",
+        width: 1920,
         height: 1080,
-        scale:  null,
+        scale: null,
     });
     if (!presets.some((p) => p.type === "custom")) {
         presets.push({ ...DEFAULT_PRESETS.find((p) => p.type === "custom") });
@@ -1416,7 +1571,7 @@ for (const r of defaultScaleEls) {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-widthInput.addEventListener("input",  checkCustomResolution);
+widthInput.addEventListener("input", checkCustomResolution);
 heightInput.addEventListener("input", checkCustomResolution);
 
 // Persist custom width/height so the user's last numeric entry is restored.
@@ -1426,11 +1581,11 @@ function persistCustomDimensions() {
     const preset = getPreset(getSelectedLayout());
     if (!preset || preset.type !== "custom") return;
     chrome.storage.local.set({
-        customWidth:  parseInt(widthInput.value)  || null,
+        customWidth: parseInt(widthInput.value) || null,
         customHeight: parseInt(heightInput.value) || null,
     });
 }
-widthInput.addEventListener("change",  persistCustomDimensions);
+widthInput.addEventListener("change", persistCustomDimensions);
 heightInput.addEventListener("change", persistCustomDimensions);
 
 // Initial render with defaults — replaced once storage resolves.
@@ -1454,15 +1609,21 @@ window.__i18n.ready.then(() => {
 // Restore presets, default scale, last layout, and last custom dimensions.
 chrome.storage.local
     .get([
-        "resolutionPresets", "defaultScaleFactor", "scaleFactor",
-        "layoutPreset", "customWidth", "customHeight",
+        "resolutionPresets",
+        "defaultScaleFactor",
+        "scaleFactor",
+        "layoutPreset",
+        "customWidth",
+        "customHeight",
     ])
     .then((s) => {
         if (Array.isArray(s.resolutionPresets) && s.resolutionPresets.length) {
             presets = s.resolutionPresets;
             // Guarantee the custom preset always exists and stays visible.
             if (!presets.some((p) => p.type === "custom")) {
-                presets.push({ ...DEFAULT_PRESETS.find((p) => p.type === "custom") });
+                presets.push({
+                    ...DEFAULT_PRESETS.find((p) => p.type === "custom"),
+                });
             }
             for (const p of presets) {
                 if (p.type === "custom" && p.hidden) p.hidden = false;
@@ -1478,14 +1639,16 @@ chrome.storage.local
         renderLayoutGroup();
 
         if (s.layoutPreset) {
-            const radio = layoutGroupEl.querySelector(`input[value="${s.layoutPreset}"]`);
+            const radio = layoutGroupEl.querySelector(
+                `input[value="${s.layoutPreset}"]`,
+            );
             if (radio) radio.checked = true;
         }
         updateResolutionInputs();
 
         const customPreset = presets.find((p) => p.type === "custom");
         if (customPreset && getSelectedLayout() === customPreset.id) {
-            if (s.customWidth)  widthInput.value  = s.customWidth;
+            if (s.customWidth) widthInput.value = s.customWidth;
             if (s.customHeight) heightInput.value = s.customHeight;
         }
         syncPopupContentHeight();
@@ -1497,23 +1660,26 @@ chrome.storage.local
 sendMessage({ action: "getViewportSize" })
     .then((res) => {
         if (!res?.width || !res?.height) return;
-        viewportWidth  = res.width;
+        viewportWidth = res.width;
         viewportHeight = res.height;
         const preset = getPreset(getSelectedLayout());
         if (preset && preset.type !== "fixed" && preset.type !== "custom") {
             updateResolutionInputs();
         }
     })
-    .catch(() => { /* keep fallback */ });
+    .catch(() => {
+        /* keep fallback */
+    });
 
 // Tag the popup with the effective language code so CSS can adjust layout for
 // locales whose copy doesn't fit the default tooltip height (e.g. Russian
 // averages ~30% longer than English and needs a third line).
 function applyLangClass() {
     const override = window.__i18n?.lang;
-    let lang = (override && override !== "auto")
-        ? override
-        : (chrome.i18n.getUILanguage?.() || navigator.language || "en");
+    let lang =
+        override && override !== "auto"
+            ? override
+            : chrome.i18n.getUILanguage?.() || navigator.language || "en";
     lang = String(lang).split("-")[0].toLowerCase();
     for (const c of [...popupEl.classList]) {
         if (c.startsWith("lang-")) popupEl.classList.remove(c);
@@ -1545,8 +1711,8 @@ chrome.storage.session.get("elementCaptureInProgress", (data) => {
 // below and types the tagline there too — a terminal-boot flourish. Runs
 // once per popup open; skipped (jumps straight to the final text) under
 // prefers-reduced-motion.
-const headerTitleMainEl   = document.getElementById("header-title-main");
-const headerTitleSubEl    = document.getElementById("header-title-sub");
+const headerTitleMainEl = document.getElementById("header-title-main");
+const headerTitleSubEl = document.getElementById("header-title-sub");
 const headerTitleCursorEl = document.getElementById("header-title-cursor");
 const headerTitleSubLineEl = document.querySelector(".header-title-line-sub");
 
@@ -1555,7 +1721,10 @@ function typeInto(el, text, speed) {
         let i = 0;
         (function step() {
             el.textContent = text.slice(0, i);
-            if (i++ >= text.length) { resolve(); return; }
+            if (i++ >= text.length) {
+                resolve();
+                return;
+            }
             setTimeout(step, speed);
         })();
     });
@@ -1563,12 +1732,12 @@ function typeInto(el, text, speed) {
 
 async function runHeaderTypewriter() {
     await window.__i18n.ready;
-    const title   = t("popupTitle");
+    const title = t("popupTitle");
     const tagline = t("appTagline");
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         headerTitleMainEl.textContent = title;
-        headerTitleSubEl.textContent  = tagline;
+        headerTitleSubEl.textContent = tagline;
         return;
     }
 

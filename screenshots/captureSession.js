@@ -11,6 +11,7 @@ import {
     showCaptureOverlay,
     hideCaptureOverlay,
 } from "../support/captureOverlay.js";
+import { startTrace, step, endTrace } from "../support/perfTrace.js";
 
 const SCROLLBAR_STYLE_ID = "__no-scroll";
 
@@ -69,23 +70,33 @@ export const postEmulationBreather = (tabId) =>
 // page activity (lazy-loading feeds, etc.) trigger the watcher's debounce and
 // resolve it before the resize-driven reflow had actually started.
 export const withEmulatedCapture = async (tabId, deviceMetrics, body) => {
-    // Overlay first, before the viewport starts jumping. Survives the
-    // whole session and is removed in finally regardless of outcome.
-    await showCaptureOverlay(tabId);
-    await attachDebugger(tabId);
+    startTrace(`capture ${deviceMetrics?.width}×${deviceMetrics?.height} @${deviceMetrics?.deviceScaleFactor}x`);
     try {
-        await hideScrollbars(tabId);
-        await enableEmulation(tabId, deviceMetrics);
-        await postEmulationBreather(tabId);
-        await injectMutationWatcher(tabId);
-        await waitForMutationSettle(tabId);
-        return await body();
+        // Overlay first, before the viewport starts jumping. Survives the
+        // whole session and is removed in finally regardless of outcome.
+        await step("showOverlay", () => showCaptureOverlay(tabId));
+        await step("attachDebugger", () => attachDebugger(tabId));
+        try {
+            await step("hideScrollbars", () => hideScrollbars(tabId));
+            await step("emulate", () => enableEmulation(tabId, deviceMetrics));
+            await step("breather", () => postEmulationBreather(tabId));
+            await step("injectWatcher", () => injectMutationWatcher(tabId));
+            await step("mutationSettle", () => waitForMutationSettle(tabId));
+            return await body();
+        } finally {
+            // restoreScrollbars and clearEmulation are independent — run in
+            // parallel to shave a round-trip. detachDebugger must come last
+            // because clearEmulation needs the debugger still attached.
+            await step("teardown", async () => {
+                await Promise.all([
+                    restoreScrollbars(tabId),
+                    clearEmulation(tabId),
+                ]);
+                await detachDebugger(tabId);
+                await hideCaptureOverlay(tabId);
+            });
+        }
     } finally {
-        // restoreScrollbars and clearEmulation are independent — run in
-        // parallel to shave a round-trip. detachDebugger must come last
-        // because clearEmulation needs the debugger still attached.
-        await Promise.all([restoreScrollbars(tabId), clearEmulation(tabId)]);
-        await detachDebugger(tabId);
-        await hideCaptureOverlay(tabId);
+        endTrace();
     }
 };

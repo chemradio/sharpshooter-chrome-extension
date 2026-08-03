@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>SVG rasterizer</title>
+</head>
+<body>
+    <!-- Invisible worker page. Exists only because rasterizing an SVG needs
+         an <img> element + a real canvas, neither of which exists in an MV3
+         service worker (createImageBitmap refuses SVG blobs there). -->
+    <script src="svgRaster.js"></script>
+</body>
+</html>

@@ -19,7 +19,7 @@ This document describes the current implementation. Aspirational features are sp
 
 ## Entry points
 
-All captures are triggered from the **toolbar popup** ([popup.html](popup.html) / [popup.js](popup.js)) — main UI with quality multiplier (scale), resolution presets, and the capture buttons: **Page Capture** and **Capture Element**. Each capture control is a **segmented button**: a wide main segment that captures and saves directly, plus a narrow **with crop** segment (`.btn-capture--crop`) that routes the shot through the crop editor. When the **Always open the crop editor** setting is on, every capture goes to the editor and the crop segments are hidden via the `.crop-default` class on `.popup`. A **Helpers** row holds **Remove Elements** (interactive DOM killer) and **Extract Image**. Extract Image is also a segmented button: the main segment extracts and saves directly, the narrow **with crop** segment sends the image to the crop editor. A header **?** button opens an in-popup help panel, and a header **gear** button opens the **Settings** panel. A specialist **Legal Capture** section (see below) appears at the bottom of the main view, hidden by default behind a Settings toggle.
+All captures are triggered from the **toolbar popup** ([popup.html](popup.html) / [popup.js](popup.js)) — main UI with quality multiplier (scale), resolution presets, and the capture buttons: **Page Capture** and **Capture Element**. Each capture control is a **segmented button**: a wide main segment that captures and saves directly, plus a narrow **with crop** segment (`.btn-capture--crop`) that routes the shot through the crop editor. When the **Always open the crop editor** setting is on, every capture goes to the editor and the crop segments are hidden via the `.crop-default` class on `.popup`. A **Helpers** row holds **Remove Elements** (interactive DOM killer) and **Extract Image**. Extract Image is also a segmented button: the main segment extracts and saves directly, the narrow **with crop** segment sends the image to the crop editor. A header **?** button opens an in-popup help panel, and a header **gear** button opens the **Settings** panel. Clicking the animated brand mark in the header opens the **Arcade** (see below). A specialist **Legal Capture** section (see below) appears at the bottom of the main view, hidden by default behind a Settings toggle.
 
 The radio chips (quality multiplier, resolution presets, settings radio groups) get a prominent hover state — accent border, tinted fill, and cyan glow (`.radio-group label:hover`). The resolution row shows just the two number inputs and a `×` separator (no "px" suffix).
 
@@ -56,7 +56,7 @@ User clicks the button, then hovers elements on the page. A cyan glow indicates 
 
 Click commits the selection. The extension then:
 1. Attaches the debugger and emulates the same device metrics the popup had set.
-2. Locates the element via XPath (built at click time in [contentScripts/elementHighlighter.js](contentScripts/elementHighlighter.js)).
+2. Locates the element via a one-shot `data-sharpshooter-target` marker attribute set on the node at click time in [contentScripts/elementHighlighter.js](contentScripts/elementHighlighter.js), falling back to a positional XPath (also built at click time). The marker exists because emulation can cross a responsive breakpoint and rebuild the subtree, which invalidates positional XPaths (`xpath-miss`); the attribute survives reflow/re-render as long as the node itself isn't recreated. The capture side strips the attribute in a `finally` when the session ends.
 3. `scrollIntoView({block:"center", inline:"center", behavior:"instant"})` inside a CDP `Runtime.evaluate` call (same channel as the screenshot — minimizes the measure→capture gap so scroll-restoration handlers can't run between the two).
 4. If the element exceeds the emulated viewport, expands emulation up to 16384 px (CDP cap) with 64 px padding, re-injects the mutation watcher, re-emulates, settles, re-measures.
 5. Takes a viewport screenshot and crops it in JS via `OffscreenCanvas` + `createImageBitmap`.
@@ -69,21 +69,25 @@ All capture paths (page, element) wrap the emulated session in `withZoomReset` (
 
 ## Image Extractor
 
-The **Extract Image** helper ([contentScripts/imageExtractor.js](contentScripts/imageExtractor.js)) downloads the highest-resolution raster image found inside a selected DOM subtree, without taking a screenshot at all. User clicks the button, then hovers elements on the page. A **amber** (#F59E0B) glow indicates the current target (same DOM navigation model as element capture: scroll wheel = parent/child, arrow keys = parent/child/siblings, Esc = cancel).
+The **Extract Image** helper ([contentScripts/imageExtractor.js](contentScripts/imageExtractor.js)) downloads the highest-resolution image found inside a selected DOM subtree, without taking a screenshot at all. User clicks the button, then hovers elements on the page. A **amber** (#F59E0B) glow indicates the current target (same DOM navigation model as element capture: scroll wheel = parent/child, arrow keys = parent/child/siblings, Esc = cancel).
 
 On click (or Enter):
 
-1. `findImages(el)` scans the element's subtree for raster sources in priority order:
-   - `<img>` elements (picks the largest `srcset` candidate, or `src`; skips fallback `<img>` inside `<picture>`; skips SVG; skips elements < 50×50 px).
+1. `findImages(el)` scans the element's subtree for image sources in priority order:
+   - `<img>` elements (picks the largest `srcset` candidate, or `src`; skips fallback `<img>` inside `<picture>`; skips elements < 50×50 px).
    - `<picture>` elements — one best candidate per `<picture>`: the highest descriptor URL across all `<source>` srcsets and the fallback `<img>`.
-   - CSS `background-image` on every descendant and the element itself (skips SVG; skips < 50×50 px).
+   - CSS `background-image` on every descendant and the element itself (skips < 50×50 px).
    - `<canvas>` elements are flagged separately — not downloadable directly, shown in the picker with a "use Capture Element" hint.
+
+   **SVG sources are included** (flagged `vector: true`, badged `SVG` in the picker) and are rasterized to PNG on download — see below. They're sized by their rendered box rather than `naturalWidth`/`naturalHeight`, which is 0 for markup that declares no intrinsic size. Inline `<svg>` elements in the page's own DOM are *not* handled — only SVG referenced by URL (`<img src>`, `srcset`, `background-image`); use Capture Element for inline vector graphics.
 2. Results are sorted highest-resolution first (`w × h`).
 3. If **one** non-canvas result is found, it goes straight to download (or crop). If **multiple** are found, a modal picker appears with thumbnail previews; the top entry is badged **BEST**.
 4. If **no** images are found in the subtree, the extractor walks the DOM upward looking for a CSS `background-image` on an ancestor (`walkUpForBg`). If still nothing, a toast message is shown.
-5. The selected URL is sent to the background:
-   - **Download:** `imageExtractorDownload` action — the service worker fetches the URL, converts to PNG via `OffscreenCanvas`, and calls `chrome.downloads.download`. Before fetching, `stripCdnSuffix` strips common dimension/size suffixes (e.g. `_800x600`, `_large`) and probes the stripped URL via HEAD; if it responds 200, the stripped (likely full-size) URL is fetched instead.
-   - **Crop:** `imageExtractorCropUrl` action — same fetch + convert flow, then `handoffToCropEditor` to send the PNG into the crop editor.
+5. The selected URL is sent to the background. Both actions share `resolveBestUrl` (`stripCdnSuffix` strips common dimension/size suffixes like `_800x600` / `_large` and probes the stripped URL via HEAD; if it responds 200, the stripped — likely full-size — URL is fetched instead) and `fetchAsPngBase64` (fetch → PNG, in [backgroundScript.js](backgroundScript.js)):
+   - **Download:** `imageExtractorDownload` action — result goes to `chrome.downloads.download`.
+   - **Crop:** `imageExtractorCropUrl` action — result goes to `handoffToCropEditor`.
+
+   `fetchAsPngBase64` branches on the response: a normal raster is decoded with `createImageBitmap` + `OffscreenCanvas`, while an SVG (Content-Type `image/svg*`, or a `.svg`/`.svgz` URL whose Content-Type isn't an image type) is rasterized via [support/svgRaster.js](support/svgRaster.js). Neither path ever fills the canvas, so **transparency is preserved** in the PNG. Download failures still fall back to `chrome.downloads.download({url})` on the original asset unconverted.
 
 `window.__ImageExtractorOptions = { manualCrop: true }` is set by the background before injecting the script when the user clicked the crop segment.
 
@@ -151,6 +155,104 @@ can't `import` that module).
 
 ---
 
+## Arcade
+
+A four-game mini-arcade hidden behind the header brand mark. Entirely
+popup-local — no service worker, no new permissions, no `manifest.json`
+change — and purely additive: the logo previously did nothing on click.
+
+**Entry point.** `#header-icon` (the animated `[data-brand-mark]` in the
+header) is now a real control: `role="button"`, `tabindex="0"`, an
+`aria-label`/`title` fed from i18n, Enter/Space activation, and
+`aria-expanded` tracking the view. It was `aria-hidden` decoration before
+becoming interactive. Clicking it toggles `#view-arcade`, following the
+same view-switching pattern as `#view-settings` / `#view-legal-settings` /
+`#view-help` (`hidden` + an `is-arcade` class on `.popup`, added to
+`VIEW_CLASSES` so `syncPopupContentHeight()` measures correctly). The mark
+itself expands into a hero slot with a CSS `transform: translate() scale()`
+off `transform-origin: top left` — no layout is touched, so it composites
+on the GPU; `.arcade-hero-space` is the runway the view reserves for it,
+and the header title fades out to avoid a collision. Opening the arcade
+closes the other subpages, and each of their toggles closes the arcade
+(`window.__Arcade.close()`).
+
+**Files.** [arcade/arcade.js](arcade/arcade.js) is the hub — view
+switching, the game picker, the score readout, storage, pause/resume
+plumbing, a shared rAF loop helper, a DPR-scaled canvas factory, and a
+`palette()` that reads the CSS custom properties off the live stylesheet
+so the games repaint correctly in both themes rather than hardcoding dark
+colours. One file per game:
+[arcade/snake.js](arcade/snake.js), [arcade/2048.js](arcade/2048.js),
+[arcade/breakout.js](arcade/breakout.js),
+[arcade/targetPractice.js](arcade/targetPractice.js). All five are classic
+scripts loaded from `popup.html` after `popup.js`; the hub must come first
+(it exposes `window.__Arcade.register`) and wires itself up on
+`DOMContentLoaded`, i.e. after every game has registered. All four render
+into one shared 330×270 canvas stage.
+
+**Per-game interface.** `register({ id, nameKey, realtime, saveVersion,
+create })`, where `create(ctx)` returns:
+
+| Method | Contract |
+|---|---|
+| `init(container, savedState)` | Build the canvas; restore `savedState` or start fresh. |
+| `getState()` | Resumable snapshot, or **`null`** when the run isn't worth keeping (game over, not started). Drives every persistence path — returning `null` is how a game discards its own finished run. |
+| `pause()` → state | Freeze; returns the same snapshot. |
+| `resume()` | Unfreeze. |
+| `destroy()` | Tear down the canvas and every input listener. |
+| `onScore(cb)` | Hub subscribes; `cb(score)` on every change. |
+| `isOver?()` / `handleKey?(e)` / `handleKeyUp?(e)` | Optional. |
+
+`ctx` carries `t`, `STAGE_W`/`STAGE_H`, `canvas()`, `loop()`, `palette()`,
+`save()` (throttled, ~500 ms), `saveNow()` (immediate), and
+`setOverlay()`/`clearOverlay()`.
+
+**Input.** The hub owns the single `keydown`/`keyup` listener and forwards
+to the active game, so keys can never fire while another view is active
+and nothing survives a teardown. It `preventDefault()`s arrows/space (they
+would otherwise scroll the view, or walk the picker's radio group
+mid-game) and yields Space/Enter/Tab back to a focused control. Pointer
+input belongs to each game's own canvas listeners, dropped in `destroy()`.
+
+**Storage** — one `arcade` object in `chrome.storage.local`:
+
+```
+{ lastGame, games: { <id>: { highscore, keepState, saved } } }
+```
+
+- **Highscores are unconditional.** Written the moment they're beaten, not
+  at game over, and never touched by the keep-state toggle — a popup close
+  fires no reliable unload event, so nothing may be deferred to one.
+- **`keepState`** is the per-game "Keep game on close" toggle (default on).
+  Off discards the run — and only the run — immediately. The toggle's own
+  position is always persisted.
+- **`saved`** carries the game's own `v` (`saveVersion`); a mismatch is
+  discarded in favour of a fresh game. A restore that throws anyway is
+  caught and retried fresh — stale state costs the run, never the session.
+- Real-time games persist throttled (~500 ms) plus immediately on every
+  score/life/level change; 2048 persists on every move (it's turn-based, so
+  the snapshot is exact).
+- Reopening lands on `lastGame`. A restored real-time run opens **frozen**
+  behind a "Paused — press any key or click to continue" overlay and never
+  auto-resumes. 2048 needs no such prompt: it's already waiting on a key.
+  `visibilitychange` / `window.blur` auto-pause the same way.
+
+**Reset controls**, per game: "Reset game" discards the saved run and
+starts fresh; "Reset highscore" takes a second click within 3 s (the button
+becomes "Sure?") — never a native `confirm()`, which an action popup can't
+survive.
+
+**Styling** lives at the end of both [popup.css](popup.css) and
+[popup-light.css](popup-light.css) (the two stylesheets are full
+duplicates gated by `prefers-color-scheme`, so the arcade block is written
+twice with adapted palettes, including `--arcade-screen` / `--arcade-grid`
+which the games read at draw time). The cabinet reuses the existing
+`.radio-group` chips for the picker and `.btn-helper` for the resets; the
+screen adds its own finer scanline wash, inner vignette and slow flicker
+over the shared CRT language. No sound.
+
+---
+
 ## Architecture notes
 
 - **Service worker:** [backgroundScript.js](backgroundScript.js). Owns a specific set of message actions (`getPageHeight`, `getViewportSize`, `capturePage`, `captureElement`, `domKiller`, `stopDomKiller`, `imageExtractor`, `imageExtractorDownload`, `imageExtractorCropUrl`, `getTabCaptureFlags`, `startLegalCapture`) and always responds with `{ok: true, ...}` or `{ok: false, error}`. Other listeners own their own actions to avoid channel conflicts: the element-click handler in [screenshots/elementSelect/elementClickListener.js](screenshots/elementSelect/elementClickListener.js) claims `elementClicked`; [support/tabState.js](support/tabState.js) claims the `domKillerUsed` broadcast; [support/legalCapture/geoPermissionRelay.js](support/legalCapture/geoPermissionRelay.js) claims `openGeolocationPermissionWindow` and `legalGeolocationPermissionResult`. `domKillerEnded` (broadcast by [contentScripts/domKiller.js](contentScripts/domKiller.js) when a Remove Elements session ends) is only listened for by [popup.js](popup.js) — the service worker doesn't claim it.
@@ -160,6 +262,7 @@ can't `import` that module).
 - **Shared capture flow:** [screenshots/captureSession.js](screenshots/captureSession.js) exposes `withEmulatedCapture(tabId, deviceMetrics, body)` which handles attach → hide scrollbars → inject watcher → emulate → settle → run body → restore → detach. Used by both page and element capture. The `finally` guarantees teardown even on error. `hideScrollbars`, `restoreScrollbars`, and `postEmulationBreather` are also exported individually — Legal Capture composes them directly in a different order (see above) rather than calling `withEmulatedCapture` as a black box, since it needs the debugger attached and network recording active *before* its forced reload, not after.
 - **Element highlighter cleanup:** [contentScripts/elementHighlighter.js](contentScripts/elementHighlighter.js) is an IIFE that exposes `window.__HighlighterDestroy` so re-injection cleans up the previous instance instead of double-binding handlers.
 - **Image extractor cleanup:** [contentScripts/imageExtractor.js](contentScripts/imageExtractor.js) follows the same pattern via `window.__ImageExtractorDestroy`.
+- **SVG rasterization:** [support/svgRaster.js](support/svgRaster.js) (service-worker side) + [offscreen/svgRaster.html](offscreen/svgRaster.html)/`.js` (the actual drawing). A service worker cannot rasterize SVG at all — `createImageBitmap()` rejects `image/svg+xml` blobs outside a document and there is no `<img>` element — so this creates an offscreen document on demand (`offscreen` permission; reason `DOM_PARSER`), hands it the SVG source, and gets base64 PNG back. The offscreen document is closed once the last in-flight rasterization finishes, since an open one keeps the service worker alive. Sizing is decided in the offscreen page: vector has no true pixel count, so it rewrites the markup's `width`/`height` (adding a `viewBox` if absent) to scale the long edge toward 2048 px — never below intrinsic, never above 8192 — *before* loading it, so Chrome rasterizes the vector at output size instead of bitmap-scaling a small raster up. The markup is loaded via a blob URL (same-origin to the offscreen page, so the canvas stays untainted and `toDataURL` is allowed). Externally-referenced assets inside the SVG (webfonts, `xlink:href` images) won't resolve from that blob URL; self-contained SVGs — the overwhelming majority — are unaffected.
 - **Shared binary helpers:** [support/binary.js](support/binary.js) — chunked base64 encode/decode (`bytesToBase64`/`base64ToBytes`, avoiding the call-stack overflow a naive `String.fromCharCode(...bytes)` hits on large arrays), `crc32`, `sha256Hex`/`sha256Bytes`, `concatBytes`. Used by the screenshot/crop pipeline and by Legal Capture's WARC/ZIP writers — previously this chunked-base64 logic was copy-pasted independently in four places; it's consolidated here now.
 - **Shared page measurement:** [support/pageMeasure.js](support/pageMeasure.js) — `measurePageHeight`/`measureViewportSize`, used both by the popup's `getPageHeight`/`getViewportSize` actions (driving the User/Full Page presets) and by Legal Capture's post-reload re-measurement step.
 - **Per-tab capture flags:** [support/tabState.js](support/tabState.js) — tracks whether Remove Elements has been used on a tab since its last navigation, in `chrome.storage.session` (not an in-memory `Map`, since the service worker can be killed and restarted between the Remove Elements click and a later Legal Capture click — an in-memory flag would silently reset to "safe").

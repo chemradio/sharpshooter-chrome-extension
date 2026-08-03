@@ -276,5 +276,102 @@
     },
     "tipQualityScale": {
         "message": "Множитель качества — 2× удваивает плотность пикселей (deviceScaleFactor)"
+    },
+
+    "arcadeTitle": {
+        "message": "Аркада"
+    },
+    "arcadeOpenTitle": {
+        "message": "Открыть аркаду"
+    },
+    "arcadeCloseTitle": {
+        "message": "Закрыть аркаду"
+    },
+    "arcadeGameSnake": {
+        "message": "Змейка"
+    },
+    "arcadeGame2048": {
+        "message": "2048"
+    },
+    "arcadeGameBreakout": {
+        "message": "Арканоид"
+    },
+    "arcadeGameTargets": {
+        "message": "Мишени"
+    },
+    "arcadeScore": {
+        "message": "Счёт"
+    },
+    "arcadeHighscore": {
+        "message": "Рекорд"
+    },
+    "arcadeKeepState": {
+        "message": "Сохранять игру при закрытии"
+    },
+    "arcadeKeepStateNote": {
+        "message": "Если выключено, текущая партия сбрасывается при закрытии окна или смене игры. Рекорды сохраняются всегда."
+    },
+    "arcadeResetGame": {
+        "message": "Сбросить партию"
+    },
+    "arcadeResetHigh": {
+        "message": "Сбросить рекорд"
+    },
+    "arcadeResetSure": {
+        "message": "Точно?"
+    },
+    "arcadePaused": {
+        "message": "Пауза"
+    },
+    "arcadePausedHint": {
+        "message": "Нажмите любую клавишу или кликните, чтобы продолжить"
+    },
+    "arcadeGameOver": {
+        "message": "Игра окончена"
+    },
+    "arcadeRestartHint": {
+        "message": "Нажмите любую клавишу, чтобы сыграть ещё"
+    },
+    "arcadeRestartHintClick": {
+        "message": "Кликните или нажмите любую клавишу, чтобы сыграть ещё"
+    },
+    "arcadeSnakePrompt": {
+        "message": "Нужна клавиатура"
+    },
+    "arcadeSnakeHint": {
+        "message": "Управление стрелками или WASD. Стены и собственный хвост смертельны."
+    },
+    "arcade2048Prompt": {
+        "message": "Нужна клавиатура"
+    },
+    "arcade2048Hint": {
+        "message": "Стрелки или WASD двигают плитки. Одинаковые плитки сливаются."
+    },
+    "arcadeBreakoutPrompt": {
+        "message": "Наведите прицел"
+    },
+    "arcadeLaunchHint": {
+        "message": "Двигайте мышью, чтобы вести платформу; клик или пробел — запуск"
+    },
+    "arcadeLevelCleared": {
+        "message": "Стена разбита — уровень $1"
+    },
+    "arcadeLevelShort": {
+        "message": "УР. $1"
+    },
+    "arcadeTargetsPrompt": {
+        "message": "Раунд 45 секунд"
+    },
+    "arcadeTargetsHint": {
+        "message": "Успевайте кликать по прицелам, пока они не исчезли. Серия попаданий повышает множитель, промах его обнуляет."
+    },
+    "arcadeTimeLeft": {
+        "message": "$1 с"
+    },
+    "arcadeRoundOver": {
+        "message": "Раунд окончен — $1"
+    },
+    "arcadeRoundAgainHint": {
+        "message": "Кликните, чтобы отстрелять ещё раунд"
     }
 }

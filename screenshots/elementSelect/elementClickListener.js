@@ -8,6 +8,7 @@ import { withZoomReset } from "../../support/zoomReset.js";
 import { takeScreenshotClip } from "../capture/captureScreenshot.js";
 import { downloadScreenshot } from "../capture/downloadScreenshot.js";
 import { bytesToBase64 } from "../../support/binary.js";
+import { step } from "../../support/perfTrace.js";
 
 // ─── Approach ────────────────────────────────────────────────────────────────
 //
@@ -48,15 +49,27 @@ const cdpSend = (tabId, command, params) =>
 
 // ─── Measure ─────────────────────────────────────────────────────────────────
 
-const measureExpression = (xpath) => `
+const measureExpression = (xpath, marker) => `
     (function () {
         try {
-            const el = document.evaluate(
-                ${JSON.stringify(xpath)},
-                document, null,
-                XPathResult.FIRST_ORDERED_NODE_TYPE, null
-            ).singleNodeValue;
-            if (!el) return { ok: false, reason: "xpath-miss" };
+            // Marker attribute first: it survives the reflow/re-render that
+            // emulation triggers on responsive pages, where the positional
+            // XPath (recorded pre-emulation) frequently goes stale.
+            let el = null;
+            const marker = ${JSON.stringify(marker || "")};
+            if (marker) {
+                el = document.querySelector(
+                    '[data-sharpshooter-target="' + marker + '"]'
+                );
+            }
+            if (!el && ${JSON.stringify(xpath || "")}) {
+                el = document.evaluate(
+                    ${JSON.stringify(xpath || "")},
+                    document, null,
+                    XPathResult.FIRST_ORDERED_NODE_TYPE, null
+                ).singleNodeValue;
+            }
+            if (!el) return { ok: false, reason: "marker+xpath-miss" };
 
             el.scrollIntoView({
                 block: "center",
@@ -83,9 +96,9 @@ const measureExpression = (xpath) => `
     })()
 `;
 
-async function measureAndScroll(tabId, xpath) {
+async function measureAndScroll(tabId, xpath, marker) {
     const result = await cdpSend(tabId, "Runtime.evaluate", {
-        expression: measureExpression(xpath),
+        expression: measureExpression(xpath, marker),
         returnByValue: true,
     });
     if (result?.exceptionDetails) {
@@ -104,7 +117,10 @@ function ensureUsable(rect) {
     }
     if (!rect.ok) {
         throw new Error(
-            `Could not locate element after emulation: ${rect.reason}`
+            `Could not re-locate the selected element after emulation ` +
+                `(${rect.reason}). The page likely rebuilt its layout at ` +
+                `the emulated resolution — try the User preset, or ` +
+                `re-select the element.`
         );
     }
     if (rect.width <= 0 || rect.height <= 0) {
@@ -212,51 +228,78 @@ function broadcastResult(payload) {
 export async function captureElement({
     tabId,
     xpath,
+    marker,
     deviceMetrics,
     screenshotSuffix,
     manualCrop = false,
 }) {
     const dpr = deviceMetrics?.deviceScaleFactor ?? 1;
 
-    await withZoomReset(tabId, () => withEmulatedCapture(tabId, deviceMetrics, async () => {
-        let rect = await measureAndScroll(tabId, xpath);
-        ensureUsable(rect);
-
-        if (elementExceedsViewport(rect)) {
-            const expanded = expandedMetricsToFit(deviceMetrics, rect);
-            console.log(
-                `element ${rect.width}×${rect.height} exceeds viewport ` +
-                    `${rect.viewportWidth}×${rect.viewportHeight} — ` +
-                    `expanding emulation to ${expanded.width}×${expanded.height}`
+    try {
+        await withZoomReset(tabId, () => withEmulatedCapture(tabId, deviceMetrics, async () => {
+            let rect = await step("measure", () =>
+                measureAndScroll(tabId, xpath, marker)
             );
-
-            await reEmulate(tabId, expanded);
-            rect = await measureAndScroll(tabId, xpath);
             ensureUsable(rect);
 
             if (elementExceedsViewport(rect)) {
-                console.warn(
-                    "element still exceeds viewport after expansion; " +
-                        "capture will be clipped"
+                const expanded = expandedMetricsToFit(deviceMetrics, rect);
+                console.log(
+                    `element ${rect.width}×${rect.height} exceeds viewport ` +
+                        `${rect.viewportWidth}×${rect.viewportHeight} — ` +
+                        `expanding emulation to ${expanded.width}×${expanded.height}`
                 );
+
+                await step("reEmulate", () => reEmulate(tabId, expanded));
+                rect = await step("re-measure", () =>
+                    measureAndScroll(tabId, xpath, marker)
+                );
+                ensureUsable(rect);
+
+                if (elementExceedsViewport(rect)) {
+                    console.warn(
+                        "element still exceeds viewport after expansion; " +
+                            "capture will be clipped"
+                    );
+                }
             }
-        }
 
-        const { cx, cy, cw, ch } = cropRectInPixels(rect, dpr);
+            const { cx, cy, cw, ch } = cropRectInPixels(rect, dpr);
 
-        // Tight measure → capture sequence. No await on anything else between
-        // these two CDP calls so the page can't scroll-restore in the gap.
-        const fullshot = await takeScreenshotClip(tabId);
+            // Tight measure → capture sequence. No await on anything else
+            // between these two CDP calls so the page can't scroll-restore
+            // in the gap.
+            const fullshot = await step("captureScreenshot", () =>
+                takeScreenshotClip(tabId)
+            );
 
-        console.log(
-            `element ${rect.width}×${rect.height} ` +
-                `@ (${rect.left},${rect.top}); ` +
-                `crop ${cw}×${ch} @ (${cx},${cy}) dpr=${dpr}`
-        );
+            console.log(
+                `element ${rect.width}×${rect.height} ` +
+                    `@ (${rect.left},${rect.top}); ` +
+                    `crop ${cw}×${ch} @ (${cx},${cy}) dpr=${dpr}`
+            );
 
-        const cropped = await cropBase64Png(fullshot, cx, cy, cw, ch);
-        await downloadScreenshot(cropped, `element-${screenshotSuffix}`, { manualCrop });
-    }));
+            const cropped = await step("crop", () =>
+                cropBase64Png(fullshot, cx, cy, cw, ch)
+            );
+            await downloadScreenshot(cropped, `element-${screenshotSuffix}`, { manualCrop });
+        }));
+    } finally {
+        // Strip the marker attribute the highlighter set at click time —
+        // it must not leak into the page's DOM (or a later Legal Capture
+        // page.html) after the session ends. Best-effort: the tab may have
+        // navigated away.
+        await chrome.scripting.executeScript({
+            target: { tabId },
+            func: () => {
+                document
+                    .querySelectorAll("[data-sharpshooter-target]")
+                    .forEach((el) =>
+                        el.removeAttribute("data-sharpshooter-target")
+                    );
+            },
+        }).catch(() => {});
+    }
 }
 
 // ─── Listener ────────────────────────────────────────────────────────────────
@@ -281,6 +324,7 @@ export const addElementClickedListener = () => {
         captureElement({
             tabId: sender.tab.id,
             xpath: request.xpath,
+            marker: request.marker,
             deviceMetrics: request.deviceMetrics,
             screenshotSuffix: request.screenshotSuffix,
             manualCrop: !!request.manualCrop,

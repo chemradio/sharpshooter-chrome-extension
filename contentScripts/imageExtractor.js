@@ -47,6 +47,10 @@
 
     // ─── Image utilities ──────────────────────────────────────────────────────────
 
+    // SVGs are offered like any other image — the background rasterizes them
+    // to PNG (alpha preserved) rather than saving the vector source, so the
+    // result drops into a video/design timeline the same way a JPEG does.
+    // They're still flagged so the picker can label them as vector.
     function isSvg(url) {
         if (!url) return false;
         if (url.startsWith("data:image/svg")) return true;
@@ -100,10 +104,12 @@
             const raw    = getLargestSrcset(srcset) || img.getAttribute("src");
             if (!raw) continue;
             const url = resolveUrl(raw);
-            if (isSvg(url)) continue;
-            const w = img.naturalWidth  || Math.round(rect.width);
-            const h = img.naturalHeight || Math.round(rect.height);
-            add({ url, w, h, label: `${w} × ${h} px`, type: "img" });
+            const vector = isSvg(url);
+            // naturalWidth is unreliable for SVG (0 when the markup declares
+            // no intrinsic size), so fall back to the rendered box.
+            const w = (vector ? 0 : img.naturalWidth)  || Math.round(rect.width);
+            const h = (vector ? 0 : img.naturalHeight) || Math.round(rect.height);
+            add({ url, w, h, vector, label: `${w} × ${h} px`, type: "img" });
         }
 
         // <picture> — one candidate per picture: the single highest-descriptor URL across
@@ -117,7 +123,7 @@
                 const entry = getLargestSrcsetEntry(source.getAttribute("srcset"));
                 if (!entry) continue;
                 const url = resolveUrl(entry.url);
-                if (!url || isSvg(url)) continue;
+                if (!url) continue;
                 if (entry.value > bestValue) { bestUrl = url; bestValue = entry.value; }
             }
 
@@ -129,17 +135,22 @@
                 if (raw) {
                     const url   = resolveUrl(raw);
                     const value = entry?.value ?? 0;
-                    if (url && !isSvg(url) && value > bestValue) {
+                    if (url && value > bestValue) {
                         bestUrl = url; bestValue = value;
                     }
                 }
             }
 
             if (!bestUrl) continue;
-            const img = picture.querySelector("img");
-            const w   = img?.naturalWidth  || 0;
-            const h   = img?.naturalHeight || 0;
-            add({ url: bestUrl, w, h, label: w && h ? `${w} × ${h} px` : "srcset source", type: "source" });
+            const img    = picture.querySelector("img");
+            const vector = isSvg(bestUrl);
+            const rect   = img?.getBoundingClientRect();
+            const w = (vector ? 0 : img?.naturalWidth)  || Math.round(rect?.width  || 0);
+            const h = (vector ? 0 : img?.naturalHeight) || Math.round(rect?.height || 0);
+            add({
+                url: bestUrl, w, h, vector, type: "source",
+                label: w && h ? `${w} × ${h} px` : "srcset source",
+            });
         }
 
         // CSS background-image on every descendant (and the element itself)
@@ -149,12 +160,12 @@
             const raw = extractBgUrl(bg);
             if (!raw) continue;
             const url = resolveUrl(raw);
-            if (isSvg(url)) continue;
             const rect = node.getBoundingClientRect();
             if (rect.width < 50 && rect.height < 50) continue;
             const w = Math.round(rect.width);
             const h = Math.round(rect.height);
-            add({ url, w, h, label: `bg ${w} × ${h} px`, type: "bg" });
+            const vector = isSvg(url);
+            add({ url, w, h, vector, label: `bg ${w} × ${h} px`, type: "bg" });
         }
 
         // canvas — flagged for user guidance, not directly downloadable
@@ -177,7 +188,7 @@
             const bg = getComputedStyle(node).backgroundImage;
             if (bg && bg !== "none") {
                 const raw = extractBgUrl(bg);
-                if (raw && !isSvg(raw)) return resolveUrl(raw);
+                if (raw) return resolveUrl(raw);
             }
             node = node.parentElement;
         }
@@ -824,7 +835,7 @@
         }
 
         if (candidates.length === 0) {
-            showToast("No raster images found. Try selecting a larger element, or use Capture Element.");
+            showToast("No images found. Try selecting a larger element, or use Capture Element.");
             return;
         }
 
@@ -865,7 +876,7 @@
                 gridHtml += `
                     <div class="${cls}" data-url="${esc(c.url)}">
                         <img class="__ixp-thumb" src="${esc(c.url)}" alt="" loading="lazy" />
-                        <div class="__ixp-item-label">${badge}${esc(c.type.toUpperCase())} · ${esc(c.label)}</div>
+                        <div class="__ixp-item-label">${badge}${esc((c.vector ? "svg" : c.type).toUpperCase())} · ${esc(c.label)}</div>
                     </div>`;
             }
         }
