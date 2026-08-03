@@ -20,6 +20,10 @@
     --text-muted: #5d7890;
     --danger:     #df0039;   /* targeting red */
     --danger-dim: #b3002e;
+    /* Width of both narrow capture segments — the "with crop"
+       buttons and Legal Capture's gear. Pinned so they line up
+       across rows regardless of how wide each label renders. */
+    --sub-segment-w: 100px;
     --radius:     3px;
     --radius-sm:  2px;
     --glow-cyan:  0 0 8px rgba(11, 180, 205, 0.38);
@@ -216,12 +220,7 @@ header {
     /* Targeting affordance — the mark reacts to hover/click (brandMark.js). */
     cursor: crosshair;
     user-select: none;
-    /* transform-origin at the top-left keeps the arcade hero animation a
-       pure translate+scale off this same box — no layout is touched. */
-    transform-origin: top left;
-    transition:
-        filter 0.35s ease,
-        transform 0.42s cubic-bezier(0.2, 0.85, 0.25, 1);
+    transition: filter 0.35s ease;
 }
 .header-icon:hover {
     filter: drop-shadow(0 0 8px rgba(255, 0, 70, 0.45));
@@ -393,6 +392,14 @@ header {
     margin: 10px 0;
 }
 
+/* Lighter separator than the full-width section rule - used once, between
+   the resolution controls and the stack of capture buttons, to group them
+   without implying a new section. */
+.divider--small {
+    width: 58%;
+    margin: 8px auto;
+}
+
 .section-label--sub {
     font-size: 9px;
     opacity: 0.75;
@@ -425,40 +432,6 @@ section[hidden] { display: none; }
     margin-right: 7px;
     vertical-align: 1px;
     background: var(--accent-dim);
-}
-
-.section-label--row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.legal-settings-toggle {
-    flex: 0 0 auto;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--accent-dim);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.legal-settings-toggle svg {
-    width: 14px;
-    height: 14px;
-    display: block;
-}
-
-.legal-settings-toggle:hover,
-.popup.is-legal-settings .legal-settings-toggle {
-    background: var(--accent);
-    color: var(--ink);
-    box-shadow: var(--glow-cyan);
 }
 
 /* ── Radio pill groups ─────────────────────────────────── */
@@ -717,8 +690,13 @@ button:active { opacity: 0.75; }
 }
 
 .capture-segmented .btn-capture--crop {
+    /* Fixed width, shared with the gear sub-segment via --sub-segment-w:
+       the two carry different words, so letting each size to its own text
+       left the three stacked rows visibly out of line. Both are pinned to
+       the same number instead. box-sizing is border-box, so this includes
+       the padding and borders below. */
     flex: 0 0 auto;
-    width: auto;
+    width: var(--sub-segment-w);
     padding: 11px 10px;
     gap: 5px;
     border-top-left-radius: 0;
@@ -732,7 +710,10 @@ button:active { opacity: 0.75; }
     height: 14px;
 }
 
-.btn-capture--crop .crop-segment-label {
+/* Both narrow segments wear this — the "with crop" buttons and Legal
+   Capture's gear — so it is scoped to the class, not to --crop. Scoped to
+   the latter, the gear's label missed it and fell back to button's 13px. */
+.crop-segment-label {
     font-size: 10px;
     letter-spacing: 0.1em;
     opacity: 0.85;
@@ -755,6 +736,53 @@ button:active { opacity: 0.75; }
 .capture-segmented .btn-capture--crop:hover .btn-icon {
     color: var(--void);
     transform: scale(1.05);
+}
+
+/* ── Sub-segment (Legal Capture's gear) ───────────────────
+   Same geometry as the crop segment, deliberately a different class. The
+   crop segment means "this same capture, then crop", so hovering it lights
+   the main button too. This one navigates to Legal Capture Settings and
+   captures nothing, so it must never imply it will fire the button next to
+   it: it highlights alone, and hovering the main button leaves it dark. */
+
+.capture-segmented .btn-capture--sub {
+    /* Same pinned width as the crop segment — see the note there. */
+    flex: 0 0 auto;
+    width: var(--sub-segment-w);
+    padding: 11px 10px;
+    gap: 5px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left-width: 1px;
+    margin-left: -1px;
+}
+
+.btn-capture--sub .btn-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.capture-segmented .btn-capture--sub:hover,
+.popup.is-legal-settings .btn-capture--sub {
+    background: var(--accent);
+    color: var(--void);
+    border-color: var(--accent);
+    box-shadow: 0 0 14px rgba(11, 180, 205, 0.45);
+}
+
+.capture-segmented .btn-capture--sub:hover .btn-icon,
+.popup.is-legal-settings .btn-capture--sub .btn-icon {
+    color: var(--void);
+    transform: scale(1.05);
+}
+
+/* crop-default hides the crop segments and re-rounds the main button. The
+   gear is not a crop segment and stays, so Legal Capture's main button has
+   to keep its flush right edge. */
+.popup.crop-default #legal-capture {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-width: 1px;
 }
 
 /* ── Inline warning banner (e.g. Legal Capture DOM-edit notice) ────── */
@@ -1485,43 +1513,36 @@ button:active { opacity: 0.75; }
     --arcade-grid:   rgba(11, 180, 205, 0.13);   /* in-game grid lines */
 }
 
-/* ── Hero brand mark ──────────────────────────────────── */
-
-.popup.is-arcade .header-icon {
-    transform: translate(120px, -8px) scale(1.9);
-    filter: drop-shadow(0 0 16px rgba(11, 180, 205, 0.45));
-}
-
-.popup.is-arcade .header-icon:hover {
-    filter: drop-shadow(0 0 20px rgba(255, 0, 70, 0.45));
-}
-
-.popup.is-arcade .header-title {
-    opacity: 0;
-    transition: opacity 0.22s ease;
-    pointer-events: none;
-}
-
-.header-title { transition: opacity 0.3s ease 0.12s; }
+/* ── Header ───────────────────────────────────────────
+   No hero transform: opening the arcade leaves the top bar alone. */
 
 /* ── View shell ───────────────────────────────────────── */
 
 .arcade-view {
     position: relative;
     z-index: 1;
-    padding: 8px 14px 12px;
-    min-height: var(--popup-view-h);
+    padding: 6px 14px 8px;
+    /* Pinned to the main view's exact height, like every other subpage, so
+       opening the arcade never resizes the popup window. Every row around
+       the screen is deliberately tight: the screen is what absorbs any
+       shortfall, and it should never have to. */
+    height: var(--popup-view-h);
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 5px;
 }
 
 .popup.is-arcade .arcade-view { display: flex; }
 #view-arcade[hidden] { display: none; }
 
-.arcade-hero-space {
+/* Everything except the screen keeps its natural height — the screen is
+   the only item that absorbs a tight fit (see .arcade-screen). */
+.arcade-topbar,
+.arcade-games,
+.arcade-readout,
+.arcade-actions {
     flex: 0 0 auto;
-    height: 52px;
 }
 
 .arcade-topbar {
@@ -1530,12 +1551,32 @@ button:active { opacity: 0.75; }
     justify-content: space-between;
 }
 
+/* Slot for controls belonging to the active game (Typing Trainer's
+   language picker). Sits under the screen, pushed to the right — never
+   over the playfield — and collapses entirely when unused, so the four
+   games that register no controls lose no height to it. */
+.arcade-game-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.arcade-game-controls:empty { display: none; }
+
 /* ── Game picker ──────────────────────────────────────── */
 
+/* Five chips across 330px, so they run tighter than the resolution
+   presets and are allowed to wrap rather than squeeze a long localized
+   label past its box. */
+.arcade-games { flex-wrap: wrap; }
+
 .arcade-games label {
-    padding: 6px 2px;
-    font-size: 11px;
-    letter-spacing: 0.02em;
+    flex: 1 1 56px;
+    min-width: 0;
+    padding: 4px 1px;
+    font-size: 10px;
+    letter-spacing: 0;
 }
 
 /* ── Score readout ────────────────────────────────────── */
@@ -1544,7 +1585,7 @@ button:active { opacity: 0.75; }
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    padding: 5px 9px;
+    padding: 3px 9px;
     background: var(--void);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -1576,13 +1617,35 @@ button:active { opacity: 0.75; }
     font-variant-numeric: tabular-nums;
 }
 
+.arcade-readout-detail {
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.arcade-readout-detail:empty { display: none; }
+
 /* ── The screen ───────────────────────────────────────── */
 
 .arcade-screen {
     position: relative;
     align-self: center;
-    width: 332px;
-    height: 272px;
+    /* Square: 330 playfield + 1px bezel on every side. Sized from its
+       height and kept square by aspect-ratio, so it is the one thing in
+       the view allowed to shrink when a short main view leaves the arcade
+       less than its full height — the view is pinned to the popup's height
+       and must never scroll, or the bottom of the playfield (where every
+       game puts its prompts) would sit below the fold. The canvas fills it
+       and scales with it; pointer input is converted back to logical stage
+       units by the hub's pointer(). */
+    flex: 0 1 auto;
+    min-height: 0;
+    height: 332px;
+    aspect-ratio: 1 / 1;
+    max-width: 100%;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--arcade-screen);
@@ -1605,6 +1668,10 @@ button:active { opacity: 0.75; }
     display: block;
     position: relative;
     z-index: 1;
+    /* Fills the screen box rather than carrying a fixed pixel size, so it
+       scales with it. The backing store stays STAGE_W x STAGE_H x DPR. */
+    width: 100%;
+    height: 100%;
 }
 
 .arcade-canvas--crosshair { cursor: crosshair; }
@@ -1676,23 +1743,122 @@ button:active { opacity: 0.75; }
 
 .arcade-overlay-sub:empty { display: none; }
 
-/* ── Per-game controls ────────────────────────────────── */
+/* ── Attract / how-to-play screen ─────────────────────── */
 
-.arcade-controls {
+.arcade-intro {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+}
+
+.arcade-overlay.is-intro { gap: 0; padding: 0 20px; background: rgba(255, 255, 255, 0.9); }
+.arcade-overlay.is-intro .arcade-overlay-text,
+.arcade-overlay.is-intro .arcade-overlay-sub { display: none; }
+.arcade-overlay.is-intro .arcade-intro { display: flex; }
+
+.arcade-overlay.is-intro .arcade-intro {
+    animation: arcade-intro-in 0.34s cubic-bezier(0.16, 0.9, 0.3, 1) both;
+}
+
+.arcade-intro-title {
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--accent-dim);
+    text-shadow: var(--glow-cyan);
+    animation: arcade-intro-line 0.4s ease both 0.06s;
+}
+
+.arcade-intro-rule {
+    width: 74%;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent, rgba(11, 180, 205, 0.6), transparent);
+    animation: arcade-intro-rule 0.44s ease both 0.1s;
+}
+
+.arcade-intro-lines {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-top: 2px;
+    gap: 5px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: center;
 }
+
+.arcade-intro-lines li {
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--text);
+    animation: arcade-intro-line 0.4s ease both;
+}
+
+.arcade-intro-lines li:nth-child(1) { animation-delay: 0.16s; }
+.arcade-intro-lines li:nth-child(2) { animation-delay: 0.23s; }
+.arcade-intro-lines li:nth-child(3) { animation-delay: 0.30s; }
+.arcade-intro-lines li:nth-child(4) { animation-delay: 0.37s; }
+.arcade-intro-lines li:nth-child(n + 5) { animation-delay: 0.44s; }
+
+.arcade-intro-start {
+    margin-top: 2px;
+    padding: 7px 14px;
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-sm);
+    background: rgba(11, 180, 205, 0.14);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--accent-dim);
+    text-shadow: var(--glow-cyan);
+    animation:
+        arcade-intro-line 0.4s ease both 0.52s,
+        arcade-start-pulse 1.5s ease-in-out infinite 0.92s;
+}
+
+.arcade-intro-start:empty { display: none; }
+
+@keyframes arcade-intro-in {
+    from { opacity: 0; transform: translateY(9px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes arcade-intro-line {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes arcade-intro-rule {
+    from { opacity: 0; transform: scaleX(0.2); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes arcade-start-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 rgba(11, 180, 205, 0);
+        background: rgba(11, 180, 205, 0.14);
+    }
+    50% {
+        box-shadow: 0 0 16px rgba(11, 180, 205, 0.45);
+        background: rgba(11, 180, 205, 0.3);
+    }
+}
+
+/* ── Per-game controls ────────────────────────────────── */
 
 .arcade-actions {
     display: flex;
+    align-items: center;
     gap: 6px;
 }
 
 .arcade-actions .btn-helper {
     flex: 1;
-    padding: 6px 8px;
+    padding: 4px 8px;
     font-size: 11px;
 }
 
@@ -1703,7 +1869,34 @@ button:active { opacity: 0.75; }
     box-shadow: var(--glow-red);
 }
 
+.arcade-select {
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--void);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.arcade-select:hover,
+.arcade-select:focus {
+    border-color: var(--accent-dim);
+    outline: none;
+    box-shadow: var(--glow-cyan);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .header-icon { transition: filter 0.35s ease; }
     .arcade-screen::before { animation: none; }
+    .arcade-overlay.is-intro .arcade-intro,
+    .arcade-intro-title,
+    .arcade-intro-rule,
+    .arcade-intro-lines li,
+    .arcade-intro-start {
+        animation-duration: 1ms;
+        animation-delay: 0s;
+        animation-iteration-count: 1;
+    }
 }

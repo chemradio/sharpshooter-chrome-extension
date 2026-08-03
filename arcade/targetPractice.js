@@ -215,13 +215,25 @@
             draw();
         }
 
+        // ── Attract screen ─────────────────────────────────────────────────
+
+        function intro() {
+            ctx.setIntro({
+                title: ctx.t("arcadeGameTargets"),
+                lines: [
+                    ctx.t("arcadeTargetsIntro1"),
+                    ctx.t("arcadeTargetsIntro2"),
+                    ctx.t("arcadeTargetsIntro3"),
+                ],
+                start: ctx.t("arcadeTargetsIntroStart"),
+            });
+        }
+
         // ── Pointer input ──────────────────────────────────────────────────
 
         function onPointerDown(e) {
             if (paused) return;
-            const rect = el.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const { x, y } = ctx.pointer(el, e);
 
             if (!running) {
                 freshRound();
@@ -254,7 +266,7 @@
                 loop.start();
                 paused = false;
 
-                if (!saved) ctx.setOverlay(ctx.t("arcadeTargetsPrompt"), ctx.t("arcadeTargetsHint"));
+                if (!saved) intro();
             },
 
             getState() {
@@ -285,6 +297,8 @@
             onScore(cb) { scoreCb = cb; },
 
             isOver() { return roundOver; },
+
+            showIntro: intro,
 
             handleKey(e) {
                 if (paused) return;

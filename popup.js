@@ -677,7 +677,6 @@ document
 // gate — the warning banner is purely informational.
 
 const legalCaptureSection = document.getElementById("legal-capture-section");
-const legalCaptureDivider = document.getElementById("legal-capture-divider");
 const legalCaptureBtn = document.getElementById("legal-capture");
 const legalWarning = document.getElementById("legal-warning");
 const legalOperatorName = document.getElementById("legal-operator-name");
@@ -685,7 +684,6 @@ const legalCaseReference = document.getElementById("legal-case-reference");
 
 function applyLegalCaptureVisible(enabled) {
     legalCaptureSection.hidden = !enabled;
-    legalCaptureDivider.hidden = !enabled;
     syncPopupContentHeight();
 }
 

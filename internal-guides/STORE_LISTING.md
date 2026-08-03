@@ -3,6 +3,13 @@
 Copy/paste content for the Developer Dashboard. Not part of the extension —
 exclude from the upload ZIP.
 
+> **Never name third-party services or platforms** (or their domains) in the
+> listing title, summary, detailed description, or any UI/help string. A
+> previous listing that named several of them was rejected with keyword-abuse
+> violation **Yellow Argon** ("excessive or irrelevant keywords in the product
+> description"). Describe capabilities generically — "any page", "long, tall
+> pages", "heavy single-page apps" — never by example brand.
+
 ---
 
 ## Single purpose

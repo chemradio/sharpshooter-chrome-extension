@@ -24,12 +24,11 @@
     "presetCustom": { "message": "Custom" },
     "phWidth": { "message": "Width" },
     "phHeight": { "message": "Height" },
-    "captureElement": { "message": "Capture Element" },
+    "captureElement": { "message": "Element Capture" },
     "helpers": { "message": "Helpers" },
     "removeElements": { "message": "Remove Elements" },
     "imageExtractor": { "message": "Extract Image" },
 
-    "legalCaptureLabel": { "message": "Legal Capture" },
     "legalCapture": { "message": "Legal Capture" },
     "legalWarningDomKiller": {
         "message": "This tab's HTML was hand-edited with Remove Elements. Legal Capture always reloads the page first to restore the original content."
@@ -188,7 +187,7 @@
         "message": "<b>Heads up:</b> websites change their page structure over time. If a capture looks wrong, try Page Capture or a different target element with Capture Element."
     },
     "helpPageCapture": {
-        "message": "<div class=\"help-heading\">Page Capture</div><p>Captures the whole page at a chosen resolution. Pick a preset:</p><ul><li><b>User</b> — the current tab's viewport size (default). Combined with the 2× quality multiplier, gives you a sharp shot at the exact size you see in the browser.</li><li><b>Full Page</b> — viewport width, full document height (measured live).</li><li><b>Vertical</b> — viewport width × (width × 3.5), good for long social posts.</li><li><b>FullHD</b> — 1920 × 1080.</li><li><b>4K</b> — 3840 × 2160.</li><li><b>Custom</b> — your own width × height.</li></ul><p>The page is emulated at this resolution before capture, so layouts adapt as if the window were that size.</p>"
+        "message": "<div class=\"help-heading\">Page Capture</div><p>Captures the whole page at a chosen resolution. Pick a preset:</p><ul><li><b>User</b> — the current tab's viewport size (default). Combined with the 2× quality multiplier, gives you a sharp shot at the exact size you see in the browser.</li><li><b>Full Page</b> — viewport width, full document height (measured live).</li><li><b>Vertical</b> — viewport width × (width × 3.5), good for long, tall pages.</li><li><b>FullHD</b> — 1920 × 1080.</li><li><b>4K</b> — 3840 × 2160.</li><li><b>Custom</b> — your own width × height.</li></ul><p>The page is emulated at this resolution before capture, so layouts adapt as if the window were that size.</p>"
     },
     "helpCaptureElement": {
         "message": "<div class=\"help-heading\">Capture Element</div><p>Click the button, then hover any element on the page. A cyan glow shows what will be captured. Use the <b>scroll wheel</b> or <b>↑ / ↓</b> to change depth (up = parent, down = first child) and <b>← / →</b> to step to the previous / next sibling. <b>Click</b> or press <b>Enter</b> to commit.</p>"
@@ -303,12 +302,6 @@
     "arcadeHighscore": {
         "message": "Best"
     },
-    "arcadeKeepState": {
-        "message": "Keep game on close"
-    },
-    "arcadeKeepStateNote": {
-        "message": "Off discards the current run when you close the popup or switch games. Highscores are always kept."
-    },
     "arcadeResetGame": {
         "message": "Reset game"
     },
@@ -333,21 +326,6 @@
     "arcadeRestartHintClick": {
         "message": "Click or press any key to play again"
     },
-    "arcadeSnakePrompt": {
-        "message": "Use the keyboard"
-    },
-    "arcadeSnakeHint": {
-        "message": "Arrow keys or WASD to steer. Walls and your own tail are fatal."
-    },
-    "arcade2048Prompt": {
-        "message": "Use the keyboard"
-    },
-    "arcade2048Hint": {
-        "message": "Arrow keys or WASD to slide the tiles. Matching tiles merge."
-    },
-    "arcadeBreakoutPrompt": {
-        "message": "Move to aim"
-    },
     "arcadeLaunchHint": {
         "message": "Move the mouse to steer the paddle, click or press Space to launch"
     },
@@ -357,12 +335,6 @@
     "arcadeLevelShort": {
         "message": "LVL $1"
     },
-    "arcadeTargetsPrompt": {
-        "message": "45-second round"
-    },
-    "arcadeTargetsHint": {
-        "message": "Click each reticle before it fades. Consecutive hits build the multiplier; a miss resets it."
-    },
     "arcadeTimeLeft": {
         "message": "$1s"
     },
@@ -371,5 +343,86 @@
     },
     "arcadeRoundAgainHint": {
         "message": "Click to shoot another round"
+    },
+    "arcadeGameTyping": {
+        "message": "Typing"
+    },
+    "arcadeSnakeIntro1": {
+        "message": "Arrow keys or WASD steer the snake."
+    },
+    "arcadeSnakeIntro2": {
+        "message": "The walls wrap — leave one edge, return from the other."
+    },
+    "arcadeSnakeIntro3": {
+        "message": "Eat the reticles to grow. Only your own tail is fatal."
+    },
+    "arcadeSnakeIntroStart": {
+        "message": "Press an arrow key to start"
+    },
+    "arcade2048Intro1": {
+        "message": "Arrow keys or WASD slide every tile at once."
+    },
+    "arcade2048Intro2": {
+        "message": "Two equal tiles merge and score their total."
+    },
+    "arcade2048Intro3": {
+        "message": "The run ends when no move changes the board."
+    },
+    "arcade2048IntroStart": {
+        "message": "Press an arrow key to start"
+    },
+    "arcadeBreakoutIntro1": {
+        "message": "Move the mouse to steer the paddle — arrows also work."
+    },
+    "arcadeBreakoutIntro2": {
+        "message": "Where the ball hits the paddle decides where it goes."
+    },
+    "arcadeBreakoutIntro3": {
+        "message": "Three lives. Clearing the wall starts a faster level."
+    },
+    "arcadeBreakoutIntroStart": {
+        "message": "Click or press Space to launch"
+    },
+    "arcadeTargetsIntro1": {
+        "message": "One 45-second round. Score is the round total."
+    },
+    "arcadeTargetsIntro2": {
+        "message": "Click each reticle before it shrinks away."
+    },
+    "arcadeTargetsIntro3": {
+        "message": "Consecutive hits build the multiplier; a stray click resets it."
+    },
+    "arcadeTargetsIntroStart": {
+        "message": "Click anywhere to start"
+    },
+    "arcadeTypingIntro1": {
+        "message": "Type the paragraph exactly as it appears."
+    },
+    "arcadeTypingIntro2": {
+        "message": "Speed is net WPM, accuracy counts every keystroke."
+    },
+    "arcadeTypingIntro3": {
+        "message": "Backspace walks back over a mistake. Language picker above."
+    },
+    "arcadeTypingIntroStart": {
+        "message": "Start typing to begin"
+    },
+    "arcadeTypingLanguage": {
+        "message": "Drill language"
+    },
+    "arcadeTypingWpm": {
+        "message": "$1 WPM"
+    },
+    "arcadeTypingAcc": {
+        "message": "$1% ACC"
+    },
+    "arcadeTypingResult": {
+        "message": "$1 WPM · $2% accuracy"
+    },
+    "arcadeTypingAgainHint": {
+        "message": "Press any key for a new paragraph"
+    },
+    "legalSettingsSegmentLabel": {
+        "message": "settings"
     }
 }

@@ -19,7 +19,13 @@ This document describes the current implementation. Aspirational features are sp
 
 ## Entry points
 
-All captures are triggered from the **toolbar popup** ([popup.html](popup.html) / [popup.js](popup.js)) — main UI with quality multiplier (scale), resolution presets, and the capture buttons: **Page Capture** and **Capture Element**. Each capture control is a **segmented button**: a wide main segment that captures and saves directly, plus a narrow **with crop** segment (`.btn-capture--crop`) that routes the shot through the crop editor. When the **Always open the crop editor** setting is on, every capture goes to the editor and the crop segments are hidden via the `.crop-default` class on `.popup`. A **Helpers** row holds **Remove Elements** (interactive DOM killer) and **Extract Image**. Extract Image is also a segmented button: the main segment extracts and saves directly, the narrow **with crop** segment sends the image to the crop editor. A header **?** button opens an in-popup help panel, and a header **gear** button opens the **Settings** panel. Clicking the animated brand mark in the header opens the **Arcade** (see below). A specialist **Legal Capture** section (see below) appears at the bottom of the main view, hidden by default behind a Settings toggle.
+All captures are triggered from the **toolbar popup** ([popup.html](popup.html) / [popup.js](popup.js)). The main view runs top to bottom: quality multiplier (scale) and resolution presets, a small centred divider (`.divider--small`), then one stacked group of capture actions (`section.capture-actions`) — **Page Capture**, **Legal Capture**, **Element Capture** — then a `.divider` and the **Helpers** section (**Remove Elements**, the interactive DOM killer, and **Extract Image**).
+
+Every capture control is a **segmented button**: a wide main segment (`.btn-capture--main`) that runs the action directly, plus a narrow segment on its right. For Page Capture, Element Capture and Extract Image that narrow segment is **with crop** (`.btn-capture--crop`), which runs the same action through the crop editor — so hovering it lights the main button too, since the two together read as one combined action. When the **Always open the crop editor** setting is on, every capture goes to the editor and the crop segments are hidden via the `.crop-default` class on `.popup` (Extract Image keeps both, since its crop segment means *screenshot the element* rather than *download the image*).
+
+**Legal Capture's narrow segment is a different thing and is deliberately a different class** (`.btn-capture--sub`): a gear + **settings** label that opens the Legal Capture Settings subpage instead of capturing. It shares the crop segment's geometry but not its linked hover — it highlights alone, and hovering Legal Capture leaves it dark, so it can never imply it will fire the capture next to it. Its whole block (`#legal-capture-section`, which also carries the Remove-Elements warning banner) is hidden by the **Enable Legal Capture** setting.
+
+A header **?** button opens an in-popup help panel, and a header **gear** button opens the **Settings** panel. Clicking the brand mark in the header opens the **Arcade** (see below) — the header itself does not move when it does.
 
 The radio chips (quality multiplier, resolution presets, settings radio groups) get a prominent hover state — accent border, tinted fill, and cyan glow (`.radio-group label:hover`). The resolution row shows just the two number inputs and a `×` separator (no "px" suffix).
 
@@ -100,9 +106,15 @@ On click (or Enter):
 A specialist capture mode aimed at investigative/legal use, where a plain
 screenshot isn't strong enough evidence: it produces a hash-sealed,
 independently-timestamped forensic package instead of just an image. The
-**Legal Capture** section sits at the bottom of the main popup view and is
-**shown by default**; the **Enable Legal Capture** toggle in Settings hides
-it for users who don't want it. (Visibility only — showing the section sends
+**Legal Capture** button sits in the main view's capture stack, between
+Page Capture and Element Capture, and is **shown by default**; the **Enable
+Legal Capture** toggle in Settings hides it for users who don't want it. It
+has no resolution readout of its own — it sends the identical settings
+payload Page Capture does, i.e. whatever preset / dimensions / quality
+multiplier are selected directly above it, which is now close enough to be
+self-evident (there used to be a read-only mirror of those numbers above the
+button, from when the section lived at the bottom of the popup; it and
+`updateLegalResolutionReadout()` are gone). (Visibility only — showing the section sends
 nothing anywhere; the TSA requests described below happen only when a Legal
 Capture is actually run. `popup.html` starts the section unhidden so first
 paint matches the default, since the `chrome.storage.local` read is async.) Two optional free-text fields — **operator name** and **case/matter
@@ -111,8 +123,26 @@ they're printed on `report.txt` and recorded (unverified) in
 `manifest.json`'s `operator` field, and identify who to ask about the
 capture, not proof of who performed it.
 
-**Every evidentiary component is individually switchable.** A small gear
-icon next to the "Legal Capture" section label opens **Legal Capture
+**Resolution has no Legal Capture control of its own.** The screenshot is
+taken at whatever resolution preset / W×H / quality multiplier are selected
+at the *top* of the popup — `popup.js`'s Legal Capture handler sends the
+identical `getSettings()` payload Page Capture does. Because that dependency
+is invisible from the bottom of the popup, the section carries a read-only
+**readout row** (`#legal-resolution`, `updateLegalResolutionReadout()` in
+[popup.js](popup.js)) mirroring the resolved values as
+`Screenshot · <preset> · W × H · N×`. It re-renders from every input that can
+change them (preset radios, the W/H inputs, the default-scale radios, a
+per-preset scale override, a language change) and reads `off — no image in
+this package` when the **Screenshot** toggle in Legal Capture Settings is
+off. For the page-derived presets (`viewport` / `fullpage`) a sub-hint notes
+the numbers are a preview only — `reMeasureForPreset` re-measures them after
+the forced reload, so the final PNG can differ. Do **not** give Legal Capture
+its own resolution controls: a second source of truth for device metrics
+produces packages whose screenshot doesn't match what the operator believed
+they selected.
+
+**Every evidentiary component is individually switchable.** The gear
+sub-segment of the Legal Capture button opens **Legal Capture
 Settings** ([popup.html](popup.html) `#view-legal-settings`), a dedicated
 subpage listing every artifact/data source below as its own on/off toggle,
 each with a plain-language note on what it does and what it adds for legal
@@ -157,9 +187,29 @@ can't `import` that module).
 
 ## Arcade
 
-A four-game mini-arcade hidden behind the header brand mark. Entirely
+A five-game mini-arcade hidden behind the header brand mark. Entirely
 popup-local — no service worker, no new permissions, no `manifest.json`
 change — and purely additive: the logo previously did nothing on click.
+One game (Typing Trainer) fetches text over the network; see its section
+below and [PRIVACY.md](PRIVACY.md).
+
+`.arcade-view` is pinned to `--popup-view-h`, the same as Settings and
+Help, so opening the arcade never changes the popup's width or height. The
+**screen is the one item allowed to shrink** (`flex: 0 1 auto` +
+`aspect-ratio: 1/1`; everything else is `flex: 0 0 auto`), so a short main
+view scales the cabinet down instead of pushing the bottom of the
+playfield below the fold — which is where every game draws its prompts.
+The canvas therefore carries **no inline CSS size**; it fills the screen
+box at `width/height: 100%` while its backing store stays
+`STAGE_W × STAGE_H × DPR`. That shrink is a **safety net, not the plan** —
+every row around the screen is deliberately tight (5 px gaps, 3–4 px row
+padding, the game-controls slot sharing the reset row) so the arcade's
+chrome costs ~130 px and the screen keeps its full 332 px on any realistic
+main view. If you add a row here, take the height from somewhere else. Any game reading pointer coordinates must go
+through **`ctx.pointer(el, event)`**, which converts client coordinates
+back to logical stage units — a raw `clientX - rect.left` misses by the
+scale factor the moment the screen is not exactly 330 px (this is why
+Breakout's paddle and Target Practice's clicks route through it).
 
 **Entry point.** `#header-icon` (the animated `[data-brand-mark]` in the
 header) is now a real control: `role="button"`, `tabindex="0"`, an
@@ -168,27 +218,30 @@ header) is now a real control: `role="button"`, `tabindex="0"`, an
 becoming interactive. Clicking it toggles `#view-arcade`, following the
 same view-switching pattern as `#view-settings` / `#view-legal-settings` /
 `#view-help` (`hidden` + an `is-arcade` class on `.popup`, added to
-`VIEW_CLASSES` so `syncPopupContentHeight()` measures correctly). The mark
-itself expands into a hero slot with a CSS `transform: translate() scale()`
-off `transform-origin: top left` — no layout is touched, so it composites
-on the GPU; `.arcade-hero-space` is the runway the view reserves for it,
-and the header title fades out to avoid a collision. Opening the arcade
-closes the other subpages, and each of their toggles closes the arcade
-(`window.__Arcade.close()`).
+`VIEW_CLASSES` so `syncPopupContentHeight()` measures correctly).
+**The header itself is left completely alone** — there was once a hero
+animation that scaled the mark up and slid it to the popup's centre while
+fading the title out, plus an `.arcade-hero-space` runway in the view; all
+of that has been removed. Opening the arcade must not move a single element
+of the top bar, so `#header-icon` carries no arcade-specific transform and
+no `transform-origin`. Opening the arcade closes the other subpages, and
+each of their toggles closes the arcade (`window.__Arcade.close()`).
 
 **Files.** [arcade/arcade.js](arcade/arcade.js) is the hub — view
 switching, the game picker, the score readout, storage, pause/resume
 plumbing, a shared rAF loop helper, a DPR-scaled canvas factory, and a
 `palette()` that reads the CSS custom properties off the live stylesheet
 so the games repaint correctly in both themes rather than hardcoding dark
-colours. One file per game:
-[arcade/snake.js](arcade/snake.js), [arcade/2048.js](arcade/2048.js),
+colours. It also owns the shared **attract screen** (see below). One file
+per game: [arcade/snake.js](arcade/snake.js), [arcade/2048.js](arcade/2048.js),
 [arcade/breakout.js](arcade/breakout.js),
-[arcade/targetPractice.js](arcade/targetPractice.js). All five are classic
+[arcade/targetPractice.js](arcade/targetPractice.js),
+[arcade/typing.js](arcade/typing.js). All six are classic
 scripts loaded from `popup.html` after `popup.js`; the hub must come first
 (it exposes `window.__Arcade.register`) and wires itself up on
-`DOMContentLoaded`, i.e. after every game has registered. All four render
-into one shared 330×270 canvas stage.
+`DOMContentLoaded`, i.e. after every game has registered. All five render
+into one shared 330×330 canvas stage — square, because the popup is 360 px
+wide and the arcade view keeps the standard 14 px side padding.
 
 **Per-game interface.** `register({ id, nameKey, realtime, saveVersion,
 create })`, where `create(ctx)` returns:
@@ -201,11 +254,41 @@ create })`, where `create(ctx)` returns:
 | `resume()` | Unfreeze. |
 | `destroy()` | Tear down the canvas and every input listener. |
 | `onScore(cb)` | Hub subscribes; `cb(score)` on every change. |
+| `showIntro?()` | Optional; re-renders the game's attract screen. Called after a runtime language switch — the copy came from the game, so only the game can rebuild it. |
 | `isOver?()` / `handleKey?(e)` / `handleKeyUp?(e)` | Optional. |
 
-`ctx` carries `t`, `STAGE_W`/`STAGE_H`, `canvas()`, `loop()`, `palette()`,
-`save()` (throttled, ~500 ms), `saveNow()` (immediate), and
-`setOverlay()`/`clearOverlay()`.
+`ctx` carries `t`, `STAGE_W`/`STAGE_H`, `canvas()`, `pointer()`, `loop()`,
+`palette()`,
+`save()` (throttled, ~500 ms), `saveNow()` (immediate),
+`setOverlay()`/`setIntro()`/`clearOverlay()`, `setControls()`, and
+`setDetail()`.
+
+**Attract screen.** Four of the five games open on one, via
+`ctx.setIntro({ title, lines: [...], start })`. It's the same
+`#arcade-overlay` element in a second mode (`.is-intro`): a title, a
+hairline rule, the rules as staggered lines, and a deliberately loud
+`start` prompt (boxed, tinted, glowing, on a slow pulse) — the one thing on
+the screen that has to be unmissable. The entrance animations are one-shot
+CSS keyframes, so `setIntro()` forces a reflow between dropping and
+re-adding `.is-intro` or a second call would swap the copy without
+replaying them. **Typing Trainer deliberately does not use it** — see its
+section below.
+
+**Game controls.** `ctx.setControls([Element])` parks a game's own live DOM
+controls in the `#arcade-game-controls` slot, which sits **below the screen,
+right-aligned, sharing the row with the two reset buttons** (Typing
+Trainer's language `<select>`). It shares that row rather than taking one of
+its own on purpose: the view is pinned to the popup's height, so a row spent
+on chrome is height the playfield loses. The elements are **moved**, never
+cloned — the game keeps the reference and reads it back. The slot never
+overlays the playfield, collapses to nothing when empty
+(`:empty { display: none }`), and is cleared by the hub on teardown so one
+game's controls never outlive it.
+
+**Score detail.** `ctx.setDetail(text)` hangs an optional second figure off
+the score readout, and the hub banks whatever was last reported alongside a
+new highscore (`gs.highDetail`). Only Typing Trainer uses it — WPM as the
+score, accuracy as the detail, so a record reads `71 · 96%`.
 
 **Input.** The hub owns the single `keydown`/`keyup` listener and forwards
 to the active game, so keys can never fire while another view is active
@@ -217,30 +300,108 @@ input belongs to each game's own canvas listeners, dropped in `destroy()`.
 **Storage** — one `arcade` object in `chrome.storage.local`:
 
 ```
-{ lastGame, games: { <id>: { highscore, keepState, saved } } }
+{ lastGame, games: { <id>: { highscore, highDetail, saved } } }
 ```
 
 - **Highscores are unconditional.** Written the moment they're beaten, not
-  at game over, and never touched by the keep-state toggle — a popup close
-  fires no reliable unload event, so nothing may be deferred to one.
-- **`keepState`** is the per-game "Keep game on close" toggle (default on).
-  Off discards the run — and only the run — immediately. The toggle's own
-  position is always persisted.
+  at game over — a popup close fires no reliable unload event, so nothing
+  may be deferred to one.
+- **Runs are always kept.** There is no "Keep game on close" toggle; it was
+  removed. A game discards its own run by returning `null` from
+  `getState()`, which is the only gate.
 - **`saved`** carries the game's own `v` (`saveVersion`); a mismatch is
   discarded in favour of a fresh game. A restore that throws anyway is
   caught and retried fresh — stale state costs the run, never the session.
 - Real-time games persist throttled (~500 ms) plus immediately on every
   score/life/level change; 2048 persists on every move (it's turn-based, so
   the snapshot is exact).
-- Reopening lands on `lastGame`. A restored real-time run opens **frozen**
-  behind a "Paused — press any key or click to continue" overlay and never
-  auto-resumes. 2048 needs no such prompt: it's already waiting on a key.
-  `visibilitychange` / `window.blur` auto-pause the same way.
+- A game registered `ephemeral: true` (Typing Trainer) is never restored
+  and never persisted — `startGame` forces `saved` to `null` for it.
 
-**Reset controls**, per game: "Reset game" discards the saved run and
-starts fresh; "Reset highscore" takes a second click within 3 s (the button
-becomes "Sure?") — never a native `confirm()`, which an action popup can't
-survive.
+**Activation always shows the description.** Whichever game you switch to
+opens on its attract screen: a fresh game because its own `init()` builds
+one, a restored one because `showResumePrompt()` calls its `showIntro()`.
+A restored run additionally opens **frozen and blocking** — `setIntro()`
+swaps its `start` line for the continue prompt while `awaitingResume` is
+set, so one panel carries both "here's the game" and "press any key to
+continue" rather than a bare pause overlay hiding what you're resuming.
+`awaitingResume` is therefore armed **before** `init()`, so a game that
+builds its attract screen in there renders the paused variant directly.
+The bare `arcadePaused` two-liner survives only as the fallback for a game
+with no `showIntro()`. `showResumePrompt()` calls the game's own `pause()`
+first: a game's `init()` starts its loop unconditionally, so a restored run
+used to keep simulating behind a screen that said Paused — Breakout's ball
+visibly kept travelling. `pause()` is idempotent, so the `autoPause()` path
+(`visibilitychange` / `window.blur`, which already pauses) is unaffected.
+
+**Games.** Snake, 2048, Breakout, Target Practice, Typing Trainer.
+
+- **Snake** plays on a **torus**: the grid wraps, so leaving one edge
+  re-enters from the opposite one (`(x + dir.x + COLS) % COLS`, with the
+  `+ COLS` because JS's `%` keeps the dividend's sign). Only self-collision
+  ends a run. A dashed frame is drawn around the playfield as the on-screen
+  cue that the edges are doorways rather than walls.
+- **Typing Trainer** ([arcade/typing.js](arcade/typing.js)) is the one game
+  that touches the network. It drills against a **random Wikipedia article
+  summary** in a language picked from a `<select>` parked in the topbar's
+  control slot (`ctx.setControls`) — `https://<lang>.wikipedia.org/api/rest_v1/page/random/summary`,
+  which 303-redirects to the chosen article and is CORS-open. No manifest
+  change was needed (the extension already holds `<all_urls>`
+  `host_permissions` for Extract Image), and the request carries nothing
+  identifying: it names no article — the endpoint picks one. `normalize()`
+  strips pronunciation parentheses, footnote brackets and typographic
+  punctuation that has no key on most layouts; `toDrill()` cuts to whole
+  sentences in a 110–240 character band. Failures fall back to one built-in
+  sentence per language — a degradation, not the source. The next drill is
+  prefetched during play so a restart is instant, and a `token` counter
+  orphans in-flight fetches across a teardown or language change. Score is
+  net WPM (correct characters / 5 over `elapsed`, which only accrues in the
+  `typing` phase and so is pause-safe); accuracy is correct keystrokes over
+  total keystrokes and rides along as the hub's score detail. A mistyped
+  character is flagged and typing continues past it (Backspace walks back
+  and clears the flag — the speed metric recovers, the accuracy metric does
+  not). The `<select>` is blurred on change: a focused control eats letter
+  and arrow keys itself, and the hub yields Space/Enter/Tab to one.
+  The chosen language persists under its own `arcadeTypingLang` key, not in
+  the shared `arcade` object.
+
+  **It never pauses and never resumes.** Registered `ephemeral: true`, and
+  its `getState()` returns `null` unconditionally, so leaving the game (or
+  the arcade, or the popup) ends the drill and re-entering starts a new
+  one. `pause()`/`resume()` are no-ops: the clock only accrues in the
+  `typing` phase and rAF stops delivering frames to a hidden popup anyway,
+  so there is nothing a pause would protect — and a pause screen over a
+  typing drill would cover the paragraph, which is the whole problem the
+  canvas-drawn UI below exists to avoid.
+
+  **It is the one game that never uses the shared overlay** — not for its
+  attract screen, not for its result. Everything is drawn on its own
+  canvas, because a panel covering the screen also covers the paragraph
+  you are being asked to type, which made the start prompt and the text
+  mutually exclusive. Instead: the drill text is drawn as soon as it
+  arrives, and a **footer strip** below it carries the rules and the same
+  loud boxed/pulsing `start` prompt (`drawPrompt`) while armed, then the
+  WPM/accuracy result and the "press any key for a new paragraph" prompt
+  once finished — with the typed paragraph and its red mistake flags still
+  on screen behind it. Both are anchored upward from `FOOTER_BOTTOM` so a
+  long localized string grows away from the text rather than into it. The
+  `showIntro()` hook is therefore not implemented (the hub only calls it
+  while its own intro overlay is showing, and the canvas re-reads every
+  string through `ctx.t` each frame, so a language switch relocalizes for
+  free). While the drill is being fetched, `drawLoading()` animates
+  skeleton lines with a sweeping highlight **in the place the paragraph
+  will occupy** — it replaced a "Fetching a paragraph…" caption, so
+  `arcadeTypingLoading` no longer exists in `_locales`. Do not reintroduce
+  a full-screen overlay here.
+
+**Reset controls**, per game — both icon + label buttons, so their text
+lives in a `<span>` and is written through `btnLabel()` (writing the
+button's own `textContent` would take the `<svg>` with it). "Reset game"
+discards the saved run and starts fresh; "Reset highscore" takes a second
+click within 3 s (the button becomes "Sure?") — never a native `confirm()`,
+which an action popup can't survive — and then **also resets the current
+run**, restarting the game so the description goes back up: a half-played
+board sitting next to a zeroed best is a readout nobody can interpret.
 
 **Styling** lives at the end of both [popup.css](popup.css) and
 [popup-light.css](popup-light.css) (the two stylesheets are full
@@ -258,7 +419,7 @@ over the shared CRT language. No sound.
 - **Service worker:** [backgroundScript.js](backgroundScript.js). Owns a specific set of message actions (`getPageHeight`, `getViewportSize`, `capturePage`, `captureElement`, `domKiller`, `stopDomKiller`, `imageExtractor`, `imageExtractorDownload`, `imageExtractorCropUrl`, `getTabCaptureFlags`, `startLegalCapture`) and always responds with `{ok: true, ...}` or `{ok: false, error}`. Other listeners own their own actions to avoid channel conflicts: the element-click handler in [screenshots/elementSelect/elementClickListener.js](screenshots/elementSelect/elementClickListener.js) claims `elementClicked`; [support/tabState.js](support/tabState.js) claims the `domKillerUsed` broadcast; [support/legalCapture/geoPermissionRelay.js](support/legalCapture/geoPermissionRelay.js) claims `openGeolocationPermissionWindow` and `legalGeolocationPermissionResult`. `domKillerEnded` (broadcast by [contentScripts/domKiller.js](contentScripts/domKiller.js) when a Remove Elements session ends) is only listened for by [popup.js](popup.js) — the service worker doesn't claim it.
 - **Geolocation permission relay:** [support/legalCapture/geoPermissionRelay.js](support/legalCapture/geoPermissionRelay.js) + [support/legalCapture/geoPermission.html](support/legalCapture/geoPermission.html)/`.js`. Exists solely because an undecided geolocation permission prompt closes the toolbar action popup (focus steals to the native prompt, Chrome dismisses `action` popups on blur). `geoPermissionRelay.js` opens `geoPermission.html` as a real `chrome.windows.create` window (not an action popup, so it isn't subject to that auto-close), which calls `navigator.geolocation.getCurrentPosition` itself and reports the grant/deny back via a message the relay persists into `legalCaptureOptions.geolocation`, then closes its own window. `popup.js` only takes this path when `navigator.permissions.query({name:"geolocation"})` reports an undecided state; an already-resolved (`granted`/`denied`) state is read in the popup directly since no prompt — and therefore no close-on-blur risk — is involved. **Known benign console warning:** when `geoPermission.html` calls `navigator.geolocation.getCurrentPosition`, Chromium logs "Is the 'geolocation' permission appropriate? See https://developer.chrome.com/extensions/manifest.html#permissions." to that page's console (visible via the extension's "Errors" button in `chrome://extensions`). This is a built-in Chromium advisory triggered by any extension page calling the Geolocation Web API — it fires regardless of what's declared in `manifest.json` and is unrelated to the actual permission grant flow (which works correctly). It can only be silenced by adding `"geolocation"` to `manifest.json`'s standing `permissions` array, which would grant geolocation access unconditionally at install instead of the current opt-in-per-toggle design — a deliberate tradeoff not worth making. Leave the warning as-is.
 - **Debugger lifecycle:** [support/debugerAttachment.js](support/debugerAttachment.js). Idempotent attach/detach tracked in a `Set`. Auto-recovers from "already attached" via detach+retry, but only when that retry succeeds — if it fails too (a real external client, i.e. native DevTools, genuinely holds the slot), it throws a distinguishable `DevToolsAttachedError` rather than retrying forever or surfacing a generic Chrome error. Hooks `chrome.debugger.onDetach` to clear stale state.
-- **Mutation settle:** [support/mutationObserver.js](support/mutationObserver.js) + [contentScripts/mutationWatcher.js](contentScripts/mutationWatcher.js). Watcher disconnects any prior watcher via `window.__MutationCleanup` so re-injection doesn't leak observers. The waiter is tab-filtered and has an 8 s timeout fallback — never hangs the worker forever.
+- **Mutation settle:** [support/mutationObserver.js](support/mutationObserver.js) + [contentScripts/mutationWatcher.js](contentScripts/mutationWatcher.js). Watcher disconnects any prior watcher via `window.__MutationCleanup` so re-injection doesn't leak observers. The waiter is tab-filtered and has an 8 s timeout fallback — never hangs the worker forever. Timing is **behaviour-tiered, never host-tiered**: the watcher starts fast (500 ms debounce, 2.5 s ceiling, 300 ms early-quiet exit) and escalates once to a slow tier (1200 ms debounce, 5 s ceiling) after it observes ≥150 mutation records, i.e. once the page has proven it re-renders in chunks. It used to hardcode a `SLOW_HOSTS` list of named third-party sites; that list was removed because naming those services anywhere in the package/listing triggered a Chrome Web Store *Yellow Argon* keyword-abuse violation. **Do not reintroduce hostname lists of named services** — measure the page instead.
 - **Shared capture flow:** [screenshots/captureSession.js](screenshots/captureSession.js) exposes `withEmulatedCapture(tabId, deviceMetrics, body)` which handles attach → hide scrollbars → inject watcher → emulate → settle → run body → restore → detach. Used by both page and element capture. The `finally` guarantees teardown even on error. `hideScrollbars`, `restoreScrollbars`, and `postEmulationBreather` are also exported individually — Legal Capture composes them directly in a different order (see above) rather than calling `withEmulatedCapture` as a black box, since it needs the debugger attached and network recording active *before* its forced reload, not after.
 - **Element highlighter cleanup:** [contentScripts/elementHighlighter.js](contentScripts/elementHighlighter.js) is an IIFE that exposes `window.__HighlighterDestroy` so re-injection cleans up the previous instance instead of double-binding handlers.
 - **Image extractor cleanup:** [contentScripts/imageExtractor.js](contentScripts/imageExtractor.js) follows the same pattern via `window.__ImageExtractorDestroy`.
@@ -275,7 +436,7 @@ over the shared CRT language. No sound.
 - **`chrome.debugger` attach shows the yellow banner** on the target tab while a capture is in flight. Keep capture sessions short and always detach.
 - **`Page.captureScreenshot` has a max dimension of 16384 px** per side. The element-capture viewport expansion clamps to this.
 - **No bundler/npm exists in this repo.** Every JS file is loaded as-authored (`import`/`export` ES modules, `chrome.scripting.executeScript({files:[...]})`). A third-party library can only be added by manually vendoring a single dependency-free file into the tree — nothing here can `npm install` anything. Legal Capture's WARC writer, ZIP writer, and RFC 3161 DER encoder are hand-written for exactly this reason, not out of NIH preference.
-- **Legal Capture is the one feature that makes outbound requests to servers the developer doesn't operate** — RFC 3161 timestamp requests to whichever of three public authorities are enabled (FreeTSA, DigiCert, Sectigo — see `TSA_PROVIDERS`), each sending only a SHA-256 hash (never the captured URL, page content, or any other identifying data). See [PRIVACY.md](PRIVACY.md) for the user-facing disclosure. Every other capture mode remains fully local.
+- **Legal Capture is the only *capture* feature that makes outbound requests to servers the developer doesn't operate** — RFC 3161 timestamp requests to whichever of three public authorities are enabled (FreeTSA, DigiCert, Sectigo — see `TSA_PROVIDERS`), each sending only a SHA-256 hash (never the captured URL, page content, or any other identifying data). See [PRIVACY.md](PRIVACY.md) for the user-facing disclosure. Every other capture mode remains fully local. Outside capture, the Arcade's Typing Trainer fetches a random Wikipedia summary while that game is open (see Arcade above) — the only other outbound request in the extension.
 - **Legal Capture's Machine Info and Account Email toggles use `optional_permissions`, not standing `permissions`.** `system.cpu`/`system.memory`/`system.display` (Machine Info) and `identity` (Account Email) are declared in `manifest.json`'s `optional_permissions` array and requested via `chrome.permissions.request()` only at the moment the operator flips the corresponding toggle on in Legal Capture Settings (popup.js) — never granted upfront just because the feature exists. If the operator denies the browser's prompt, the toggle reverts to off and nothing is requested. **The Operator Geolocation toggle is different: `"geolocation"` cannot be listed in `optional_permissions` at all** — Chrome rejects it at install with a console warning and silently drops it (confirmed by testing: `chrome://extensions` reports "Permission 'geolocation' cannot be listed as optional"). It's one of a small set of API permissions, alongside e.g. `debugger`/`devtools`, that Chrome only allows as a standing permission. Since a standing permission would defeat "off by default," this toggle isn't backed by any manifest permission at all — it relies on the ordinary per-origin Geolocation API prompt Chrome shows the first time `navigator.geolocation.getCurrentPosition` is called from an extension page, exactly like a regular website.
 
 ---
@@ -285,5 +446,7 @@ over the shared CRT language. No sound.
 These were in the original spec but do not exist in the codebase. Listed here so future work has a clear target.
 
 ### Personal & sensitive data remover
-Hides the logged-in user's avatar and name in comment sections on social sites. Per-site selectors; bundled, not remote. Not wired into any capture flow yet.
+Hides the logged-in user's avatar and name in comment sections. Per-site selectors; bundled, not remote. Not wired into any capture flow yet.
+
+**Note:** any per-site selector work here must not name third-party services anywhere user- or store-visible (descriptions, UI strings, listing copy). Naming them got the listing flagged with a Chrome Web Store *Yellow Argon* (keyword-abuse) violation once already — see the mutation-settle note below.
 

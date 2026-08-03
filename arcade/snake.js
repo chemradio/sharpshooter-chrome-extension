@@ -1,12 +1,14 @@
 // Arcade · Snake — grid snake on the shared cabinet canvas.
 //
-// Keyboard only (arrows + WASD), so a fresh run opens behind an overlay
-// saying as much: the popup gives no other hint that it wants key input.
-// Wall and self collision both end the run. Score = food eaten.
+// Keyboard only (arrows + WASD), so a fresh run opens on the hub's
+// attract screen: the popup gives no other hint that it wants key input.
+// The playfield is a torus — leaving one edge re-enters from the
+// opposite one — so only the snake's own tail ends a run. Score = food
+// eaten.
 (function () {
     const CELL = 15;
     const COLS = 22;   // 22 * 15 = 330 = STAGE_W
-    const ROWS = 18;   // 18 * 15 = 270 = STAGE_H
+    const ROWS = 22;   // 22 * 15 = 330 = STAGE_H — square, like the stage
 
     const TICK_START = 130;   // ms per step
     const TICK_MIN   = 62;
@@ -73,9 +75,14 @@
         function step() {
             if (pendingDir) { dir = pendingDir; pendingDir = null; }
 
-            const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+            // Wrap-around walls: the grid is a torus, so an edge is a
+            // doorway rather than a hazard. JS's % keeps the sign of the
+            // dividend, hence the extra + COLS / + ROWS before it.
+            const head = {
+                x: (snake[0].x + dir.x + COLS) % COLS,
+                y: (snake[0].y + dir.y + ROWS) % ROWS,
+            };
 
-            if (head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS) return die();
             if (snake.some((s) => s.x === head.x && s.y === head.y)) return die();
 
             snake.unshift(head);
@@ -117,6 +124,16 @@
                 g.moveTo(0, y + 0.5); g.lineTo(ctx.STAGE_W, y + 0.5);
             }
             g.stroke();
+
+            // Dashed frame — reads as a doorway rather than a wall, which
+            // is the only on-screen cue that the edges wrap.
+            g.save();
+            g.strokeStyle = p.accentDim;
+            g.globalAlpha = 0.4;
+            g.setLineDash([4, 5]);
+            g.lineWidth = 1;
+            g.strokeRect(0.5, 0.5, ctx.STAGE_W - 1, ctx.STAGE_H - 1);
+            g.restore();
 
             // Food — a small pulsing reticle rather than a plain block.
             const pulse = 0.5 + 0.5 * Math.sin(phase / 260);
@@ -163,6 +180,20 @@
             draw();
         }
 
+        // ── Attract screen ─────────────────────────────────────────────────
+
+        function intro() {
+            ctx.setIntro({
+                title: ctx.t("arcadeGameSnake"),
+                lines: [
+                    ctx.t("arcadeSnakeIntro1"),
+                    ctx.t("arcadeSnakeIntro2"),
+                    ctx.t("arcadeSnakeIntro3"),
+                ],
+                start: ctx.t("arcadeSnakeIntroStart"),
+            });
+        }
+
         // ── Interface ──────────────────────────────────────────────────────
 
         return {
@@ -181,8 +212,8 @@
                 paused = false;
 
                 // A restored run is frozen behind the hub's pause prompt, so
-                // only a fresh one needs the "this wants the keyboard" nudge.
-                if (!saved) ctx.setOverlay(ctx.t("arcadeSnakePrompt"), ctx.t("arcadeSnakeHint"));
+                // only a fresh one opens on the how-to-play screen.
+                if (!saved) intro();
             },
 
             getState() {
@@ -218,6 +249,8 @@
 
             isOver() { return over; },
 
+            showIntro: intro,
+
             handleKey(e) {
                 if (paused) return;
 
@@ -225,7 +258,7 @@
                     // Any key restarts — no separate "play again" control.
                     freshRun();
                     scoreCb?.(score);
-                    ctx.setOverlay(ctx.t("arcadeSnakePrompt"), ctx.t("arcadeSnakeHint"));
+                    intro();
                     return;
                 }
 

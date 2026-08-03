@@ -1,15 +1,15 @@
 // Arcade — the mini-game hub behind the header brand mark.
 //
 // Entirely popup-local: no service worker, no permissions, no manifest
-// changes. Clicking the animated logo swaps the popup to #view-arcade
-// (same view-switching pattern as Settings / Help / Legal Capture
-// Settings) and expands the mark into a hero position above the cabinet.
+// changes. Clicking the logo swaps the popup to #view-arcade (same
+// view-switching pattern as Settings / Help / Legal Capture Settings).
+// The header itself is left untouched — no hero transform, nothing moves.
 //
 // This file owns everything that isn't a game: view switching, the game
 // picker, the score readout, chrome.storage.local persistence, the
-// pause/resume plumbing, and a shared rAF loop helper. The four games
-// register themselves against it (see arcade/snake.js and friends) and
-// only ever talk to the `ctx` object handed to their create().
+// pause/resume plumbing, and a shared rAF loop helper. The games register
+// themselves against it (see arcade/snake.js and friends) and only ever
+// talk to the `ctx` object handed to their create().
 //
 // Game interface — each registered game's create(ctx) returns:
 //   init(container, savedState)  build DOM/canvas, restore or start fresh
@@ -21,16 +21,24 @@
 //   destroy()                    tear down canvas + every input listener
 //   onScore(cb)                  hub subscribes; cb(score) on every change
 //   isOver?()                    optional; suppresses the resume overlay
+//   showIntro?()                 optional; re-renders the game's attract
+//                                screen. Called on every activation and
+//                                after a language switch, so a game that
+//                                has one always opens on its description.
+//
+// Registration also takes `ephemeral: true` (Typing Trainer) — a game whose
+// run ends when you leave it: never restored, never persisted.
 //
 // Storage lives in one `arcade` object in chrome.storage.local:
-//   { lastGame, games: { <id>: { highscore, keepState, saved } } }
+//   { lastGame, games: { <id>: { highscore, highDetail, saved } } }
 // Saved runs carry their game's own `v` (saveVersion); a mismatch is
 // discarded in favour of a fresh game rather than crashing on stale shape.
 (function () {
-    // The cabinet screen. Fixed logical size — the popup is 360px wide and
-    // the arcade view keeps the standard 14px side padding, leaving 330.
+    // The cabinet screen. Fixed logical size, and square: the popup is
+    // 360px wide and the arcade view keeps the standard 14px side padding,
+    // leaving 330 — so 330 is also the height.
     const STAGE_W = 330;
-    const STAGE_H = 270;
+    const STAGE_H = 330;
 
     const STORAGE_KEY       = "arcade";
     const SAVE_THROTTLE_MS  = 500;   // real-time games; turn-based save at once
@@ -63,9 +71,14 @@
     function gameStore(id) {
         let gs = store.games[id];
         if (!gs) {
-            // keepState defaults ON — the toggle's own position is always
-            // persisted, so this only ever applies to a never-played game.
-            gs = store.games[id] = { highscore: 0, keepState: true, saved: null };
+            gs = store.games[id] = {
+                highscore: 0,
+                // Optional second figure banked alongside the highscore —
+                // Typing Trainer's accuracy at the moment its best WPM was
+                // set. Empty for every game that never calls setDetail().
+                highDetail: "",
+                saved: null,
+            };
         }
         return gs;
     }
@@ -93,12 +106,16 @@
     // ─── DOM ─────────────────────────────────────────────────────────────────
 
     let popupEl, viewArcade, headerIcon, stageEl, overlayEl, overlayTextEl;
-    let picker, scoreEl, highEl, keepCb, resetGameBtn, resetHighBtn, closeBtn;
+    let picker, scoreEl, highEl, resetGameBtn, resetHighBtn, closeBtn;
+    let scoreDetailEl, highDetailEl;
+    let introTitleEl, introLinesEl, introStartEl, gameControlsEl;
 
     // ─── Active game ─────────────────────────────────────────────────────────
 
     let active = null;          // { def, inst }
     let awaitingResume = false; // hub owns the overlay while true
+    let introShowing = false;   // overlay is currently a game's attract screen
+    let liveDetail = "";        // current run's setDetail() value, if any
     let saveTimer = null;
     let confirmTimer = null;
 
@@ -133,17 +150,34 @@
 
     // Backing-store scaled canvas — drawn in logical STAGE_W×STAGE_H units,
     // rendered at device resolution so the phosphor glow stays crisp on HiDPI.
+    //
+    // Deliberately no inline CSS size: the canvas fills the screen box, which
+    // is square and allowed to shrink (see .arcade-screen) when a short main
+    // view leaves the cabinet less than its full height. The arcade view is
+    // pinned to the popup's height, so without that the bottom of the
+    // playfield — where every game puts its prompts — would end up below the
+    // fold. Games keep drawing in logical units either way; pointer input
+    // comes back through pointer(), which undoes whatever scale is in effect.
     function makeCanvas() {
         const dpr = Math.min(window.devicePixelRatio || 1, 3);
         const el = document.createElement("canvas");
         el.className = "arcade-canvas";
         el.width  = Math.round(STAGE_W * dpr);
         el.height = Math.round(STAGE_H * dpr);
-        el.style.width  = `${STAGE_W}px`;
-        el.style.height = `${STAGE_H}px`;
         const g = el.getContext("2d");
         g.scale(dpr, dpr);
         return { el, g };
+    }
+
+    // Pointer event -> logical stage coordinates. The canvas is displayed at
+    // whatever size the screen box ended up, so a raw clientX - rect.left
+    // would miss by that ratio on any popup where it shrank.
+    function pointerPos(el, e) {
+        const rect = el.getBoundingClientRect();
+        return {
+            x: rect.width ? (e.clientX - rect.left) * (STAGE_W / rect.width) : 0,
+            y: rect.height ? (e.clientY - rect.top) * (STAGE_H / rect.height) : 0,
+        };
     }
 
     // Colors are read off the live stylesheet rather than hardcoded, so the
@@ -172,6 +206,7 @@
             STAGE_W,
             STAGE_H,
             canvas: makeCanvas,
+            pointer: pointerPos,
             loop: makeLoop,
             palette,
             // Throttled — for the per-tick churn of a real-time game.
@@ -183,10 +218,22 @@
                 if (awaitingResume) return;   // hub's pause prompt wins
                 setOverlay(text, sub);
             },
+            // The animated how-to-play screen a game can open on.
+            // spec: { title, lines: [string], start }
+            // Not suppressed while awaitingResume: setIntro() itself
+            // substitutes the continue prompt, so a game that builds its
+            // attract screen inside init() renders the paused variant.
+            setIntro: (spec) => setIntro(spec),
+            // Live DOM controls belonging to the game, parked in the
+            // topbar for as long as it is the active one.
+            setControls: (els) => setControls(els),
             clearOverlay: () => {
                 if (awaitingResume) return;
                 clearOverlay();
             },
+            // Optional second readout figure, shown next to the score and
+            // banked next to the highscore when one is beaten.
+            setDetail: (text) => setDetail(text),
         };
     }
 
@@ -195,10 +242,10 @@
     function writeState(id) {
         if (!active || active.def.id !== id || !storeLoaded) return;
         const gs = gameStore(id);
-        // Keep-state OFF discards the run — but never the highscore, which is
+        // A game that has nothing worth resuming returns null and thereby
+        // discards its own run — the highscore is never involved, it's
         // written on its own path in handleScore().
-        const state = gs.keepState ? safeCall(() => active.inst.getState()) : null;
-        gs.saved = state || null;
+        gs.saved = safeCall(() => active.inst.getState()) || null;
         persist();
     }
 
@@ -222,21 +269,86 @@
     // ─── Overlay ─────────────────────────────────────────────────────────────
 
     function setOverlay(text, sub = "") {
+        clearIntro();
         overlayTextEl.textContent = text;
         overlayEl.querySelector(".arcade-overlay-sub").textContent = sub;
         overlayEl.hidden = false;
     }
 
+    // Builds a game's attract screen. Re-adding .is-intro from scratch (via
+    // clearIntro first) is what re-triggers the CSS entrance animations —
+    // they're one-shot `both`-filled keyframes, so a plain content swap
+    // would repaint the panel without ever replaying them.
+    //
+    // While awaitingResume, the same panel doubles as the pause prompt: the
+    // description still shows (activating a game should always say what the
+    // game is), and only the `start` line is swapped for the continue
+    // prompt — what the user has to do is continue, not begin.
+    function setIntro({ title = "", lines = [], start = "" } = {}) {
+        clearIntro();
+        // Removing and re-adding .is-intro in one task resolves to the same
+        // computed animation-name, which is not a restart. Reading a layout
+        // property forces the recalc in between, so a second setIntro()
+        // (Typing Trainer swapping "loading" for the real prompt) actually
+        // replays the entrance rather than snapping the new copy in.
+        void overlayEl.offsetWidth;
+
+        introTitleEl.textContent = title;
+        introStartEl.textContent = awaitingResume ? t("arcadePausedHint") : start;
+
+        for (const line of lines) {
+            const li = document.createElement("li");
+            li.textContent = line;
+            introLinesEl.appendChild(li);
+        }
+        introShowing = true;
+        overlayEl.classList.add("is-intro");
+        // Only the pause prompt swallows clicks — a game's own start prompt
+        // has to let the pointer through to the canvas underneath.
+        overlayEl.classList.toggle("is-blocking", awaitingResume);
+        overlayEl.hidden = false;
+    }
+
+    function clearIntro() {
+        if (!introShowing) return;
+        introShowing = false;
+        overlayEl.classList.remove("is-intro");
+        introTitleEl.textContent = "";
+        introStartEl.textContent = "";
+        introLinesEl.replaceChildren();
+    }
+
+    // The game's own live elements (it keeps the references and reads them
+    // back), so they are moved into the slot, never cloned. Cleared on
+    // teardown so one game's controls never outlive it.
+    function setControls(els = []) {
+        gameControlsEl?.replaceChildren(...els);
+    }
+
     function clearOverlay() {
+        clearIntro();
         overlayEl.hidden = true;
         overlayEl.classList.remove("is-blocking");
     }
 
     function showResumePrompt() {
         awaitingResume = true;
-        setOverlay(t("arcadePaused"), t("arcadePausedHint"));
-        // Only the hub's own pause prompt swallows clicks — a game's prompt
-        // ("click to launch") has to let the pointer through to the canvas.
+        // Freeze first, then prompt. Without this a run restored from
+        // storage would open behind the prompt while still simulating —
+        // Breakout's ball kept travelling under a screen that said Paused.
+        // autoPause() also pauses before calling here; pause() is idempotent.
+        if (active) safeCall(() => active.inst.pause());
+        // Prefer the game's own description panel — setIntro() swaps the
+        // continue prompt in for its start line. The bare two-liner is the
+        // fallback for a game that has no attract screen at all.
+        const shown =
+            !!active &&
+            !!safeCall(() => {
+                if (!active.inst.showIntro) return false;
+                active.inst.showIntro();
+                return introShowing;
+            });
+        if (!shown) setOverlay(t("arcadePaused"), t("arcadePausedHint"));
         overlayEl.classList.add("is-blocking");
     }
 
@@ -262,9 +374,19 @@
         // one, and the keep-state toggle has no say over it.
         if (score > (gs.highscore || 0)) {
             gs.highscore = score;
+            // The detail is a property of the run that set the record, so
+            // it's banked from whatever the game last reported, not
+            // recomputed later.
+            gs.highDetail = liveDetail;
             highEl.textContent = String(score);
+            highDetailEl.textContent = liveDetail;
             persist();
         }
+    }
+
+    function setDetail(text) {
+        liveDetail = text ? String(text) : "";
+        if (scoreDetailEl) scoreDetailEl.textContent = liveDetail;
     }
 
     // ─── Game lifecycle ──────────────────────────────────────────────────────
@@ -280,6 +402,8 @@
         active = null;
         awaitingResume = false;
         clearOverlay();
+        setControls([]);
+        setDetail("");
         stageEl.innerHTML = "";
     }
 
@@ -290,7 +414,15 @@
         teardownActive();
 
         const gs = gameStore(def.id);
-        let saved = fresh || !gs.keepState ? null : gs.saved;
+        // An ephemeral game (Typing Trainer) never resumes: leaving it ends
+        // the drill, so there is nothing to restore and nothing to keep.
+        const discard = fresh || def.ephemeral;
+        // Wipe the stored run here, not in the callers: teardownActive()
+        // above just flushed the outgoing instance's state back into gs, so
+        // a caller that cleared gs.saved before calling in would have had it
+        // written straight back and resurrected on the next activation.
+        if (discard) gs.saved = null;
+        let saved = discard ? null : gs.saved;
         // Versioned saved state — a schema change from a previous extension
         // build discards the run instead of feeding a game a shape it can't
         // read.
@@ -298,6 +430,10 @@
 
         const inst = def.create(makeCtx(def));
         inst.onScore((score) => handleScore(def.id, score));
+
+        // Armed before init(), so a game that builds its attract screen in
+        // there renders it with the continue prompt already substituted.
+        awaitingResume = !!saved;
 
         try {
             inst.init(stageEl, saved);
@@ -307,6 +443,8 @@
             console.warn("arcade: restore failed, starting fresh:", e);
             safeCall(() => inst.destroy());
             stageEl.innerHTML = "";
+            saved = null;
+            awaitingResume = false;
             inst.init(stageEl, null);
         }
 
@@ -316,8 +454,8 @@
         // Reflect the picker + readout + per-game controls.
         const radio = picker.querySelector(`#arcade-game-${def.id}`);
         if (radio) radio.checked = true;
-        keepCb.checked = !!gs.keepState;
         highEl.textContent = String(gs.highscore || 0);
+        highDetailEl.textContent = gs.highDetail || "";
         // Routed through handleScore rather than written straight to the
         // readout: a restored run can already be carrying a score above the
         // stored highscore (e.g. the highscore was reset mid-run), and that
@@ -325,9 +463,11 @@
         handleScore(def.id, safeCall(() => inst.getState()?.score, 0) ?? 0);
         resetConfirmState();
 
-        // A restored real-time run opens frozen behind the pause prompt.
-        // Turn-based games (2048) are inherently frozen — no prompt needed.
-        if (def.realtime && saved) showResumePrompt();
+        // Activating a game always opens on its description. A restored run
+        // additionally opens frozen, behind the same panel carrying the
+        // continue prompt instead of the start prompt; a fresh one already
+        // put its attract screen up from init().
+        if (saved) showResumePrompt();
 
         persist();
     }
@@ -409,20 +549,26 @@
 
     // ─── Reset controls ──────────────────────────────────────────────────────
 
+    // Both reset buttons carry an icon alongside their label, so their text
+    // lives in a <span> — writing to the button's own textContent would
+    // take the <svg> with it.
+    function btnLabel(btn) {
+        return btn.querySelector("span") || btn;
+    }
+
     // "Reset highscore" is destructive and irreversible, so it takes a second
     // click — inline, never a native confirm() (which a popup can't survive).
     function resetConfirmState() {
         if (confirmTimer) { clearTimeout(confirmTimer); confirmTimer = null; }
         resetHighBtn.classList.remove("is-confirming");
-        resetHighBtn.textContent = t("arcadeResetHigh");
+        btnLabel(resetHighBtn).textContent = t("arcadeResetHigh");
     }
 
     function wireResets() {
         resetGameBtn.addEventListener("click", () => {
             if (!active) return;
-            const gs = gameStore(active.def.id);
-            gs.saved = null;
-            persist();
+            // startGame({fresh}) drops the stored run itself — see the note
+            // there about teardown flushing it back.
             startGame(active.def.id, { fresh: true });
             // Hand the keyboard straight back to the game.
             resetGameBtn.blur();
@@ -432,15 +578,20 @@
             if (!active) return;
             if (!resetHighBtn.classList.contains("is-confirming")) {
                 resetHighBtn.classList.add("is-confirming");
-                resetHighBtn.textContent = t("arcadeResetSure");
+                btnLabel(resetHighBtn).textContent = t("arcadeResetSure");
                 confirmTimer = setTimeout(resetConfirmState, CONFIRM_WINDOW_MS);
                 return;
             }
-            const gs = gameStore(active.def.id);
+            const id = active.def.id;
+            const gs = gameStore(id);
             gs.highscore = 0;
-            highEl.textContent = "0";
+            gs.highDetail = "";
             persist();
-            resetConfirmState();
+            // Wiping the record wipes the run that was chasing it: leaving a
+            // half-played game on screen next to a zeroed best is a readout
+            // nobody can interpret. Restarting also puts the description
+            // back up, so the board reads as a clean slate.
+            startGame(id, { fresh: true });
             resetHighBtn.blur();
         });
     }
@@ -467,6 +618,11 @@
         const onControl =
             tag === "INPUT" || tag === "BUTTON" || tag === "SELECT" || tag === "TEXTAREA";
         if (onControl && (e.key === " " || e.key === "Enter" || e.key === "Tab")) return;
+        // A focused <select> (the Typing Trainer's language picker) is the
+        // one control that genuinely needs the arrows — a checkbox or a
+        // button does not, and taking them from a game to feed one would be
+        // the worse trade.
+        if (tag === "SELECT" && GAME_KEYS.has(e.key)) return;
         // Arrows/space would otherwise scroll the view or re-click a button.
         if (GAME_KEYS.has(e.key)) e.preventDefault();
         // The key that dismisses the pause prompt is consumed by it — it
@@ -494,7 +650,12 @@
         picker        = document.getElementById("arcade-games");
         scoreEl       = document.getElementById("arcade-score");
         highEl        = document.getElementById("arcade-high");
-        keepCb        = document.getElementById("arcade-keep");
+        scoreDetailEl = document.getElementById("arcade-score-detail");
+        highDetailEl  = document.getElementById("arcade-high-detail");
+        introTitleEl    = document.getElementById("arcade-intro-title");
+        introLinesEl    = document.getElementById("arcade-intro-lines");
+        introStartEl    = document.getElementById("arcade-intro-start");
+        gameControlsEl  = document.getElementById("arcade-game-controls");
         resetGameBtn  = document.getElementById("arcade-reset-game");
         resetHighBtn  = document.getElementById("arcade-reset-high");
         closeBtn      = document.getElementById("arcade-close");
@@ -517,18 +678,6 @@
         });
 
         closeBtn.addEventListener("click", close);
-
-        keepCb.addEventListener("change", () => {
-            if (!active) return;
-            const gs = gameStore(active.def.id);
-            gs.keepState = keepCb.checked;
-            // Switching it off discards the run right away — leaving it on
-            // disk until the next teardown would resurrect it if the popup
-            // died in between.
-            if (!gs.keepState) gs.saved = null;
-            persist();
-            if (gs.keepState) flushSave(active.def.id);
-        });
 
         // Clicking the frozen screen resumes, exactly like pressing a key.
         overlayEl.addEventListener("mousedown", (e) => {
@@ -557,9 +706,14 @@
             if (radio) radio.checked = true;
         }
         resetConfirmState();
-        resetGameBtn.textContent = t("arcadeResetGame");
+        btnLabel(resetGameBtn).textContent = t("arcadeResetGame");
         headerIcon.title = isOpen() ? t("arcadeCloseTitle") : t("arcadeOpenTitle");
-        if (awaitingResume) setOverlay(t("arcadePaused"), t("arcadePausedHint"));
+        // The attract screen's copy came from the game, in the old language —
+        // ask it to rebuild rather than trying to re-translate the strings.
+        // It carries the pause prompt too when one is pending, so it's tried
+        // first; the bare overlay is only for a game without an intro.
+        if (introShowing) safeCall(() => active?.inst.showIntro?.());
+        else if (awaitingResume) setOverlay(t("arcadePaused"), t("arcadePausedHint"));
     };
 
     window.__Arcade.close = close;

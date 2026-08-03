@@ -118,7 +118,7 @@
 
             <div class="body">
                 <div id="view-normal">
-                    <!-- Page Capture + resolution -->
+                    <!-- Resolution -->
                     <section>
                         <div class="section-label" data-i18n="resolution">
                             Resolution
@@ -147,6 +147,19 @@
                                 value="7000"
                             />
                         </div>
+                    </section>
+
+                    <div class="divider divider--small"></div>
+
+                    <!-- Capture actions - one stacked group of segmented
+                         controls: a wide main action plus a narrow
+                         sub-segment. The two "with crop" segments run the
+                         same capture through the crop editor, so hovering
+                         one lights its main button too. Legal Capture's gear
+                         is deliberately NOT a crop segment: it navigates to
+                         Legal Capture Settings instead of capturing, so it
+                         highlights alone (see popup.css). -->
+                    <section class="capture-actions">
                         <div class="capture-segmented">
                             <button
                                 id="capture-page"
@@ -203,12 +216,85 @@
                                 >
                             </button>
                         </div>
-                    </section>
 
-                    <!-- <div class="divider"></div> -->
+                        <!-- Legal Capture - forensic evidence package (WACZ
+                             + independent timestamp). Shown by default; the
+                             Settings toggle hides this whole block. The
+                             markup starts visible so it matches the default
+                             state on first paint - the storage read that
+                             resolves the real setting is async, and starting
+                             hidden made it flash in for every user who
+                             hadn't turned it off. -->
+                        <div id="legal-capture-section" class="capture-action">
+                            <div
+                                id="legal-warning"
+                                class="site-prompt legal-warning"
+                                hidden
+                            >
+                                <div
+                                    class="site-prompt-hint"
+                                    data-i18n="legalWarningDomKiller"
+                                >
+                                    This tab's HTML was hand-edited with
+                                    Remove Elements. Legal Capture always
+                                    reloads the page first to restore the
+                                    original content.
+                                </div>
+                            </div>
+                            <div class="capture-segmented">
+                                <button
+                                    id="legal-capture"
+                                    class="btn-capture btn-capture--primary btn-capture--main"
+                                >
+                                    <svg
+                                        class="btn-icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.75"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                                        />
+                                        <path d="m9 12 2 2 4-4" />
+                                    </svg>
+                                    <span data-i18n="legalCapture"
+                                        >Legal Capture</span
+                                    >
+                                </button>
+                                <button
+                                    type="button"
+                                    id="legal-settings-toggle"
+                                    class="btn-capture btn-capture--primary btn-capture--sub"
+                                    title="Legal Capture Settings"
+                                    data-i18n-title="legalSettingsBtnTitle"
+                                    aria-label="Legal Capture Settings"
+                                >
+                                    <svg
+                                        class="btn-icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.75"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                    </svg>
+                                    <span
+                                        class="crop-segment-label"
+                                        data-i18n="legalSettingsSegmentLabel"
+                                        >settings</span
+                                    >
+                                </button>
+                            </div>
+                        </div>
 
-                    <!-- Capture Element -->
-                    <section>
                         <div class="capture-segmented">
                             <button
                                 id="capture-element"
@@ -238,7 +324,7 @@
                                     <path d="M3 14v1" />
                                 </svg>
                                 <span data-i18n="captureElement"
-                                    >Capture Element</span
+                                    >Element Capture</span
                                 >
                             </button>
                             <button
@@ -360,83 +446,6 @@
                                 >
                             </button>
                         </div>
-                    </section>
-
-                    <div class="divider" id="legal-capture-divider"></div>
-
-                    <!-- Legal Capture — forensic evidence package (WACZ +
-                         independent timestamp). Shown by default; the Settings
-                         toggle hides it. Markup starts visible so it matches
-                         the default state on first paint — the storage read
-                         that resolves the real setting is async, and starting
-                         hidden made the section flash in for every user who
-                         hadn't turned it off. -->
-                    <section id="legal-capture-section">
-                        <div class="section-label--row">
-                            <span
-                                class="section-label"
-                                data-i18n="legalCaptureLabel"
-                                >Legal Capture</span
-                            >
-                            <button
-                                type="button"
-                                id="legal-settings-toggle"
-                                class="legal-settings-toggle"
-                                title="Legal Capture Settings"
-                                data-i18n-title="legalSettingsBtnTitle"
-                                aria-label="Legal Capture Settings"
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.75"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <circle cx="12" cy="12" r="3" />
-                                    <path
-                                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                        <div
-                            id="legal-warning"
-                            class="site-prompt legal-warning"
-                            hidden
-                        >
-                            <div
-                                class="site-prompt-hint"
-                                data-i18n="legalWarningDomKiller"
-                            >
-                                This tab's HTML was hand-edited with Remove
-                                Elements. Legal Capture always reloads the page
-                                first to restore the original content.
-                            </div>
-                        </div>
-                        <button
-                            id="legal-capture"
-                            class="btn-capture btn-capture--primary btn-capture--main"
-                        >
-                            <svg
-                                class="btn-icon"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.75"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
-                                />
-                                <path d="m9 12 2 2 4-4" />
-                            </svg>
-                            <span data-i18n="legalCapture">Legal Capture</span>
-                        </button>
                     </section>
                 </div>
             </div>
@@ -1176,14 +1185,13 @@
                 </div>
             </div>
 
-            <!-- Arcade — opened by clicking the header brand mark, which
-                 expands into the hero slot this view reserves at the top.
+            <!-- Arcade — opened by clicking the header brand mark. The
+                 header itself is left exactly as it is; the arcade is
+                 just another view swapped in below it.
                  Entirely popup-local: no service worker, no permissions.
                  The picker and every readout value are filled in by
                  arcade/arcade.js. -->
             <div id="view-arcade" class="arcade-view" hidden>
-                <div class="arcade-hero-space" aria-hidden="true"></div>
-
                 <div class="arcade-topbar">
                     <span class="section-label" data-i18n="arcadeTitle"
                         >Arcade</span
@@ -1214,6 +1222,12 @@
                         <span class="arcade-readout-value" id="arcade-score"
                             >0</span
                         >
+                        <!-- Optional second figure (Typing Trainer's
+                             accuracy). Empty — and collapsed — otherwise. -->
+                        <span
+                            class="arcade-readout-detail"
+                            id="arcade-score-detail"
+                        ></span>
                     </div>
                     <div class="arcade-readout-cell arcade-readout-cell--right">
                         <span
@@ -1224,46 +1238,100 @@
                         <span class="arcade-readout-value" id="arcade-high"
                             >0</span
                         >
+                        <span
+                            class="arcade-readout-detail"
+                            id="arcade-high-detail"
+                        ></span>
                     </div>
                 </div>
 
                 <div class="arcade-screen">
                     <div id="arcade-stage" class="arcade-stage"></div>
+                    <!-- One overlay, two modes. Plain: the .arcade-overlay-*
+                         lines (pause prompt, game over). Intro (.is-intro):
+                         the .arcade-intro panel below — each game's animated
+                         how-to-play screen, built by the hub's setIntro(). -->
                     <div id="arcade-overlay" class="arcade-overlay" hidden>
                         <div class="arcade-overlay-text"></div>
                         <div class="arcade-overlay-sub"></div>
+                        <div class="arcade-intro">
+                            <div
+                                class="arcade-intro-title"
+                                id="arcade-intro-title"
+                            ></div>
+                            <div
+                                class="arcade-intro-rule"
+                                aria-hidden="true"
+                            ></div>
+                            <ul
+                                class="arcade-intro-lines"
+                                id="arcade-intro-lines"
+                            ></ul>
+                            <div
+                                class="arcade-intro-start"
+                                id="arcade-intro-start"
+                            ></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="arcade-controls">
-                    <label class="setting-row" for="arcade-keep">
-                        <input type="checkbox" id="arcade-keep" checked />
-                        <span data-i18n="arcadeKeepState"
-                            >Keep game on close</span
+                <!-- Below the screen: the two reset buttons, plus the slot
+                     for controls belonging to whichever game is active
+                     (the hub's setControls()) pushed to the right of them.
+                     Sharing this row rather than taking one of its own is
+                     what keeps the cabinet screen at full size — the view is
+                     pinned to the popup's height, and every row spent here
+                     is height the playfield loses. Empty for every game but
+                     Typing Trainer, and collapsed then. -->
+                <div class="arcade-actions">
+                    <button
+                        type="button"
+                        id="arcade-reset-game"
+                        class="btn-helper"
+                    >
+                        <svg
+                            class="btn-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.75"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
                         >
-                    </label>
-                    <p class="setting-note" data-i18n="arcadeKeepStateNote">
-                        Off discards the current run when you close the popup or
-                        switch games. Highscores are always kept.
-                    </p>
-                    <div class="arcade-actions">
-                        <button
-                            type="button"
-                            id="arcade-reset-game"
-                            class="btn-helper"
-                            data-i18n="arcadeResetGame"
+                            <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                            <path d="M3 3v5h5" />
+                        </svg>
+                        <span data-i18n="arcadeResetGame">Reset game</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="arcade-reset-high"
+                        class="btn-helper btn-helper--danger"
+                    >
+                        <svg
+                            class="btn-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.75"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
                         >
-                            Reset game
-                        </button>
-                        <button
-                            type="button"
-                            id="arcade-reset-high"
-                            class="btn-helper btn-helper--danger"
-                            data-i18n="arcadeResetHigh"
+                            <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                            <path d="M3 3v5h5" />
+                            <path d="M12 8v4" />
+                            <path d="M12 16h.01" />
+                        </svg>
+                        <span data-i18n="arcadeResetHigh"
+                            >Reset highscore</span
                         >
-                            Reset highscore
-                        </button>
-                    </div>
+                    </button>
+                    <div
+                        class="arcade-game-controls"
+                        id="arcade-game-controls"
+                    ></div>
                 </div>
             </div>
 
@@ -1282,5 +1350,6 @@
         <script src="arcade/2048.js"></script>
         <script src="arcade/breakout.js"></script>
         <script src="arcade/targetPractice.js"></script>
+        <script src="arcade/typing.js"></script>
     </body>
 </html>

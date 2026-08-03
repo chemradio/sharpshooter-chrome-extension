@@ -258,6 +258,20 @@
             draw();
         }
 
+        // ── Attract screen ─────────────────────────────────────────────────
+
+        function intro() {
+            ctx.setIntro({
+                title: ctx.t("arcadeGame2048"),
+                lines: [
+                    ctx.t("arcade2048Intro1"),
+                    ctx.t("arcade2048Intro2"),
+                    ctx.t("arcade2048Intro3"),
+                ],
+                start: ctx.t("arcade2048IntroStart"),
+            });
+        }
+
         // ── Interface ──────────────────────────────────────────────────────
 
         return {
@@ -278,7 +292,7 @@
                 loop.start();
                 paused = false;
 
-                if (!saved) ctx.setOverlay(ctx.t("arcade2048Prompt"), ctx.t("arcade2048Hint"));
+                if (!saved) intro();
             },
 
             getState() {
@@ -309,6 +323,8 @@
 
             isOver() { return over; },
 
+            showIntro: intro,
+
             handleKey(e) {
                 if (paused) return;
 
@@ -316,7 +332,7 @@
                     freshRun();
                     scoreCb?.(score);
                     ctx.saveNow();
-                    ctx.setOverlay(ctx.t("arcade2048Prompt"), ctx.t("arcade2048Hint"));
+                    intro();
                     return;
                 }
 

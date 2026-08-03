@@ -11,9 +11,11 @@ web pages and page elements, and for extracting source images from a page.
 processing happens locally in your browser. There is no analytics, no
 tracking, and no remote server operated by the developer. Outbound network
 requests are limited to the ones described below — fetching an image URL you
-chose to extract, and (only if you turn on the optional Legal Capture feature)
-a hash sent to a public timestamping authority. Neither goes to the developer,
-and neither includes your browsing content.
+chose to extract, (only if you turn on the optional Legal Capture feature) a
+hash sent to a public timestamping authority, and (only while you play the
+built-in Typing Trainer mini-game) a request to Wikipedia for a random article
+summary to type. None goes to the developer, and none includes your browsing
+content.
 
 ## What the extension stores
 
@@ -68,6 +70,19 @@ case reference fields, and the optional machine info, browser/page
 environment, geolocation, and Chrome-account-email data described below —
 stays local: it's written only into the report and manifest inside the zip
 on your device, never sent to any of the three authorities or anywhere else.
+
+Finally, the extension includes a small **Arcade** of mini-games (opened by
+clicking the logo in the popup header) — a hidden extra, unrelated to
+capture. One of them, the **Typing Trainer**, needs something to type. Rather
+than ship a fixed set of paragraphs, it asks Wikipedia for a random article
+summary in whichever language you pick from its dropdown, using Wikipedia's
+public REST API (`https://<language>.wikipedia.org/api/rest_v1/page/random/summary`).
+The request happens **only while that specific game is open**, contains no
+data about you — it names no article, no page you've visited, and carries no
+identifier; Wikipedia chooses the article — and nothing is uploaded. If the
+request fails (offline, blocked), the game falls back to a short built-in
+sentence. Your chosen drill language is stored locally, like any other
+preference. No other mini-game makes any network request at all.
 
 Screenshot capture itself (Page Capture, Capture Element, Remove Elements) is
 entirely local: nothing about the page you capture is ever sent anywhere.

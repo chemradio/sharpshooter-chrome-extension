@@ -6,7 +6,7 @@
 // level and keeps the score.
 (function () {
     const COLS = 8;
-    const ROWS = 5;
+    const ROWS = 6;   // one more than the 270px-tall stage carried
     const MARGIN = 12;
     const GAP    = 4;
     const BRICK_H = 12;
@@ -14,7 +14,7 @@
 
     const PADDLE_W = 62;
     const PADDLE_H = 8;
-    const PADDLE_Y = 249;
+    const PADDLE_Y = 309;   // STAGE_H - 21, same floor gap as before
     const PADDLE_SPEED = 380;   // px/s, arrow-key fallback
 
     const BALL_R = 4;
@@ -254,12 +254,26 @@
             draw();
         }
 
+        // ── Attract screen ─────────────────────────────────────────────────
+
+        function intro() {
+            ctx.setIntro({
+                title: ctx.t("arcadeGameBreakout"),
+                lines: [
+                    ctx.t("arcadeBreakoutIntro1"),
+                    ctx.t("arcadeBreakoutIntro2"),
+                    ctx.t("arcadeBreakoutIntro3"),
+                ],
+                start: ctx.t("arcadeBreakoutIntroStart"),
+            });
+        }
+
         // ── Pointer input ──────────────────────────────────────────────────
 
         function onPointerMove(e) {
             if (paused || over) return;
-            const rect = el.getBoundingClientRect();
-            paddleX = clamp(e.clientX - rect.left, PADDLE_W / 2, ctx.STAGE_W - PADDLE_W / 2);
+            const { x } = ctx.pointer(el, e);
+            paddleX = clamp(x, PADDLE_W / 2, ctx.STAGE_W - PADDLE_W / 2);
         }
 
         function onPointerDown() {
@@ -267,7 +281,7 @@
             if (over) {
                 freshRun();
                 scoreCb?.(score);
-                ctx.setOverlay(ctx.t("arcadeBreakoutPrompt"), ctx.t("arcadeLaunchHint"));
+                intro();
                 return;
             }
             launch();
@@ -293,7 +307,7 @@
                 loop.start();
                 paused = false;
 
-                if (!saved) ctx.setOverlay(ctx.t("arcadeBreakoutPrompt"), ctx.t("arcadeLaunchHint"));
+                if (!saved) intro();
             },
 
             getState() {
@@ -332,13 +346,15 @@
 
             isOver() { return over; },
 
+            showIntro: intro,
+
             handleKey(e) {
                 if (paused) return;
 
                 if (over) {
                     freshRun();
                     scoreCb?.(score);
-                    ctx.setOverlay(ctx.t("arcadeBreakoutPrompt"), ctx.t("arcadeLaunchHint"));
+                    intro();
                     return;
                 }
 
@@ -359,7 +375,9 @@
         id: "breakout",
         nameKey: "arcadeGameBreakout",
         realtime: true,
-        saveVersion: 1,
+        // 2: the wall gained a row and the paddle moved with the square
+        // stage, so a v1 snapshot describes a board that no longer exists.
+        saveVersion: 2,
         create,
     });
 })();
