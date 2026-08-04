@@ -19,11 +19,13 @@ This document describes the current implementation. Aspirational features are sp
 
 ## Entry points
 
-All captures are triggered from the **toolbar popup** ([popup.html](popup.html) / [popup.js](popup.js)). The main view runs top to bottom: quality multiplier (scale) and resolution presets, a small centred divider (`.divider--small`), then one stacked group of capture actions (`section.capture-actions`) — **Page Capture**, **Legal Capture**, **Element Capture** — then a `.divider` and the **Helpers** section (**Remove Elements**, the interactive DOM killer, **Extract Image**, and **Extract Design**).
+All captures are triggered from the **toolbar popup** ([popup.html](popup.html) / [popup.js](popup.js)). The main view runs top to bottom: quality multiplier (scale) and resolution presets, a small centred divider (`.divider--small`), then one stacked group of capture actions (`section.capture-actions`) — **Page Capture**, **Legal Capture**, **Element Capture** — then a `.divider` and the **Helpers** section (the split **Blur Elements** / **Remove Elements** control, **Extract Image**, and **Extract Design**).
 
 Every capture control is a **segmented button**: a wide main segment (`.btn-capture--main`) that runs the action directly, plus a narrow segment on its right. For Page Capture, Element Capture and Extract Image that narrow segment is **with crop** (`.btn-capture--crop`), which runs the same action through the crop editor — so hovering it lights the main button too, since the two together read as one combined action. When the **Always open the crop editor** setting is on, every capture goes to the editor and the crop segments are hidden via the `.crop-default` class on `.popup` (Extract Image keeps both, since its crop segment means *screenshot the element* rather than *download the image*).
 
-**Legal Capture's and Extract Design's narrow segments are a different thing and are deliberately a different class** (`.btn-capture--sub`): a gear + **settings** label that opens the Legal Capture Settings subpage instead of capturing. It shares the crop segment's geometry but not its linked hover — it highlights alone, and hovering Legal Capture leaves it dark, so it can never imply it will fire the capture next to it. Its whole block (`#legal-capture-section`, which also carries the Remove-Elements warning banner) is hidden by the **Enable Legal Capture** setting. Extract Design's gear behaves identically, opening **Design Settings**; its block (`#design-extract-section`) is hidden by **Enable Extract Design**, which defaults on. Because the generic `.btn-capture--sub` hover rule paints cyan and is declared after the violet block, both stylesheets re-assert violet for `.btn-capture--sub.btn-capture--violet` *after* it — a plain `--violet` class alone is not enough.
+**Legal Capture's narrow segment is a different thing and is deliberately a different class** (`.btn-capture--sub`): a gear + **settings** label that opens the Legal Capture Settings subpage instead of capturing. It shares the crop segment's geometry but not its linked hover — it highlights alone, and hovering Legal Capture leaves it dark, so it can never imply it will fire the capture next to it. Its whole block (`#legal-capture-section`) is hidden by the **Enable Legal Capture** setting.
+
+**Extract Design has no narrow segment at all** (`.btn-capture--solo`, a full-width main button). It used to carry a gear opening a Design Settings subpage; both are gone. The card is now live in the page and owns its own Capture button, so there is nothing left to configure ahead of time. Its block (`#design-extract-section`) is still hidden by **Enable Extract Design**, which defaults on.
 
 A header **?** button opens an in-popup help panel, and a header **gear** button opens the **Settings** panel. Clicking the brand mark in the header opens the **Arcade** (see below) — the header itself does not move when it does.
 
@@ -73,6 +75,69 @@ All capture paths (page, element) wrap the emulated session in `withZoomReset` (
 
 ---
 
+## Blur Elements / Remove Elements
+
+One control split down the middle in the Helpers section
+(`.helper-segmented` in [popup.html](popup.html)): **Blur Elements** on the
+left, **Remove Elements** on the right. Both clean a page before a
+screenshot — personal data, logged-in identity, ads — and both run the *same*
+picker, [contentScripts/domKiller.js](contentScripts/domKiller.js), started
+with a `mode`:
+
+| mode | commit action | undo entry |
+|---|---|---|
+| `"remove"` | detaches the node (walking up to the enclosing `<a>`) | `{node, parent, nextSibling}` |
+| `"blur"` | sets `filter: blur(Npx) !important` inline, node stays | `{node, filter, priority}` |
+
+**Blur applies on commit, never as a hover preview — a preview was built and
+reverted.** `filter` makes the element a containing block for fixed-position
+descendants, so blurring whatever is under the pointer shifts the page, which
+re-targets the hover, which un-blurs and shifts it back: the frame oscillated
+between elements and the mode was unusable. The idea is sound (blur strength
+is size-derived, so the rendered result is the only honest answer to "how much
+does this hide?"), but any retry must break that feedback loop — freeze
+targeting while a preview is up, or paint the preview into the overlay instead
+of onto the page.
+
+Blur exists because removal reflows: taking a comment out collapses the
+thread around it, so the screenshot no longer shows the page as it was. Blur
+leaves every box where it is and only makes the content unreadable — which is
+what redaction actually wants. It also deliberately does **not** climb to the
+enclosing `<a>` the way removal does: the element stays in the layout, so
+widening the target only smears more of the page than the user pointed at.
+Blur radius scales with the target's shorter side (`shortest / 10`, clamped
+to 6–28 px) — a fixed radius either erases a small avatar into a smudge or
+leaves body text in a wide block legible. The existing filter is read from
+`getComputedStyle` and preserved, so a page that already filters the node
+keeps its own effect.
+
+**Do not fork the picker for a new mode.** The DOM walk, same-rect collapsing,
+descent memory, sibling climbing, the event blocking (`window.open` stub,
+capture-phase swallowing of every navigation-triggering event) and the undo
+stack are non-trivial and must not exist twice — this is the same rule the
+element highlighter carries for Extract Design. Every colour in the picker's
+stylesheet derives from one `COLOR` constant via a `tint()` helper
+(`color-mix`) rather than literal `rgba()`, so the whole overlay repaints from
+one line — but both modes deliberately use the same targeting red `#FF0055`,
+matching the single red button (`.btn-helper--danger` on both halves) they
+launch from. Blur briefly framed in blue; a second colour read as a different
+tool instead of the other half of the same one. **The banner, not the colour,
+names the mode.**
+
+Mode arrives via a **second injection**, not a message: `domKiller.js` only
+registers `window.__DomKillerStart`, and [backgroundScript.js](backgroundScript.js)'s
+`domKiller` action calls it with `{mode}` in an immediately following
+`executeScript({func})`. Colour, banner and commit action are all built during
+startup, so the mode has to be known before anything runs — unlike Image
+Extractor's crop flag, which can arrive later over `chrome.tabs.sendMessage`.
+
+Neither mode reports itself anywhere. There used to be a per-tab
+`domKillerUsed` flag (`support/tabState.js`, a `getTabCaptureFlags` action and
+a banner in the Legal Capture section) warning that the page had been
+hand-edited; all of it is **deleted**. Legal Capture's step 3 reload restores
+the server's own HTML unconditionally, so the banner only ever announced
+something that had already been handled.
+
 ## Image Extractor
 
 The **Extract Image** helper ([contentScripts/imageExtractor.js](contentScripts/imageExtractor.js)) downloads the highest-resolution image found inside a selected DOM subtree, without taking a screenshot at all. User clicks the button, then hovers elements on the page. A **amber** (#F59E0B) glow indicates the current target (same DOM navigation model as element capture: scroll wheel = parent/child, arrow keys = parent/child/siblings, Esc = cancel).
@@ -103,170 +168,257 @@ On click (or Enter):
 
 ## Extract Design
 
-Reads a selected element's *styling* rather than its pixels, and produces a
-designer-facing package: a shareable spec card, a Markdown spec sheet, a
-screenshot, and the raw JSON dossier all three are rendered from. It sits in
-the **Helpers** section as a segmented button whose narrow segment is a gear
-opening **Design Settings** (`.btn-capture--sub`, exactly like Legal
-Capture's — it highlights alone and never implies it will fire the capture
-beside it, which is why it is *not* a `.btn-capture--crop`). Accent colour is
-**violet** (`#A855F7` dark / `#7C3AED` light); cyan already means Element
-Capture and amber means Extract Image, so the picker's frame colour alone
-tells the user which mode they're in. Hidden by the **Enable Extract Design**
-setting, which defaults **on** — unlike Legal Capture it needs no permission
-and costs nothing when unused.
+Shows an element's **fonts and colours in a live card beside it while you
+hover**, freezes that card on click so you can copy out of it, and can save the
+card and the element together as one PNG. It sits in the **Helpers** section as
+a plain full-width button — there is deliberately no gear sub-segment and no
+settings subpage, because the card *is* the product and its own Capture button
+is the only action it has. Accent colour is **violet** (`#A855F7` dark /
+`#7C3AED` light); cyan already means Element Capture and amber means Extract
+Image, so the picker's frame colour alone tells the user which mode they're in.
+Hidden by the **Enable Extract Design** setting, which defaults **on**.
 
-**It requires no new Chrome permission.** `debugger`, `scripting`,
-`downloads` and `<all_urls>` are all already held. Treat that as a design
-constraint, not a coincidence: it keeps the feature out of Web Store
-permission review entirely. Weigh that cost explicitly before adding an
-option that would break it.
+**It requires no new Chrome permission and makes no network request.**
+`debugger`, `scripting`, `downloads`, `activeTab` and `<all_urls>` are all
+already held. Treat both halves as design constraints, not coincidences — the
+first keeps the feature out of Web Store permission review entirely, and the
+second is why the rendered palette is sampled from a screenshot rather than by
+fetching the page's image files (see below). Weigh both explicitly before
+adding anything that would break them.
+
+### The three tiers, and why they're split that way
+
+Everything about the architecture follows from one fact: the three things this
+feature does cost wildly different amounts, so they run at different moments.
+
+| Stage | Work | Debugger? | Network? |
+|---|---|---|---|
+| **Hover** | `getComputedStyle` sweep over the subtree: fonts + CSS colours | no | no |
+| **Click / freeze** | + `chrome.tabs.captureVisibleTab` → rendered palette; card becomes interactive | no | no |
+| **Capture button** | `withElementSession` → full-quality element screenshot → composed card → download | **yes** | no |
+
+The yellow debugger banner therefore appears only at the moment the user
+deliberately exports, never while they are browsing around with the card open.
+Do not move work up a tier to simplify the code — a hover that attaches the
+debugger, or that hits the network, is a different (and much worse) product.
 
 ### The shared picker
 
-Extract Design does **not** have its own content script. It reuses
+Extract Design does **not** have its own picker. It reuses
 [contentScripts/elementHighlighter.js](contentScripts/elementHighlighter.js)
-via two additions:
+via a small hook set, and the card lives in
+[contentScripts/designInspector.js](contentScripts/designInspector.js),
+injected immediately before it (the highlighter looks for
+`window.__DesignInspector` when its metrics message arrives, so the inspector
+must already exist). The contract is deliberately just five calls —
+`onTarget` / `onCommit` / `onRelease` / `onReposition` / `isFrozen`:
 
-- Every colour in the injected stylesheet resolves through a single
+- Every colour in the highlighter's stylesheet resolves through a single
   `--hl-accent` custom property, with `color-mix()` replacing the literal
-  `rgba()` tints that used to hardcode the cyan channel values. `applyAccent`
-  sets that one property when `sendDeviceMetrics` arrives, re-theming the
-  whole overlay. `destroy()` removes it so the property never leaks into the
-  page's cascade.
-- A `mode` field travels in on `sendDeviceMetrics` and back out on
-  `elementClicked`;
-  [elementClickListener.js](screenshots/elementSelect/elementClickListener.js)
-  routes on it. `mode === "design"` also adds `.__hl-mode-design`, which drops
-  the marching-ants hatch for a solid rule — the frame's job here is to sit
-  around something you're about to sample colours from, so it must not tint
-  it.
+  `rgba()` tints that used to hardcode cyan. `applyAccent` sets that one
+  property; `destroy()` removes it so it never leaks into the page's cascade.
+- `mode === "design"` adds `.__hl-mode-design`, which drops the marching-ants
+  hatch for a solid rule — the frame's job here is to sit around something
+  you're about to sample colours from, so it must not tint it.
+- **In design mode, clicking commits into the page, not to the background.**
+  `commitSelection()` hands the element to the card and returns; no marker is
+  set and no `elementClicked` message is sent. Nothing is captured until the
+  user presses the card's own Capture button.
+- While the card is frozen the picker goes inert (mouse, wheel and arrows all
+  no-op) so the highlight doesn't chase the pointer across the card. **Esc
+  while frozen unfreezes rather than tearing down** — a frozen card is a state
+  the user chose, so the first Esc undoes that choice and only the second ends
+  the session.
 
-Do not fork the highlighter for a new mode. The DOM walk, same-rect
-collapsing, descent memory, sibling climbing and keyboard handling are
-non-trivial and must not exist twice.
+Do not fork the highlighter for a new mode. The DOM walk, same-rect collapsing,
+descent memory, sibling climbing and keyboard handling are non-trivial and must
+not exist twice.
 
-Tooltip copy is localized **in popup.js** and passed through the injection
-message (`strings: {nav, commit}`). A content script only sees `chrome.i18n`'s
-browser-UI locale and would silently ignore the Settings language override.
+**One subtlety that will bite anyone editing the click path:** the
+highlighter's click listener is on `document` in the **capture** phase, so it
+sees clicks *before* the card does. The card is in a shadow root, so events
+from it retarget to its host — and `onClick` checks for that host id and
+returns early. Without that check, `stopPropagation()` swallows every click on
+the card's own swatches and buttons before they can fire.
 
-### Shared element session
+### The scan
 
-[screenshots/elementSelect/elementSession.js](screenshots/elementSelect/elementSession.js)
-holds everything both element features need: zoom reset, attach, scrollbar
-hiding, emulation, settle, locate-by-marker, measure, viewport expansion to
-fit, screenshot, crop, and marker cleanup in a `finally`. It exposes
-`withElementSession(opts, body)`, where `body` receives
-`{rect, metrics, dpr, cdp, captureCropped}`.
+[contentScripts/designInspector.js](contentScripts/designInspector.js), running
+on every hover, so it stays deliberately narrow. Four things worth knowing:
 
-This was split out of `elementClickListener.js` specifically to avoid a
-circular import — the click listener imports both consumers, so the machinery
-they share cannot live in it.
-
-### Pipeline
-
-[support/designExtract/designSession.js](support/designExtract/designSession.js).
-**Ordering is load-bearing:**
-
-1. **Screenshot first**, before the collector runs. The collector injects a
-   hidden `about:blank` iframe (see below); screenshotting after that risks it
-   appearing in the PNG.
-2. **Collect** via `Runtime.evaluate` on the *same* debugger channel, inside
-   the same emulated session. Emulation can cross a responsive breakpoint, so
-   a dossier gathered before emulation would document a layout the PNG does
-   not show. This is the single most important correctness property of the
-   feature.
-3. **Interaction states last** — forcing `:hover` changes what the page
-   renders, so nothing describing the resting state may run after it.
-
-### The collector
-
-[support/designExtract/collector.js](support/designExtract/collector.js)
-exports *source strings*, not callables — the body runs in the page via
-`Runtime.evaluate`, so it is written as plain page JS with no imports and no
-closures over module scope.
-
-Three techniques worth understanding before editing it:
-
-- **Baseline diff.** Reporting all ~340 computed properties per node is
-  useless noise. Each value is diffed against the same tag rendered with no
-  author CSS at all, obtained from a hidden `about:blank` iframe (UA
-  stylesheet only, same engine, same-origin so `getComputedStyle` is
-  readable). Typical output drops from ~340 properties to 8–25. Rule
-  harvesting via `document.styleSheets` is **not** an option — `cssRules`
-  throws on cross-origin stylesheets, which is most of them.
+- **Fonts report the face that actually rendered, not the declared stack.**
+  This is the single most important correctness property of the feature.
+  `getComputedStyle().fontFamily` hands back `Inter, system-ui, sans-serif`
+  whether or not Inter ever loaded — a card printing that is confidently wrong
+  on any page with a failed webfont, which is exactly the question a designer
+  opened it to answer. `resolveStack` walks the stack left to right taking the
+  first family `document.fonts.check()` can actually serve, and cross-references
+  `document.fonts` for the webfont-vs-installed badge (a distinction DevTools
+  doesn't surface and that decides whether a designer can use the font at all).
+  Generic families always answer true, so the walk always terminates.
+- **`fill` and `stroke` are read only on `SVGElement`.** `fill` computes to
+  black on *every* element, SVG or not; reading it unconditionally stamps
+  `#000000` onto the palette of every component on the web.
+- **Gradient stops and shadow colours are extracted from the compound value**
+  (`extractColors`). They are authored colours that never surface as a computed
+  `background-color`, so a scan reading only the plain colour properties misses
+  the entire palette of a gradient-heavy component.
 - **Two-sentinel colour probe.** Colours are normalized by round-tripping
-  through a canvas `fillStyle`, which resolves any CSS colour syntax
-  (`oklch()`, `color()`, named) to hex or `rgba()`. But **assigning an
-  invalid colour to `fillStyle` is a silent no-op** that leaves the previous
-  value — probing against one sentinel therefore reports that sentinel as a
-  successful parse, which classified every non-colour custom property
-  (`16px`) as black. `resolveCssColor` probes against `#000000` *and*
-  `#ffffff` and accepts the result only when both agree.
-- **Contrast follows the real ancestor chain.** `effectiveBackground(el)`
-  walks up to the nearest opaque background, so each text colour is graded
-  against the surface it is actually painted on. Pairing every text colour
-  with every background colour found in the subtree instead produces
-  confident nonsense — white button text graded against the white card
-  *behind* the button, failing at 1:1. A false accessibility failure is worse
-  than reporting nothing. Large text (≥24px, or ≥18.66px bold) is held to
-  3:1 rather than 4.5:1.
+  through a canvas `fillStyle`, which resolves any CSS syntax (`oklch()`,
+  `color()`, named) to hex or `rgba()`. But **assigning an invalid colour to
+  `fillStyle` is a silent no-op** that leaves the previous value, so probing
+  against one sentinel reports that sentinel as a successful parse.
+  `resolveCssColor` probes against `#000000` *and* `#ffffff` and accepts the
+  result only when both agree.
 
-Output is aggregate-first: palette with usage counts and roles, type styles
-(deduplicated combinations, with sample text), spacing scale, gaps, radii,
-shadows, font stacks — plus per-node detail. The aggregates are what a
-designer actually wants; the node dump is supporting material.
+Capped at `MAX_NODES` (1400) with `truncated` reported, and cached per element
+in a `WeakMap` — walking the tree revisits elements constantly, and re-scanning
+an unchanged subtree is the one thing that would make hovering feel heavy.
 
-**Gaps are recorded, not skipped.** Shadow DOM, `<iframe>` and `<canvas>`
-subtrees are unreadable; each is pushed to `gaps` with a plain-language note
-and surfaced in the spec sheet. A spec that quietly omits half a component is
-worse than one that says so.
+### The rendered palette
 
-### Interaction states
+[support/designExtract/rasterPalette.js](support/designExtract/rasterPalette.js).
+Dominant colours **including those inside images**, measured from pixels rather
+than read from CSS.
 
-`CSS.forcePseudoState` (the CDP command DevTools' `:hov` checkbox drives) is
-the only way to observe a hover style — page JS cannot force a pseudo-class,
-so a static `getComputedStyle` pass can never answer "what does this look
-like on hover". `resolveNodeId` finds the node via `DOM.querySelector` on the
-same `data-sharpshooter-target` marker element capture already sets. Only the
-root element is re-read, against a tight `STATE_PROPS` list, and only changed
-properties are reported. Entirely best-effort: forcing is always cleared in a
-trailing `try`, since leaving a node stuck in forced `:active` would visibly
-corrupt the page the user is still on.
+**Why a screenshot rather than fetching the page's image files.** All four
+reasons matter; don't "optimize" this back:
 
-### Renderers
+1. It reports the colour actually *painted* — after filters, opacity, blend
+   modes and `object-fit` cropping. A source file's palette routinely contains
+   colours that never reach the screen.
+2. It covers `<canvas>`, `<video>`, WebGL, SVG and CSS gradients uniformly.
+   Fetching only ever covers `<img>` and `background-image`.
+3. No CORS wall. A content script's canvas is tainted by cross-origin images,
+   and in MV3 its `fetch` is bound by the page's CORS.
+4. **No network request**, which is what keeps the constraint above intact.
 
-- [specSheet.js](support/designExtract/specSheet.js) → `design.md`. Markdown,
-  not plain text, because this is the artifact that gets pasted into a doc or
-  issue tracker, all of which preserve table structure on paste. Deliberately
-  **English-only even when the UI is localized** — a spec sheet gets forwarded
-  to people who don't share the operator's locale.
-- [cardRenderer.js](support/designExtract/cardRenderer.js) → `card.png`.
-  Hand-laid on `OffscreenCanvas`: a service worker has no DOM, and an
-  offscreen document can't be screenshotted. Two passes over one section
-  list — measure, then paint — so the canvas is sized to its content rather
-  than guessed and cropped. **Geometry is drawn, not tabulated**: the radius
-  is a real rounded corner, the padding a real inset diagram, the shadow a
-  real shadow. That is the difference between a card someone posts and a card
-  someone scrolls past; do not reduce it to a table of numbers. Fonts are
-  generic families only — a worker cannot load webfonts.
+`chrome.tabs.captureVisibleTab` needs `activeTab` or host permission (both
+already held) and attaches no debugger, so sampling never raises the yellow
+banner. It is quota-throttled to ~2 calls/sec, which is the other reason it
+runs on freeze and never on hover.
 
-### Packaging
+**The overlay and the card must be hidden for the capture.** The highlighter's
+backdrop dim is rgba black at 45% over the whole viewport; sampling through it
+darkens every result. Both are hidden for the two frames the capture needs and
+restored after.
 
-Reuses `buildZip` from
-[support/legalCapture/zipWriter.js](support/legalCapture/zipWriter.js)
-unchanged. **A single enabled artifact downloads bare** rather than as a
-one-item archive. `saveAs: true`, and `filenamePrefix` is honoured, like every
-other download path.
+Quantization is median cut — deterministic, so the same element always yields
+the same swatches, which matters when the output is a spec someone quotes.
+Two non-obvious steps:
+
+- **Boxes below `MIN_BOX_RANGE` are not split.** Without that guard a flat
+  three-colour component still gets carved into `SWATCH_COUNT` boxes, and the
+  extra boundaries land *between* real colours — reporting a violet-white
+  average that appears nowhere on screen.
+- **Every pixel is reassigned to its nearest surviving centre before shares are
+  computed.** Median cut splits at the median, so every box holds roughly the
+  same pixel count and box size says nothing about coverage. Without the
+  reassignment pass a colour covering 50% of the element reports 38%.
+
+### The card
+
+The card exists **twice**, and this is the real cost of the design: as live DOM
+in the page (it has to be clickable) and as an `OffscreenCanvas` drawing in the
+service worker (the export path has no DOM to screenshot — a worker has none
+and an offscreen document can't be screenshotted). They are driven from the
+same scan object and their section order matches;
+**when you change one, change the other.**
+
+The live card is in a shadow root — it sits inside arbitrary pages, and a page
+stylesheet targeting `div` or `button` globally would otherwise reshape it. It
+is `pointer-events: none` while hovering (or moving the pointer toward it would
+re-target onto the card itself) and `auto` once frozen.
+
+**The rendered palette never shares a shape or a row with the CSS swatches**:
+wide bars with coverage percentages and a caption saying where the numbers came
+from, versus square swatches with hex and role. Pasting a photo's average brown
+into a stylesheet as a brand token is a real foot-gun, and the visual
+separation is the guard against it. Geometry — padding, radius, shadow
+diagrams — was deliberately dropped; this card answers "what fonts and colours"
+and nothing else.
+
+Copy-to-clipboard goes through `navigator.clipboard.writeText` with an
+`execCommand` fallback (the Clipboard API needs focus and a secure context; a
+page click usually satisfies both, but not always).
+
+### Curation: the picked palette and the x buttons
+
+A frozen card is editable, and both halves of that feed the export.
+
+**The eyedropper** uses the **`EyeDropper` API**, which reads a pixel from
+anywhere on screen including outside the browser — it covers everything
+sampling can't reach, for about ten lines of code. Each pick is copied *and*
+added to a **"User pick"** section, which only appears once something has
+been picked. That list is **session-scoped, not per-element**: the picker reads
+pixels from anywhere, so what it collects isn't a property of whichever element
+happens to be selected, and walking to another element must not throw it away.
+Re-picking an existing colour moves it to the front rather than duplicating it.
+Nothing else ever writes to this list — clicking an existing swatch copies, it
+does not collect.
+
+The picked panel is the one section drawn with the accent tint, on both the
+live and the exported card. Everything else there was *observed*; this was
+*authored*, and it should not look like another measurement.
+
+**The x buttons** strike fonts, CSS colours, rendered swatches and picked
+colours off the card, and the export gets the curated result — that being the
+entire point. Two things are load-bearing:
+
+- **Removals are a view filter, not a splice.** They live in a
+  `WeakMap<Element, Set<key>>` and are applied at render time. Splicing the
+  arrays looks simpler and is wrong: the scan re-runs (`onCommit` deliberately
+  re-scans, so the frozen reading is fresh) and every spliced entry would come
+  straight back. Keys are namespaced — `color:` / `font:` / `raster:` /
+  `picked:` — so striking a hex from the CSS palette doesn't also remove it
+  from the rendered one; they're different claims about the same colour.
+- **`[data-remove]` is matched before `[data-copy]` in the click handler.** The
+  x sits *inside* the swatch, so a copy-first lookup matches the swatch and
+  nothing is ever removed.
+
+x buttons render only while frozen. The card isn't hit-testable during hover,
+so an x that looked pressable but wasn't would be a lie about the interface.
+
+Card copy is localized **in popup.js** and passed through the injection message
+(`cardStrings`). A content script only sees `chrome.i18n`'s browser-UI locale
+and would silently ignore the Settings language override.
+
+### The export
+
+[support/designExtract/designCaptureSession.js](support/designExtract/designCaptureSession.js).
+Two deliberate reversals of how the old zip-producing version worked:
+
+- **The resolution preset is ignored.** Emulating a different viewport would
+  relayout the page, and the card's numbers describe the layout the user is
+  looking at. A screenshot that disagrees with the spec printed beside it is
+  worse than a lower-resolution one — so capture happens at the **live
+  viewport**, and the quality multiplier applies as `deviceScaleFactor` only
+  (pixel density, not layout). Note this still reproduces what the user saw at
+  non-1 browser zoom: `withZoomReset` sets zoom to 1 and the live `innerWidth`
+  is already the zoomed CSS width, so emulating it gives the same layout.
+- **Nothing is re-collected.** The scan travels in from the content script.
+  Re-running it inside the emulated session would produce a card differing from
+  the one the user froze and approved.
+
+The one thing the export *adds* is **rendered-font ground truth** via CDP
+`CSS.getPlatformFontsForNode` — what powers DevTools' "Rendered Fonts" panel,
+returning the faces the renderer actually resolved with a glyph count each,
+including per-glyph fallback that no amount of `document.fonts.check()` can
+predict. It needs a debugger attach, so it can only exist here: **the exported
+card is slightly more accurate than the live one, by design.** Entirely
+best-effort — a page that blocks CDP keeps the scan's own resolution.
+
+Output is a single PNG (`saveAs: true`, `filenamePrefix` honoured). There is no
+zip, no `design.md` and no `design.json` — the card is the artifact.
 
 ### Known limits — state these, don't paper over them
 
 Computed styles are **resolved** values: `clamp()`, `%`, `vw` and `em` are all
 flattened to pixels by the browser before they can be read, so a fluid value
-appears as whatever it measured at the capture width. `report`-style output
-says so explicitly. The obvious mitigation — sampling at several viewport
-widths to *detect* fluidity rather than mis-reporting it as fixed — is the
-main planned follow-up (see Planned).
+appears as whatever it measured at the current width. Shadow DOM, `<iframe>`
+and `<canvas>` subtrees can't be read as CSS (though canvas pixels *do* reach
+the rendered palette, which is one of the gaps the screenshot approach closed).
+The rendered palette samples only the part of the element currently on screen.
 
 ---
 
@@ -345,7 +497,7 @@ can't `import` that module).
 10. Downloads one zip (`legal-capture-<timestamp>.zip`, `saveAs: true`) containing whichever of `capture.wacz`, `screenshot.png`, `page.html`, `page.mhtml` were produced, `manifest.json` (frozen, hash-sealed core), `timestamps.json` (the TSA results/errors, written after — it points at manifest.json's hash rather than being inside it, since nothing can attest to its own future), whichever `capture-<authority>.tsr` files succeeded, `SHA256SUMS.txt` (sha256 of every file physically in the zip — its own toggle, a convenience check that nothing was swapped post-assembly, not itself sealed unlike manifest.json), and `report.txt` (plain-language "what this proves / doesn't prove" writeup, including a **Capture Options** section mirroring `captureOptions` exactly, the operator/case-reference/geolocation/account-email certification block, tool + machine + page-environment provenance, redirect chain, TSA verification + clock-skew results, and network/WebSocket/Service-Worker coverage stats).
 
 **Guards against disputing "the HTML was unaltered":**
-- **Remove Elements**: [contentScripts/domKiller.js](contentScripts/domKiller.js) broadcasts `domKillerUsed` the first time an element is actually removed on a tab; [support/tabState.js](support/tabState.js) records that per-tab in `chrome.storage.session` (cleared on the tab's next navigation via `chrome.tabs.onUpdated`). The popup surfaces this as an informational warning banner in the Legal Capture section — informational only, since step 3's forced reload already restores the original HTML regardless (and always runs, even with every other toggle off).
+- **Remove / Blur Elements**: step 3's forced, cache-bypassed reload is the whole guard — it always runs, even with every other toggle off, so whatever the operator removed or blurred is gone before anything is captured. There is deliberately **no** warning banner and no per-tab "was this page hand-edited" flag: the earlier `domKillerUsed` broadcast, `support/tabState.js` and the `getTabCaptureFlags` action have all been deleted. They only ever announced a condition the reload had already resolved, at the cost of a storage write per session and an extra message round-trip on every popup open. Don't reintroduce them.
 - **Native DevTools open on the tab**: `chrome.debugger.attach` fails if a real DevTools window already holds the tab's debugger slot. [support/debugerAttachment.js](support/debugerAttachment.js)'s `attachDebugger` normally auto-recovers from an "already attached" error (a leaked *own* prior session), but if the retry fails too, it now throws a distinguishable `DevToolsAttachedError` instead of a generic Chrome error string, which the popup turns into "DevTools is open on this tab. Close it and try again." There's no reliable way to detect a DevTools-made DOM edit *after the fact* — a live MutationObserver can't distinguish a human editing via Elements-panel from the page's own routine JS-driven DOM churn — so the forced reload is the actual safeguard, not detection.
 
 **Threat model — read before "hardening" this further.** Legal Capture runs on a machine the operator controls, so it *cannot* be made tamper-proof against a dishonest operator, and the code must not imply otherwise. An operator can point DNS at a local server, install their own CA root, and capture a page they wrote — every hash correct, every TSA timestamp genuine. A timestamp proves *these bytes existed at time T*, never *this is what the server sent*. The design goal is therefore **detectability by a third party, not prevention**: push every claim toward something a verifier can check against the outside world (server IP vs. passive DNS, leaf cert fingerprint vs. public CT logs, install type, WACZ replay in ReplayWeb.page). `report.txt`'s **LIMITS — PLEASE READ** section states this explicitly, including the fact that install type / IP / CT status are self-reported by the same extension and are meaningful only *because they are externally checkable*. Do not add language asserting the package is tamper-proof; a tool that marks its boundary precisely is worth more in front of a tribunal than one that overstates its reach. The obvious next step — submitting the URL to a public archive for independent corroboration — is deliberately **not** implemented: it would send the captured URL to a third party, contradicting [PRIVACY.md](PRIVACY.md)'s promise that only a hash ever leaves the machine. If ever added it must be default-off with an explicit warning.
@@ -609,7 +761,7 @@ over the shared CRT language. No sound.
 
 ## Architecture notes
 
-- **Service worker:** [backgroundScript.js](backgroundScript.js). Owns a specific set of message actions (`getPageHeight`, `getViewportSize`, `capturePage`, `captureElement`, `domKiller`, `stopDomKiller`, `imageExtractor`, `imageExtractorDownload`, `imageExtractorCropUrl`, `getTabCaptureFlags`, `startLegalCapture`, `extractDesign`) and always responds with `{ok: true, ...}` or `{ok: false, error}`. Other listeners own their own actions to avoid channel conflicts: the element-click handler in [screenshots/elementSelect/elementClickListener.js](screenshots/elementSelect/elementClickListener.js) claims `elementClicked`; [support/tabState.js](support/tabState.js) claims the `domKillerUsed` broadcast; [support/legalCapture/geoPermissionRelay.js](support/legalCapture/geoPermissionRelay.js) claims `openGeolocationPermissionWindow` and `legalGeolocationPermissionResult`. `domKillerEnded` (broadcast by [contentScripts/domKiller.js](contentScripts/domKiller.js) when a Remove Elements session ends) is only listened for by [popup.js](popup.js) — the service worker doesn't claim it.
+- **Service worker:** [backgroundScript.js](backgroundScript.js). Owns a specific set of message actions (`getPageHeight`, `getViewportSize`, `capturePage`, `captureElement`, `domKiller`, `stopDomKiller`, `imageExtractor`, `imageExtractorDownload`, `imageExtractorCropUrl`, `startLegalCapture`, `extractDesign`, `designSampleRaster`, `designCapture`) and always responds with `{ok: true, ...}` or `{ok: false, error}`. Other listeners own their own actions to avoid channel conflicts: the element-click handler in [screenshots/elementSelect/elementClickListener.js](screenshots/elementSelect/elementClickListener.js) claims `elementClicked`; [support/legalCapture/geoPermissionRelay.js](support/legalCapture/geoPermissionRelay.js) claims `openGeolocationPermissionWindow` and `legalGeolocationPermissionResult`. `domKillerEnded` (broadcast by [contentScripts/domKiller.js](contentScripts/domKiller.js) when a Remove/Blur Elements session ends) is only listened for by [popup.js](popup.js) — the service worker doesn't claim it.
 - **Geolocation permission relay:** [support/legalCapture/geoPermissionRelay.js](support/legalCapture/geoPermissionRelay.js) + [support/legalCapture/geoPermission.html](support/legalCapture/geoPermission.html)/`.js`. Exists solely because an undecided geolocation permission prompt closes the toolbar action popup (focus steals to the native prompt, Chrome dismisses `action` popups on blur). `geoPermissionRelay.js` opens `geoPermission.html` as a real `chrome.windows.create` window (not an action popup, so it isn't subject to that auto-close), which calls `navigator.geolocation.getCurrentPosition` itself and reports the grant/deny back via a message the relay persists into `legalCaptureOptions.geolocation`, then closes its own window. `popup.js` only takes this path when `navigator.permissions.query({name:"geolocation"})` reports an undecided state; an already-resolved (`granted`/`denied`) state is read in the popup directly since no prompt — and therefore no close-on-blur risk — is involved. **Known benign console warning:** when `geoPermission.html` calls `navigator.geolocation.getCurrentPosition`, Chromium logs "Is the 'geolocation' permission appropriate? See https://developer.chrome.com/extensions/manifest.html#permissions." to that page's console (visible via the extension's "Errors" button in `chrome://extensions`). This is a built-in Chromium advisory triggered by any extension page calling the Geolocation Web API — it fires regardless of what's declared in `manifest.json` and is unrelated to the actual permission grant flow (which works correctly). It can only be silenced by adding `"geolocation"` to `manifest.json`'s standing `permissions` array, which would grant geolocation access unconditionally at install instead of the current opt-in-per-toggle design — a deliberate tradeoff not worth making. Leave the warning as-is.
 - **Debugger lifecycle:** [support/debugerAttachment.js](support/debugerAttachment.js). Idempotent attach/detach tracked in a `Set`. Auto-recovers from "already attached" via detach+retry, but only when that retry succeeds — if it fails too (a real external client, i.e. native DevTools, genuinely holds the slot), it throws a distinguishable `DevToolsAttachedError` rather than retrying forever or surfacing a generic Chrome error. Hooks `chrome.debugger.onDetach` to clear stale state.
 - **Mutation settle:** [support/mutationObserver.js](support/mutationObserver.js) + [contentScripts/mutationWatcher.js](contentScripts/mutationWatcher.js). Watcher disconnects any prior watcher via `window.__MutationCleanup` so re-injection doesn't leak observers. The waiter is tab-filtered and has an 8 s timeout fallback — never hangs the worker forever. Timing is **behaviour-tiered, never host-tiered**: the watcher starts fast (500 ms debounce, 2.5 s ceiling, 300 ms early-quiet exit) and escalates once to a slow tier (1200 ms debounce, 5 s ceiling) after it observes ≥150 mutation records, i.e. once the page has proven it re-renders in chunks. It used to hardcode a `SLOW_HOSTS` list of named third-party sites; that list was removed because naming those services anywhere in the package/listing triggered a Chrome Web Store *Yellow Argon* keyword-abuse violation. **Do not reintroduce hostname lists of named services** — measure the page instead.
@@ -619,7 +771,6 @@ over the shared CRT language. No sound.
 - **SVG rasterization:** [support/svgRaster.js](support/svgRaster.js) (service-worker side) + [offscreen/svgRaster.html](offscreen/svgRaster.html)/`.js` (the actual drawing). A service worker cannot rasterize SVG at all — `createImageBitmap()` rejects `image/svg+xml` blobs outside a document and there is no `<img>` element — so this creates an offscreen document on demand (`offscreen` permission; reason `DOM_PARSER`), hands it the SVG source, and gets base64 PNG back. The offscreen document is closed once the last in-flight rasterization finishes, since an open one keeps the service worker alive. Sizing is decided in the offscreen page: vector has no true pixel count, so it rewrites the markup's `width`/`height` (adding a `viewBox` if absent) to scale the long edge toward 2048 px — never below intrinsic, never above 8192 — *before* loading it, so Chrome rasterizes the vector at output size instead of bitmap-scaling a small raster up. The markup is loaded via a blob URL (same-origin to the offscreen page, so the canvas stays untainted and `toDataURL` is allowed). Externally-referenced assets inside the SVG (webfonts, `xlink:href` images) won't resolve from that blob URL; self-contained SVGs — the overwhelming majority — are unaffected.
 - **Shared binary helpers:** [support/binary.js](support/binary.js) — chunked base64 encode/decode (`bytesToBase64`/`base64ToBytes`, avoiding the call-stack overflow a naive `String.fromCharCode(...bytes)` hits on large arrays), `crc32`, `sha256Hex`/`sha256Bytes`, `concatBytes`. Used by the screenshot/crop pipeline and by Legal Capture's WARC/ZIP writers — previously this chunked-base64 logic was copy-pasted independently in four places; it's consolidated here now.
 - **Shared page measurement:** [support/pageMeasure.js](support/pageMeasure.js) — `measurePageHeight`/`measureViewportSize`, used both by the popup's `getPageHeight`/`getViewportSize` actions (driving the User/Full Page presets) and by Legal Capture's post-reload re-measurement step.
-- **Per-tab capture flags:** [support/tabState.js](support/tabState.js) — tracks whether Remove Elements has been used on a tab since its last navigation, in `chrome.storage.session` (not an in-memory `Map`, since the service worker can be killed and restarted between the Remove Elements click and a later Legal Capture click — an in-memory flag would silently reset to "safe").
 
 ---
 
@@ -631,7 +782,9 @@ over the shared CRT language. No sound.
 - **No bundler/npm exists in this repo.** Every JS file is loaded as-authored (`import`/`export` ES modules, `chrome.scripting.executeScript({files:[...]})`). A third-party library can only be added by manually vendoring a single dependency-free file into the tree — nothing here can `npm install` anything. Legal Capture's WARC writer, ZIP writer, and RFC 3161 DER encoder are hand-written for exactly this reason, not out of NIH preference.
 - **Extract Design adds no permission and makes no network request.** It is the
   only substantial feature added since 1.0 that required neither, and it should
-  stay that way — see its section above.
+  stay that way — see its section above. The second half is why its rendered
+  palette is sampled from `chrome.tabs.captureVisibleTab` rather than by
+  fetching the page's image files.
 - **Legal Capture is the only *capture* feature that makes outbound requests to servers the developer doesn't operate** — RFC 3161 timestamp requests to whichever of three public authorities are enabled (FreeTSA, DigiCert, Sectigo — see `TSA_PROVIDERS`), each sending only a SHA-256 hash (never the captured URL, page content, or any other identifying data). See [PRIVACY.md](PRIVACY.md) for the user-facing disclosure. Every other capture mode remains fully local. Outside capture, the Arcade's Typing Trainer fetches a random Wikipedia summary while that game is open (see Arcade above) — the only other outbound request in the extension.
 - **Legal Capture's Machine Info and Account Email toggles use `optional_permissions`, not standing `permissions`.** `system.cpu`/`system.memory`/`system.display` (Machine Info) and `identity` (Account Email) are declared in `manifest.json`'s `optional_permissions` array and requested via `chrome.permissions.request()` only at the moment the operator flips the corresponding toggle on in Legal Capture Settings (popup.js) — never granted upfront just because the feature exists. If the operator denies the browser's prompt, the toggle reverts to off and nothing is requested. **The Operator Geolocation toggle is different: `"geolocation"` cannot be listed in `optional_permissions` at all** — Chrome rejects it at install with a console warning and silently drops it (confirmed by testing: `chrome://extensions` reports "Permission 'geolocation' cannot be listed as optional"). It's one of a small set of API permissions, alongside e.g. `debugger`/`devtools`, that Chrome only allows as a standing permission. Since a standing permission would defeat "off by default," this toggle isn't backed by any manifest permission at all — it relies on the ordinary per-origin Geolocation API prompt Chrome shows the first time `navigator.geolocation.getCurrentPosition` is called from an extension page, exactly like a regular website.
 
@@ -639,27 +792,38 @@ over the shared CRT language. No sound.
 
 ## Planned (not implemented)
 
-### Multi-breakpoint design extraction
-Extract Design currently samples one viewport width. Because the emulation
-machinery already exists, sampling the dossier at ~390 / 768 / 1440 is mostly
-a loop plus a re-settle — and the payoff is larger than three columns of
-numbers: it makes fluid values *detectable*. A font-size that reads 24 / 28.4
-/ 32 across those widths is not three values, it is `clamp()`, and can be
-labelled as such instead of reported as a fixed number that is wrong at every
-other width. This is the highest-value follow-up for the web-designer
-audience.
+### Copy-all from the design card
+The card copies one value per click. A "copy all as CSS custom properties"
+button — `--color-1: #7C3AED;` per swatch, `--font-body: Inter;` per family —
+is a small addition that turns the card from a reference into something you
+paste. It pairs naturally with the curation already there: the user has
+already struck off what they don't want and collected what they do, so a
+copy-all would emit exactly the curated set. Worth doing before anything below
+it.
 
-### Standalone `element.html`
-A self-contained HTML rebuild of the extracted element. Deferred deliberately:
-it is the largest single item (baseline-diffed styles emitted as a scoped
-`<style>` block keyed by generated `data-ss` ids, pseudo-element rules, an
-inherited-context root carrying ancestor typography and the nearest opaque
-background, asset inlining) and serves the narrowest audience — a scraped DOM
-is someone else's markup that most people would rewrite. Clean shorthand CSS
-covers most of the need at a fraction of the cost. Build it only if users ask.
+### Multi-breakpoint sampling
+The card samples one viewport width. Because the emulation machinery already
+exists in the export path, re-scanning at ~390 / 768 / 1440 is mostly a loop
+plus a re-settle — and the payoff is larger than three columns of numbers: it
+makes fluid values *detectable*. A font-size reading 24 / 28.4 / 32 across
+those widths is not three values, it is `clamp()`, and can be labelled as such
+instead of reported as a fixed number that is wrong at every other width.
+Note this fights the current design: the live card is deliberately unemulated
+so it matches what the user is looking at, so multi-breakpoint would have to
+live in the export path only, or behind an explicit action.
+
+### Contrast grading
+Dropped from the rewrite along with the spec sheet, but the technique is worth
+recording if it ever comes back: grade each text colour against
+`effectiveBackground(el)` — the nearest opaque ancestor background — rather
+than pairing every text colour with every background found in the subtree. The
+naive version produces confident nonsense, e.g. white button text graded
+against the white card *behind* the button, failing at 1:1. A false
+accessibility failure is worse than reporting nothing. Large text (≥24px, or
+≥18.66px bold) is held to 3:1 rather than 4.5:1.
 
 
-These were in the original spec but do not exist in the codebase. Listed here so future work has a clear target.
+The items below were in the original spec but do not exist in the codebase. Listed here so future work has a clear target.
 
 ### Personal & sensitive data remover
 Hides the logged-in user's avatar and name in comment sections. Per-site selectors; bundled, not remote. Not wired into any capture flow yet.

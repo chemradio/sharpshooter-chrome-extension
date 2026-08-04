@@ -242,6 +242,19 @@
             screenBg: "#F59E0B",
             tint: "hue-rotate(211deg) saturate(1.4)",
         },
+        // Extract Design — same shape as amber, violet screen. The hue
+        // rotations are measured from the mark's own cyan (~187deg), so
+        // violet (~279deg) is +92; do not eyeball these, a wrong rotation
+        // lands the screen on a colour the button doesn't use.
+        violet: {
+            fill: "#FF0844",
+            glow: "drop-shadow(0 0 7px rgba(168, 85, 247, 0.9))",
+            pulse: ["8;12;8", "1.1s"],
+            reticle: 0.9,
+            eyeScale: 1.9,
+            screenBg: "#A855F7",
+            tint: "hue-rotate(92deg) saturate(1.4)",
+        },
         // Help / settings — disinterest. Dims and slows.
         dim: {
             eyeOpacity: "0.45",
@@ -329,6 +342,7 @@
             if (lockEl.matches(".btn-helper--danger")) return "danger";
             if (lockEl.matches(".help-toggle, .settings-toggle")) return "dim";
             if (lockEl.matches(".btn-capture--amber")) return "amber";
+            if (lockEl.matches(".btn-capture--violet")) return "violet";
             if (lockEl.matches(".btn-capture--main")) return "primed";
             return "lock";
         }

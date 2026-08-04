@@ -4,18 +4,13 @@ import { withZoomReset } from "./support/zoomReset.js";
 import { handoffToCropEditor } from "./screenshots/capture/cropHandoff.js";
 import { bytesToBase64 } from "./support/binary.js";
 import { measurePageHeight, measureViewportSize } from "./support/pageMeasure.js";
-import {
-    wasDomKillerUsed,
-    registerTabResetListener,
-    registerDomKillerUsedListener,
-} from "./support/tabState.js";
 import { startLegalCapture } from "./support/legalCapture/legalCaptureSession.js";
 import { registerGeoPermissionRelay } from "./support/legalCapture/geoPermissionRelay.js";
 import { DevToolsAttachedError } from "./support/debugerAttachment.js";
 import { rasterizeSvgToPngBase64 } from "./support/svgRaster.js";
+import { sampleRenderedPalette } from "./support/designExtract/rasterPalette.js";
+import { captureDesignCard } from "./support/designExtract/designCaptureSession.js";
 
-registerTabResetListener();
-registerDomKillerUsedListener();
 registerGeoPermissionRelay();
 
 addElementClickedListener();
@@ -126,9 +121,32 @@ async function fetchAsPngBase64(fetchUrl) {
     return bytesToBase64(new Uint8Array(await pngBlob.arrayBuffer()));
 }
 
+// Actions that need to run code in the page — either by injecting a content
+// script or by attaching the debugger. On a restricted URL Chrome refuses
+// both, with messages written for extension developers rather than users
+// ("The extensions gallery cannot be scripted."). Checking upfront turns that
+// into one explanation the popup can localize, instead of a different raw
+// Chrome string per entry point.
+const NEEDS_SCRIPTABLE_PAGE = new Set([
+    "capturePage",
+    "captureElement",
+    "extractDesign",
+    "domKiller",
+    "imageExtractor",
+    "startLegalCapture",
+]);
+
 async function handleAction(request) {
     const tab = await getActiveTab();
     const settings = request.settings ?? {};
+
+    if (NEEDS_SCRIPTABLE_PAGE.has(request.action) && isRestrictedUrl(tab.url)) {
+        return {
+            ok: false,
+            error: "Chrome blocks extensions on this page.",
+            code: "restricted-page",
+        };
+    }
 
     const baseMetrics = {
         width: settings.width || 1920,
@@ -189,9 +207,19 @@ async function handleAction(request) {
             // Element capture handles zoom on its own (resets to 1 for
             // accurate crop coordinates, restores after), so pass the
             // un-adjusted device metrics through.
+            //
+            // Design mode injects the live card first: the highlighter looks
+            // for window.__DesignInspector when its metrics message arrives,
+            // so the inspector has to already exist by then.
+            const files = design
+                ? [
+                      "contentScripts/designInspector.js",
+                      "contentScripts/elementHighlighter.js",
+                  ]
+                : ["contentScripts/elementHighlighter.js"];
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
-                files: ["contentScripts/elementHighlighter.js"],
+                files,
             });
             await chrome.tabs.sendMessage(tab.id, {
                 action: "sendDeviceMetrics",
@@ -203,14 +231,66 @@ async function handleAction(request) {
                 // Localized in the popup, which owns the language-override
                 // table; a content script would only see the browser UI locale.
                 strings: request.strings || null,
+                cardStrings: request.cardStrings || null,
             });
             return {};
         }
 
+        // Rendered-palette sampling for the live design card. No debugger and
+        // no network: chrome.tabs.captureVisibleTab photographs the viewport,
+        // and the sampler crops to the element and quantizes in a worker
+        // canvas. See support/designExtract/rasterPalette.js.
+        case "designSampleRaster": {
+            const swatches = await sampleRenderedPalette({
+                windowId: tab.windowId,
+                clip: request.clip,
+                viewport: request.viewport,
+            });
+            return { swatches };
+        }
+
+        // The design card's own Capture button: element screenshot at full
+        // quality, composed with the spec the user already froze.
+        case "designCapture": {
+            try {
+                const result = await captureDesignCard({
+                    tabId: tab.id,
+                    xpath: request.xpath,
+                    marker: request.marker,
+                    scan: request.scan,
+                    raster: request.raster,
+                    picked: request.picked,
+                    viewport: request.viewport,
+                    deviceScaleFactor: request.deviceScaleFactor,
+                });
+                return result;
+            } catch (error) {
+                if (error instanceof DevToolsAttachedError) {
+                    return {
+                        ok: false,
+                        error: "DevTools is open on this tab. Close it and try again.",
+                        code: "devtools-attached",
+                    };
+                }
+                throw error;
+            }
+        }
+
         case "domKiller": {
+            // The file only registers __DomKillerStart; a second injection
+            // starts it with the mode ("remove" or "blur"). The mode decides
+            // the accent colour, the banner and the commit action — all built
+            // during startup — so it can't arrive over a later message the way
+            // imageExtractor's crop flag does. Both calls run in the same
+            // isolated world for the same frame, so the starter is in scope.
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 files: ["contentScripts/domKiller.js"],
+            });
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: (mode) => window.__DomKillerStart({ mode }),
+                args: [request.mode === "blur" ? "blur" : "remove"],
             });
             return {};
         }
@@ -270,11 +350,6 @@ async function handleAction(request) {
             return {};
         }
 
-        case "getTabCaptureFlags": {
-            if (isRestrictedUrl(tab.url)) return { domKillerUsed: false };
-            return { domKillerUsed: await wasDomKillerUsed(tab.id) };
-        }
-
         case "startLegalCapture": {
             try {
                 const result = await startLegalCapture({
@@ -302,7 +377,7 @@ async function handleAction(request) {
         }
 
         case "stopDomKiller": {
-            // Tear down any live Remove Elements session. Called when the popup
+            // Tear down any live Remove/Blur Elements session. Called when the popup
             // opens so a session the user left running (reopened the popup
             // instead of pressing ESC) is cleaned up. No-op if none is active.
             if (isRestrictedUrl(tab.url)) return {};
@@ -331,12 +406,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "capturePage",
         "captureElement",
         "extractDesign",
+        "designSampleRaster",
+        "designCapture",
         "domKiller",
         "stopDomKiller",
         "imageExtractor",
         "imageExtractorDownload",
         "imageExtractorCropUrl",
-        "getTabCaptureFlags",
         "startLegalCapture",
     ]);
     if (!owned.has(request?.action)) return false;

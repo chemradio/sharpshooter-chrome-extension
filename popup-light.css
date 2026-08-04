@@ -382,7 +382,6 @@ header {
 .popup.is-helping .body,
 .popup.is-settings .body,
 .popup.is-legal-settings .body,
-.popup.is-design-settings .body,
 .popup.is-capturing .body,
 .popup.is-arcade .body {
     display: none;
@@ -543,7 +542,44 @@ section[hidden] { display: none; }
     gap: 6px;
 }
 
-.helpers-row #dom-killer { flex: 1; }
+/* Blur Elements + Remove Elements are two halves of one control: same picker,
+   same targeting, opposite verbs — so they sit flush with collapsed borders
+   and read as a single split button. Unlike .capture-segmented there is no
+   linked hover: neither half is a variant of the other, so lighting both would
+   claim a relationship that isn't there. Equal halves (flex-basis 0), because
+   neither verb outranks the other. */
+.helper-segmented {
+    gap: 0;
+    align-items: stretch;
+}
+
+.helper-segmented .btn-helper {
+    flex: 1 1 0;
+    min-width: 0;
+    /* One shrunk label per half, so the text is stepped down from the
+       full-width .btn-helper size and the icon gap tightened. */
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding: 8px 8px;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.helper-segmented .btn-helper:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-width: 1px;
+}
+
+.helper-segmented .btn-helper:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left-width: 1px;
+    margin-left: -1px;
+}
+
+/* Hovered half rides above the seam so its border is unbroken. */
+.helper-segmented .btn-helper:hover { z-index: 3; }
 
 /* ── Buttons ───────────────────────────────────────────── */
 
@@ -813,36 +849,36 @@ button:active { opacity: 0.75; }
     transform: scale(1.05);
 }
 
-/* Extract Design's gear is a --sub too, so the cyan rules above would claim
-   it. Re-assert violet here, after them. Highlights alone, like Legal
-   Capture's gear — no pairing rule with the main button. */
-.capture-segmented .btn-capture--sub.btn-capture--violet:hover,
-.popup.is-design-settings .btn-capture--sub.btn-capture--violet {
-    background: var(--violet);
-    color: #fff;
-    border-color: var(--violet);
-    box-shadow: 0 0 14px rgba(124, 58, 237, 0.45);
+/* Extract Design has no sub-segment: its main button spans the full row.
+   .capture-segmented still wraps it so the section keeps the same rhythm as
+   Page and Legal Capture above it — but --main thins the right border to 1px
+   for the seam against a segment that isn't there, so it goes back to 2px.
+   No radius override: .btn-capture is square everywhere, and rounding this one
+   button would make it the only one. */
+.capture-segmented .btn-capture--solo {
+    border-right-width: 2px;
 }
 
-.capture-segmented .btn-capture--sub.btn-capture--violet:hover .btn-icon,
-.popup.is-design-settings .btn-capture--sub.btn-capture--violet .btn-icon {
-    color: #fff;
-    transform: scale(1.05);
+/* Helpers are one uniform row height. Remove Elements is a .btn-helper and
+   the other two are .btn-capture, which is the taller main-action size — so
+   the capture buttons are brought DOWN to the helper's box rather than the
+   helper being inflated: these are secondary tools and must not compete with
+   the capture stack above them. Numbers are matched, not approximated —
+   2px border + 8px padding + 16px icon on both sides gives 36px either way.
+   The crop segment carries its own padding and needs the same treatment or
+   it drives the row taller than its own main button. */
+.helpers-section .btn-capture {
+    padding: 8px 12px;
+    font-size: 12px;
 }
 
-/* Disabled when every artifact toggle is off. */
-.btn-capture--violet:disabled,
-.btn-capture--violet:disabled:hover {
-    opacity: 0.45;
-    cursor: not-allowed;
-    background: transparent;
-    color: var(--text-muted);
-    border-color: var(--border);
-    box-shadow: none;
+.helpers-section .btn-capture--crop {
+    padding: 8px 10px;
 }
 
-.btn-capture--violet:disabled .btn-icon {
-    color: var(--text-muted);
+.helpers-section .btn-capture .btn-icon {
+    width: 16px;
+    height: 16px;
 }
 
 /* crop-default hides the crop segments and re-rounds the main button. The
@@ -932,6 +968,10 @@ button:active { opacity: 0.75; }
     transform: scale(1.05);
 }
 
+/* Both halves wear the same red: they are one control, and giving each half
+   its own colour split it back into two buttons sitting next to each other.
+   The in-page picker frames in this same red for both modes
+   (contentScripts/domKiller.js) — its banner names the mode, not its colour. */
 .btn-helper--danger {
     color: var(--danger);
     border-color: var(--danger-dim);
@@ -966,12 +1006,9 @@ button:active { opacity: 0.75; }
 
 .popup.is-legal-settings .settings-view { display: flex; }
 
-.popup.is-design-settings .settings-view { display: flex; }
-
 #view-normal[hidden],
 #view-settings[hidden],
-#view-legal-settings[hidden],
-#view-design-settings[hidden] { display: none; }
+#view-legal-settings[hidden] { display: none; }
 
 /* Legal Capture Settings reads dense (many toggles + notes) — bump the
    type scale for this view specifically rather than the shared Settings
@@ -1345,7 +1382,6 @@ button:active { opacity: 0.75; }
 .popup.is-helping .status,
 .popup.is-settings .status,
 .popup.is-legal-settings .status,
-.popup.is-design-settings .status,
 .popup.is-capturing .status,
 .popup.is-arcade .status {
     display: none;

@@ -47,7 +47,6 @@ const captureHintEl = document.getElementById("capture-hint");
 const VIEW_CLASSES = [
     "is-settings",
     "is-legal-settings",
-    "is-design-settings",
     "is-helping",
     "is-capturing",
     "is-arcade",
@@ -285,10 +284,10 @@ const BUTTON_TIPS = [
     ["#capture-element", "tipCaptureElement"],
     ["#capture-element-crop", "tipCropSegment"],
     ["#dom-killer", "tipRemoveElements"],
+    ["#blur-elements", "tipBlurElements"],
     ["#image-extractor", "tipImageExtractor"],
     ["#image-extractor-crop", "tipCropSegment"],
     ["#design-extract", "tipDesignExtract"],
-    ["#design-settings-toggle", "tipDesignSettings"],
     ["#legal-capture", "tipLegalCapture"],
     ["#help-toggle", "tipHelp"],
     ["#settings-toggle", "tipSettings"],
@@ -556,13 +555,29 @@ const sendMessage = (message) =>
                 return reject(new Error(chrome.runtime.lastError.message));
             }
             if (response && response.ok === false) {
-                return reject(
-                    new Error(response.error || t("stRequestFailed")),
-                );
+                const err = new Error(response.error || t("stRequestFailed"));
+                // The background can't localize: it sees chrome.i18n's
+                // browser-UI locale and would ignore the Settings language
+                // override. So it names the failure and the popup writes it.
+                if (response.code) err.code = response.code;
+                return reject(err);
             }
             resolve(response);
         });
     });
+
+// Known failure codes get a written explanation; anything else falls back to
+// whatever the background reported.
+const ERROR_BY_CODE = {
+    "restricted-page": "errRestrictedPage",
+    "devtools-attached": "errDevToolsAttached",
+};
+
+function errText(e) {
+    const key = e?.code && ERROR_BY_CODE[e.code];
+    if (key) return t(key);
+    return e?.message ?? t("stError");
+}
 
 // ─── Button handlers ──────────────────────────────────────────────────────────
 
@@ -587,7 +602,7 @@ function runPageCapture(manualCrop) {
         })
         .catch((e) => {
             stopCapturing();
-            setStatus(e.message ?? t("stError"), "error", 5000);
+            setStatus(errText(e), "error", 5000);
         });
 }
 
@@ -606,7 +621,7 @@ async function runElementCapture(manualCrop) {
         window.close();
     } catch (e) {
         stopCapturing();
-        setStatus(e.message ?? t("stError"), "error", 5000);
+        setStatus(errText(e), "error", 5000);
     }
 }
 
@@ -628,34 +643,48 @@ document
     .addEventListener("click", () => runElementCapture(true));
 
 // Element capture result — fires if the popup is still open when capture ends.
+// Design extraction never reports here: its capture is triggered from the card
+// in the page, long after this popup has closed, and the Save-As dialog is the
+// confirmation.
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.action !== "elementCaptureResult") return false;
     stopCapturing();
     if (msg.ok) {
-        setStatus(
-            t(msg.mode === "design" ? "stDesignExtractDone" : "stDone"),
-            "ok",
-            4000,
-        );
+        setStatus(t("stDone"), "ok", 4000);
     } else {
         setStatus(msg.error || t("stElementCaptureFailed"), "error", 5000);
     }
     return false;
 });
 
-document.getElementById("dom-killer").addEventListener("click", async () => {
-    showCapturing(t("ovManualRemoval"), t("ovManualRemovalHint"));
+// Remove Elements and Blur Elements are the two halves of one control and run
+// the same picker (contentScripts/domKiller.js) in different modes — remove
+// detaches the node, blur leaves it in place under a CSS blur, which is what
+// you want when the page has to stay intact around the thing you're hiding.
+async function runDomKiller(mode) {
+    const blur = mode === "blur";
+    showCapturing(
+        blur ? t("ovManualBlur")     : t("ovManualRemoval"),
+        blur ? t("ovManualBlurHint") : t("ovManualRemovalHint"),
+    );
     try {
         // Same one-click fix as capture-element: close the popup once the
         // content script is listening, so the user's first click on the page
         // reaches the kill handler instead of being swallowed by popup dismissal.
-        await sendMessage({ action: "domKiller" });
+        await sendMessage({ action: "domKiller", mode });
         window.close();
     } catch (e) {
         stopCapturing();
-        setStatus(e.message ?? t("stError"), "error", 5000);
+        setStatus(errText(e), "error", 5000);
     }
-});
+}
+
+document
+    .getElementById("dom-killer")
+    .addEventListener("click", () => runDomKiller("remove"));
+document
+    .getElementById("blur-elements")
+    .addEventListener("click", () => runDomKiller("blur"));
 
 async function runImageExtractor(manualCrop) {
     showCapturing(t("ovSelectElement"), t("ovImageExtractorHint"));
@@ -664,7 +693,7 @@ async function runImageExtractor(manualCrop) {
         window.close();
     } catch (e) {
         stopCapturing();
-        setStatus(e.message ?? t("stError"), "error", 5000);
+        setStatus(errText(e), "error", 5000);
     }
 }
 
@@ -678,9 +707,49 @@ document
 // ─── Extract Design ───────────────────────────────────────────────────────────
 //
 // Shares the element picker with Element Capture, distinguished by a violet
-// accent and a `mode` that travels back on click. Tooltip copy is localized
-// here and passed through the injection message: a content script only sees
-// chrome.i18n's browser-UI locale and would ignore the Settings override.
+// accent and a `mode` that travels back on hover/click. Unlike Element
+// Capture, nothing is captured when the user clicks: the live spec card
+// (contentScripts/designInspector.js) freezes around the element and the
+// download happens from the card's own button. So this button's whole job is
+// to open the picker.
+//
+// All copy — the picker tooltip and every label inside the card — is localized
+// here and passed through the injection message. A content script only sees
+// chrome.i18n's browser-UI locale and would silently ignore the Settings
+// language override.
+
+function designCardStrings() {
+    return {
+        fonts: t("dcFonts"),
+        cssColors: t("dcCssColors"),
+        rendered: t("dcRendered"),
+        sampling: t("dcSampling"),
+        rasterOnClick: t("dcRasterOnClick"),
+        rasterNote: t("dcRasterNote"),
+        rasterNone: t("dcRasterNone"),
+        rasterFailed: t("dcRasterFailed"),
+        rasterOffscreen: t("dcRasterOffscreen"),
+        noText: t("dcNoText"),
+        noColors: t("dcNoColors"),
+        srcWebfont: t("dcSrcWebfont"),
+        srcLocal: t("dcSrcLocal"),
+        srcGeneric: t("dcSrcGeneric"),
+        srcMissing: t("dcSrcMissing"),
+        capture: t("dcCapture"),
+        capturing: t("dcCapturing"),
+        captureFailed: t("dcCaptureFailed"),
+        pick: t("dcPick"),
+        noEyedropper: t("dcNoEyedropper"),
+        copied: t("dcCopied"),
+        copyFailed: t("dcCopyFailed"),
+        hoverHint: t("dcHoverHint"),
+        frozenHint: t("dcFrozenHint"),
+        remove: t("dcRemove"),
+        allRemoved: t("dcAllRemoved"),
+        picked: t("dcPicked"),
+        pickedNote: t("dcPickedNote"),
+    };
+}
 
 async function runDesignExtract() {
     stopDomKillerSession();
@@ -695,11 +764,12 @@ async function runDesignExtract() {
                 nav: t("pickerNavHint"),
                 commit: t("pickerDesignCommitHint"),
             },
+            cardStrings: designCardStrings(),
         });
         window.close();
     } catch (e) {
         stopCapturing();
-        setStatus(e.message ?? t("stError"), "error", 5000);
+        setStatus(errText(e), "error", 5000);
     }
 }
 
@@ -711,13 +781,13 @@ document
 //
 // Specialist mode, shown by default and hideable via Settings (see
 // legalCaptureEnabled wiring below). Always forces a clean reload before
-// recording, so unlike
-// other capture buttons there's no separate "did you forget to reload"
-// gate — the warning banner is purely informational.
+// recording, which restores the server's own HTML — so there is no
+// "did you forget to reload" gate and no warning about a page that Remove /
+// Blur Elements touched. A banner saying the reload will happen added nothing
+// the reload doesn't already handle.
 
 const legalCaptureSection = document.getElementById("legal-capture-section");
 const legalCaptureBtn = document.getElementById("legal-capture");
-const legalWarning = document.getElementById("legal-warning");
 const legalOperatorName = document.getElementById("legal-operator-name");
 const legalCaseReference = document.getElementById("legal-case-reference");
 
@@ -894,15 +964,6 @@ chrome.storage.local
         const designExtractEnabled = s.designExtractEnabled !== false;
         designExtractEnabledCb.checked = designExtractEnabled;
         applyDesignExtractVisible(designExtractEnabled);
-        if (legalCaptureEnabled) {
-            sendMessage({ action: "getTabCaptureFlags" })
-                .then((flags) => {
-                    legalWarning.hidden = !flags?.domKillerUsed;
-                })
-                .catch(() => {
-                    /* best-effort — silent on failure */
-                });
-        }
     });
 
 reencodeOpaqueCb.addEventListener("change", () => {
@@ -1046,8 +1107,6 @@ settingsToggle.addEventListener("click", () => {
     if (popupEl.classList.contains("is-helping")) setHelp(false);
     if (popupEl.classList.contains("is-legal-settings"))
         setLegalSettingsView(false);
-    if (popupEl.classList.contains("is-design-settings"))
-        setDesignSettingsView(false);
     window.__Arcade?.close?.();
     setSettings(!popupEl.classList.contains("is-settings"));
 });
@@ -1068,8 +1127,6 @@ helpToggleBtn.addEventListener("click", () => {
     if (popupEl.classList.contains("is-settings")) setSettings(false);
     if (popupEl.classList.contains("is-legal-settings"))
         setLegalSettingsView(false);
-    if (popupEl.classList.contains("is-design-settings"))
-        setDesignSettingsView(false);
     window.__Arcade?.close?.();
     setHelp(!popupEl.classList.contains("is-helping"));
 });
@@ -1288,122 +1345,12 @@ legalSettingsToggleBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     if (popupEl.classList.contains("is-helping")) setHelp(false);
     if (popupEl.classList.contains("is-settings")) setSettings(false);
-    if (popupEl.classList.contains("is-design-settings"))
-        setDesignSettingsView(false);
     window.__Arcade?.close?.();
     setLegalSettingsView(!popupEl.classList.contains("is-legal-settings"));
 });
 
 legalSettingsCloseBtn.addEventListener("click", () =>
     setLegalSettingsView(false),
-);
-
-// ─── Design Settings ─────────────────────────────────────────────────────────
-//
-// Mirrors the Legal Capture Settings pattern. These defaults must stay in
-// sync with DESIGN_OPTION_DEFAULTS in
-// support/designExtract/designExtractOptions.js — popup.js is a classic
-// script and can't import that module. Unlike Legal Capture, no option here
-// needs a Chrome permission, so there's no permission-request branch.
-const DESIGN_OPTION_DEFAULTS = {
-    screenshot: true,
-    card: true,
-    specSheet: true,
-    designJson: true,
-    elementHtml: false,
-    sampleStates: true,
-    customProperties: true,
-    contrastRatios: true,
-    cardTheme: "light",
-};
-
-const DESIGN_OPTION_CHECKBOXES = {
-    card: document.getElementById("design-opt-card"),
-    screenshot: document.getElementById("design-opt-screenshot"),
-    specSheet: document.getElementById("design-opt-spec"),
-    designJson: document.getElementById("design-opt-json"),
-    sampleStates: document.getElementById("design-opt-states"),
-    customProperties: document.getElementById("design-opt-tokens"),
-    contrastRatios: document.getElementById("design-opt-contrast"),
-};
-
-// The four artifact toggles. If every one is off there is nothing to produce,
-// so the capture button is disabled rather than failing after the user has
-// already picked an element.
-const DESIGN_ARTIFACT_KEYS = ["card", "screenshot", "specSheet", "designJson"];
-
-let designExtractOptions = { ...DESIGN_OPTION_DEFAULTS };
-
-const designExtractBtn = document.getElementById("design-extract");
-
-function syncDesignArtifactGuard() {
-    const any = DESIGN_ARTIFACT_KEYS.some((k) => designExtractOptions[k]);
-    designExtractBtn.disabled = !any;
-    designExtractBtn.title = any ? "" : t("designNoArtifactsTitle");
-}
-
-function saveDesignOptions() {
-    chrome.storage.local.set({ designExtractOptions });
-    syncDesignArtifactGuard();
-}
-
-chrome.storage.local.get(["designExtractOptions"]).then((s) => {
-    designExtractOptions = {
-        ...DESIGN_OPTION_DEFAULTS,
-        ...(s.designExtractOptions || {}),
-    };
-    for (const [key, cb] of Object.entries(DESIGN_OPTION_CHECKBOXES)) {
-        if (cb) cb.checked = !!designExtractOptions[key];
-    }
-    const themeRadio = document.getElementById(
-        `design-card-theme-${designExtractOptions.cardTheme}`,
-    );
-    if (themeRadio) themeRadio.checked = true;
-    syncDesignArtifactGuard();
-});
-
-for (const [key, cb] of Object.entries(DESIGN_OPTION_CHECKBOXES)) {
-    if (!cb) continue;
-    cb.addEventListener("change", () => {
-        designExtractOptions[key] = cb.checked;
-        saveDesignOptions();
-        setStatus(t("stSettingSaved"), "ok", 1500);
-    });
-}
-
-for (const r of document.getElementsByName("design-card-theme")) {
-    r.addEventListener("change", () => {
-        if (!r.checked) return;
-        designExtractOptions.cardTheme = r.value;
-        saveDesignOptions();
-        setStatus(t("stSettingSaved"), "ok", 1500);
-    });
-}
-
-const viewDesignSettings = document.getElementById("view-design-settings");
-const designSettingsToggleBtn = document.getElementById(
-    "design-settings-toggle",
-);
-const designSettingsCloseBtn = document.getElementById("design-settings-close");
-
-function setDesignSettingsView(open) {
-    viewDesignSettings.hidden = !open;
-    viewNormal.hidden = open;
-    popupEl.classList.toggle("is-design-settings", open);
-}
-
-designSettingsToggleBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (popupEl.classList.contains("is-helping")) setHelp(false);
-    if (popupEl.classList.contains("is-settings")) setSettings(false);
-    if (popupEl.classList.contains("is-legal-settings"))
-        setLegalSettingsView(false);
-    window.__Arcade?.close?.();
-    setDesignSettingsView(!popupEl.classList.contains("is-design-settings"));
-});
-
-designSettingsCloseBtn.addEventListener("click", () =>
-    setDesignSettingsView(false),
 );
 
 chrome.runtime.onMessage.addListener((msg) => {

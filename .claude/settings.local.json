@@ -52,7 +52,10 @@
       "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
       "Bash(node --check arcade/breakout.js)",
       "Bash(PYTHONIOENCODING=utf-8 python \"C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/d3ea78e6-6110-41d7-8f0f-7203c6136145/scratchpad/verify.py\")",
-      "Bash(PYTHONIOENCODING=utf-8 python \"C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/d3ea78e6-6110-41d7-8f0f-7203c6136145/scratchpad/addCss.py\")"
+      "Bash(PYTHONIOENCODING=utf-8 python \"C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/d3ea78e6-6110-41d7-8f0f-7203c6136145/scratchpad/addCss.py\")",
+      "Bash(python \"C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/d9a19bea-9840-44cb-baca-db231d363ac1/scratchpad/fixjson.py\" _locales/en/messages.json)",
+      "Bash(python \"C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/d9a19bea-9840-44cb-baca-db231d363ac1/scratchpad/ru.py\")",
+      "Bash(python \"C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/d9a19bea-9840-44cb-baca-db231d363ac1/scratchpad/check.py\")"
     ]
   }
 }

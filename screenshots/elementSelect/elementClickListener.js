@@ -1,13 +1,16 @@
-// Routes a committed element selection to whichever feature opened the picker.
+// Handles a committed element selection from the picker.
 //
 // The heavy lifting — locating the element, emulating, settling, measuring,
 // expanding the viewport to fit, screenshotting and cropping — lives in
-// elementSession.js, which both consumers share. This file is just the
-// message listener plus the screenshot consumer.
+// elementSession.js, shared with Extract Design's capture path.
+//
+// Only Element Capture arrives here. Design mode commits *into the page*
+// instead: the picker hands the element to the live spec card, which stays on
+// screen until the user presses its own Capture button, and that goes to the
+// background as `designCapture` rather than `elementClicked`.
 
 import { withElementSession } from "./elementSession.js";
 import { downloadScreenshot } from "../capture/downloadScreenshot.js";
-import { extractDesignFromElement } from "../../support/designExtract/designSession.js";
 
 // ─── Feedback to popup ───────────────────────────────────────────────────────
 
@@ -55,19 +58,12 @@ export const addElementClickedListener = () => {
         chrome.storage.session.set({ elementCaptureInProgress: true });
         chrome.action.openPopup().catch(() => {});
 
-        // The picker is shared; `mode` (set at injection time, echoed back on
-        // click) decides which feature consumes the selection.
-        const design = request.mode === "design";
-        const run = design ? extractDesignFromElement : captureElement;
-
         const finish = (payload) => {
             chrome.storage.session.remove("elementCaptureInProgress");
-            // Carry the mode back so the popup can report the right thing —
-            // "Design extracted" rather than the screenshot wording.
-            broadcastResult({ mode: design ? "design" : "capture", ...payload });
+            broadcastResult({ mode: "capture", ...payload });
         };
 
-        run({
+        captureElement({
             tabId: sender.tab.id,
             xpath: request.xpath,
             marker: request.marker,
@@ -77,10 +73,7 @@ export const addElementClickedListener = () => {
         })
             .then(() => finish({ ok: true }))
             .catch((error) => {
-                console.error(
-                    design ? "Design extraction failed:" : "Element capture failed:",
-                    error
-                );
+                console.error("Element capture failed:", error);
                 finish({ ok: false, error: error?.message ?? String(error) });
             });
 

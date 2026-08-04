@@ -498,7 +498,6 @@
         if (popupEl.classList.contains("is-settings")) window.setSettings?.(false);
         if (popupEl.classList.contains("is-helping")) window.setHelp?.(false);
         if (popupEl.classList.contains("is-legal-settings")) window.setLegalSettingsView?.(false);
-        if (popupEl.classList.contains("is-design-settings")) window.setDesignSettingsView?.(false);
 
         viewArcade.hidden = false;
         popupEl.classList.add("is-arcade");

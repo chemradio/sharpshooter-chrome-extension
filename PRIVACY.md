@@ -135,22 +135,31 @@ of which of these toggles are on).
 
 ## Extract Design
 
-The **Extract Design** helper reads an element's styling — colours,
-typography, spacing, corner radii, shadows, layout, CSS custom properties,
-and its hover/focus/active states — and turns it into a spec card, a Markdown
-sheet, and a JSON file saved to your Downloads folder.
+The **Extract Design** helper shows an element's fonts and colours in a card
+next to it as you hover, and can save that card together with a picture of the
+element as a single PNG in your Downloads folder.
 
-**This feature makes no network requests at all**, and needs no permission
-the extension does not already hold. Everything is read from the page already
-open in your browser, using the same `debugger` and `scripting` permissions
-the normal screenshot modes use, and every file it produces is assembled
-locally and handed to Chrome's downloads API. Nothing about the element, the
-page, or the styles read from it is transmitted anywhere.
+**This feature makes no network requests at all**, and needs no permission the
+extension does not already hold. Everything is read from the page already open
+in your browser, and the image it produces is assembled locally and handed to
+Chrome's downloads API. Nothing about the element, the page, or the styles read
+from it is transmitted anywhere.
 
-Reading interaction states works by asking the browser to temporarily apply
-`:hover`, `:focus` and `:active` to the element you selected, then reading
-back what changed. This affects only the rendering of that one element for a
-fraction of a second and is cleared before the capture ends.
+Two parts of it are worth describing precisely:
+
+* **The "rendered palette"** — the dominant colours including those inside
+  images — is measured by taking a screenshot of the visible tab and averaging
+  the pixels inside the element you selected. The screenshot is analysed in
+  memory and discarded; it is never written to disk unless you press Capture,
+  and never leaves your machine. Notably, this is *instead of* downloading the
+  page's image files, which is why the feature makes no network requests.
+* **The eyedropper button** uses the browser's own colour picker, which can
+  read a pixel from anywhere on your screen — including outside the browser.
+  It only ever runs when you press that button, and it returns a single colour
+  value. That value is copied to your clipboard and added to the card's "Your
+  palette" section; if you then press Capture it is drawn into the saved PNG.
+  It is held in memory for as long as the card is open, is not written to
+  storage, and is not transmitted anywhere.
 
 ## Screenshots
 

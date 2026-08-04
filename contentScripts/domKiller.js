@@ -1,4 +1,14 @@
-(function () {
+// Two helpers share this picker: Remove Elements (mode "remove") detaches the
+// targeted node, Blur Elements (mode "blur") leaves the DOM intact and paints a
+// CSS blur over it. Everything else — the DOM walk, same-rect collapsing,
+// descent memory, sibling climbing, the undo stack, the event blocking — is
+// identical, so the two modes are one file rather than a fork.
+//
+// The file only *registers* the starter; backgroundScript.js calls
+// __DomKillerStart({mode}) in a second injection. Mode decides the accent
+// colour, the banner and the commit action, all of which are built up front,
+// so it has to arrive before anything runs — not over a later message.
+window.__DomKillerStart = function (options) {
     if (window.__DomKillerDestroy) {
         window.__DomKillerDestroy();
     }
@@ -7,11 +17,20 @@
 
     let currentElement = null;
 
+    const BLUR = options?.mode === "blur";
+
     const STYLE_ID   = "__dk-style";
     const BANNER_ID  = "__dk-banner";
     const OVERLAY_ID = "__dk-overlay";
+    // Both modes wear the targeting red, matching the one red button they are
+    // launched from. Blur used to frame in blue; it read as a different tool
+    // rather than the other half of the same one. The banner names the mode.
     const COLOR      = "#FF0055";
     const Z          = 2147483646;
+
+    // Every tint in the stylesheet below is derived from COLOR rather than
+    // written as a literal rgba(), so one constant repaints the whole picker.
+    const tint = (pct) => `color-mix(in srgb, ${COLOR} ${pct}%, transparent)`;
 
     const MOVEMENT_THRESHOLD = 4;
     const SCROLL_LOCK_MS     = 400;
@@ -31,19 +50,11 @@
     // Lets the user overshoot upward and walk back down the same branch.
     const descentMemory = new WeakMap();
 
-    // Undo stack of removed nodes. Each entry keeps enough to splice the node
-    // back into its original position: {node, parent, nextSibling}. Ctrl+Z /
-    // Cmd+Z pops the last removal and reinserts it.
-    const removalHistory = [];
-
-    // Fires once, on the first actual removal — lets Legal Capture warn that
-    // this tab's DOM was hand-edited and should be reloaded before capture.
-    let usedBroadcast = false;
-    function reportUsedOnce() {
-        if (usedBroadcast) return;
-        usedBroadcast = true;
-        chrome.runtime.sendMessage({ action: "domKillerUsed" }).catch(() => {});
-    }
+    // Undo stack. In remove mode each entry keeps enough to splice the node back
+    // into its original position ({node, parent, nextSibling}); in blur mode it
+    // keeps the inline `filter` the node had before ({node, filter, priority}),
+    // which is usually the empty string. Ctrl+Z / Cmd+Z pops the last commit.
+    const commitHistory = [];
 
     // ─── Styles ───────────────────────────────────────────────────────────────
 
@@ -63,20 +74,20 @@
             }
             #${OVERLAY_ID}.__dk-on { display: block; }
             @keyframes __dkPulseFrame {
-                0%, 100% { box-shadow: 0 0 6px  ${COLOR}, inset 0 0 6px  rgba(255, 0, 85, 0.18); }
-                50%      { box-shadow: 0 0 18px ${COLOR}, inset 0 0 12px rgba(255, 0, 85, 0.35); }
+                0%, 100% { box-shadow: 0 0 6px  ${COLOR}, inset 0 0 6px  ${tint(18)}; }
+                50%      { box-shadow: 0 0 18px ${COLOR}, inset 0 0 12px ${tint(35)}; }
             }
             @keyframes __dkPulseGlow {
                 0%, 100% { box-shadow: 0 0 4px  ${COLOR}; }
                 50%      { box-shadow: 0 0 12px ${COLOR}; }
             }
             @keyframes __dkPulseLabel {
-                0%, 100% { box-shadow: 0 0 4px  rgba(255, 0, 85, 0.5); }
-                50%      { box-shadow: 0 0 12px rgba(255, 0, 85, 0.9); }
+                0%, 100% { box-shadow: 0 0 4px  ${tint(50)}; }
+                50%      { box-shadow: 0 0 12px ${tint(90)}; }
             }
             @keyframes __dkPulseTint {
-                0%, 100% { background: rgba(255, 0, 85, 0.16); }
-                50%      { background: rgba(255, 0, 85, 0.30); }
+                0%, 100% { background: ${tint(16)}; }
+                50%      { background: ${tint(30)}; }
             }
             @keyframes __dkMarch {
                 to {
@@ -106,9 +117,12 @@
                 z-index: ${Z} !important;
                 pointer-events: none !important;
                 border: 1px solid ${COLOR} !important;
-                box-shadow: 0 0 12px ${COLOR}, inset 0 0 12px rgba(255, 0, 85, 0.4) !important;
+                box-shadow: 0 0 12px ${COLOR}, inset 0 0 12px ${tint(40)} !important;
                 overflow: hidden !important;
             }
+            /* Remove sweeps a solid fill down over the doomed element; blur uses
+               the same sweep at low opacity, because the element stays on screen
+               underneath and an opaque wipe would read as a removal. */
             .__dk-killfill {
                 position: absolute !important;
                 left: 0 !important;
@@ -116,8 +130,8 @@
                 width: 100% !important;
                 height: 0%;
                 background: linear-gradient(to bottom,
-                    rgba(255, 0, 85, 0.85),
-                    rgba(180, 0, 40, 0.85)) !important;
+                    ${BLUR ? tint(38) : "rgba(255, 0, 85, 0.85)"},
+                    ${BLUR ? tint(12) : "rgba(180, 0, 40, 0.85)"}) !important;
                 animation: __dkKillFill 320ms ease-in forwards !important;
             }
             .__dk-scanline {
@@ -129,6 +143,7 @@
                 margin-top: -1px !important;
                 background: #fff !important;
                 box-shadow: 0 0 10px #fff, 0 0 18px ${COLOR} !important;
+                opacity: ${BLUR ? "0.75" : "1"} !important;
                 animation: __dkScanline 320ms ease-in forwards !important;
             }
             .__dk-tint {
@@ -143,7 +158,7 @@
                 background-image:
                     repeating-linear-gradient(45deg,
                         transparent 0 7px,
-                        rgba(255, 0, 85, 0.12) 7px 9px),
+                        ${tint(12)} 7px 9px),
                     linear-gradient(90deg, ${COLOR} 50%, transparent 50%),
                     linear-gradient(90deg, ${COLOR} 50%, transparent 50%),
                     linear-gradient(0deg,  ${COLOR} 50%, transparent 50%),
@@ -162,7 +177,7 @@
                 width: 14px !important;
                 height: 14px !important;
                 border: 2px solid ${COLOR} !important;
-                background: rgba(255, 0, 85, 0.20) !important;
+                background: ${tint(20)} !important;
                 animation: __dkPulseGlow 1.6s ease-in-out infinite !important;
             }
             .__dk-c-tl { top: -2px;    left: -2px;    border-right: 0 !important; border-bottom: 0 !important; }
@@ -201,7 +216,7 @@
                 border: 1px solid ${COLOR} !important;
                 border-radius: 5px !important;
                 padding: 7px 10px !important;
-                box-shadow: 0 0 12px rgba(255, 0, 85, 0.65) !important;
+                box-shadow: 0 0 12px ${tint(65)} !important;
                 white-space: normal !important;
                 transition: left 140ms ease-out, top 140ms ease-out !important;
             }
@@ -255,7 +270,7 @@
         </div>
         <div class="__dk-tip" data-tip>
             <b>Wheel</b> / <b>↑ ↓</b> = parent / child · <b>← →</b> = previous / next sibling.<br>
-            <b>Click</b> or <b>Enter</b> to remove the highlighted element · <b>Ctrl/Cmd+Z</b> to undo.
+            <b>Click</b> or <b>Enter</b> to ${BLUR ? "blur" : "remove"} the highlighted element · <b>Ctrl/Cmd+Z</b> to undo.
         </div>
     `;
     document.documentElement.appendChild(overlay);
@@ -373,9 +388,43 @@
     if (!document.getElementById(BANNER_ID)) {
         const banner = document.createElement("div");
         banner.id = BANNER_ID;
-        banner.textContent = "Manual element removal — Hover to target · Click or Enter to remove · Wheel/↑↓ = depth, ←→ = siblings · Ctrl/Cmd+Z to undo · ESC to stop";
+        banner.textContent = BLUR
+            ? "Manual element blurring — Hover to target · Click or Enter to blur · Wheel/↑↓ = depth, ←→ = siblings · Ctrl/Cmd+Z to undo · ESC to stop"
+            : "Manual element removal — Hover to target · Click or Enter to remove · Wheel/↑↓ = depth, ←→ = siblings · Ctrl/Cmd+Z to undo · ESC to stop";
         document.documentElement.appendChild(banner);
     }
+
+    // ─── Blur helpers ─────────────────────────────────────────────────────────
+    //
+    // Blur strength scales with the target: a fixed radius that hides a
+    // full-width comment thread also erases a small avatar into a smudge, and
+    // one that suits the avatar leaves body text legible. Tied to the shorter
+    // side (text lines are wide and short) and clamped at both ends.
+    function blurRadiusFor(rect) {
+        const shortest = Math.min(rect.width, rect.height);
+        return Math.max(6, Math.min(28, Math.round(shortest / 10)));
+    }
+
+    // Stack on top of any filter the page itself applies, read from the
+    // computed value so a stylesheet-declared filter (not just an inline one)
+    // survives. !important because plenty of pages declare their own with it.
+    function applyBlur(el, rect) {
+        const own  = getComputedStyle(el).filter;
+        const base = own && own !== "none" ? `${own} ` : "";
+        el.style.setProperty(
+            "filter",
+            `${base}blur(${blurRadiusFor(rect)}px)`,
+            "important",
+        );
+    }
+
+    // Blur is applied on commit only — never as a hover preview. A preview was
+    // tried and reverted: `filter` makes the element a containing block for
+    // fixed-position descendants, so blurring whatever is under the pointer
+    // shifts the page, which re-targets the hover, which un-blurs and shifts it
+    // back. The frame oscillated between elements and the mode was unusable.
+    // Any future preview has to break that loop (freeze targeting while a
+    // preview is up, or paint into an overlay instead of onto the page).
 
     // ─── Highlight ────────────────────────────────────────────────────────────
 
@@ -538,7 +587,8 @@
         blockEvent(e);
     }
 
-    // Remove the highlighted element. Shared by click and Enter.
+    // Commit the highlighted element — remove it, or keep its blur. Shared by
+    // click and Enter.
     function killCurrent() {
         if (!currentElement) return;
 
@@ -546,23 +596,28 @@
         currentElement = null;
         paintOverlay(null);
 
-        // Walk up to the nearest ancestor <a> and remove that instead so the
-        // whole link block disappears, not just the inner node the cursor hit.
-        const link = element.closest("a");
-        const target = link ?? element;
+        // Remove mode walks up to the nearest ancestor <a> so the whole link
+        // block disappears rather than just the inner node the cursor hit.
+        // Blur mode does not: the element stays in the layout, so widening the
+        // target only smears more of the page than the user pointed at.
+        const target = BLUR ? element : (element.closest("a") ?? element);
 
-        reportUsedOnce();
+        // Record the pre-commit state so Ctrl/Cmd+Z can restore it.
+        commitHistory.push(BLUR
+            ? {
+                  node: target,
+                  filter: target.style.getPropertyValue("filter"),
+                  priority: target.style.getPropertyPriority("filter"),
+              }
+            : {
+                  node: target,
+                  parent: target.parentNode,
+                  nextSibling: target.nextSibling,
+              });
 
-        // Record position before detaching so Ctrl/Cmd+Z can splice it back.
-        removalHistory.push({
-            node: target,
-            parent: target.parentNode,
-            nextSibling: target.nextSibling,
-        });
-
-        // Spawn a kill-frame over the target's rect that fills top-to-bottom
-        // with red, then detach the node. The overlay is independent of the
-        // element so undo can splice the node back without replaying anything.
+        // Spawn a kill-frame over the target's rect that fills top-to-bottom,
+        // then commit. The overlay is independent of the element so undo can
+        // restore it without replaying anything.
         const rect = target.getBoundingClientRect();
         const killFrame = document.createElement("div");
         killFrame.className = "__dk-killframe";
@@ -577,14 +632,17 @@
         document.documentElement.appendChild(killFrame);
 
         // Phase 1: scanline sweeps top→bottom over the still-visible element.
-        // Phase 2 (after fill completes): hide the element and fade the frame.
+        // Phase 2 (after fill completes): commit and fade the frame.
         setTimeout(() => {
-            target.style.visibility = "hidden";
+            if (BLUR) applyBlur(target, rect);
+            else      target.style.visibility = "hidden";
             killFrame.classList.add("__dk-fading");
         }, 320);
         setTimeout(() => {
-            target.style.visibility = "";
-            target.remove();
+            if (!BLUR) {
+                target.style.visibility = "";
+                target.remove();
+            }
             killFrame.remove();
         }, 520);
     }
@@ -597,8 +655,15 @@
     // ─── Undo ─────────────────────────────────────────────────────────────────
 
     function undoRemoval() {
-        const entry = removalHistory.pop();
+        const entry = commitHistory.pop();
         if (!entry) return;
+
+        if (BLUR) {
+            const { node, filter, priority } = entry;
+            if (filter) node.style.setProperty("filter", filter, priority);
+            else        node.style.removeProperty("filter");
+            return;
+        }
 
         const { node, parent, nextSibling } = entry;
         if (!parent) return;
@@ -720,4 +785,4 @@
     // capture listener earlier than us) still can't pop a new tab.
     originalWindowOpen = window.open;
     window.open = function () { return null; };
-})();
+};

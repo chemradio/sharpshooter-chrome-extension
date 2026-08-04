@@ -58,6 +58,24 @@
             applyAccent(message.accent);
             applyTipStrings(message.strings);
             overlay.classList.toggle("__hl-mode-design", mode === "design");
+
+            // Design mode pairs the picker with the live spec card
+            // (designInspector.js), injected just before this script. It owns
+            // the card; this file still owns targeting, so the two meet at the
+            // small hook set below rather than by forking the picker.
+            if (mode === "design" && window.__DesignInspector) {
+                window.__DesignInspector.setSession({
+                    deviceMetrics,
+                    screenshotSuffix,
+                });
+                window.__DesignInspector.setStrings(message.cardStrings);
+                if (currentElement) {
+                    window.__DesignInspector.onTarget(
+                        currentElement,
+                        currentElement.getBoundingClientRect()
+                    );
+                }
+            }
         }
     };
     chrome.runtime.onMessage.addListener(metricsListener);
@@ -402,7 +420,20 @@
 
     function highlight(el) {
         currentElement = el;
-        paintOverlay(el ? el.getBoundingClientRect() : null);
+        const rect = el ? el.getBoundingClientRect() : null;
+        paintOverlay(rect);
+        if (mode === "design" && el && window.__DesignInspector) {
+            window.__DesignInspector.onTarget(el, rect);
+        }
+    }
+
+    // True while the design card is frozen around a committed element. The
+    // picker goes inert so the user can work the card without the highlight
+    // chasing their pointer across it.
+    function inspectorFrozen() {
+        return mode === "design"
+            && !!window.__DesignInspector
+            && window.__DesignInspector.isFrozen();
     }
 
     // ─── Same-rect collapsing ─────────────────────────────────────────────────
@@ -460,7 +491,7 @@
         pendingX = e.clientX;
         pendingY = e.clientY;
 
-        if (isScrollLocked) return;
+        if (isScrollLocked || inspectorFrozen()) return;
 
         const dx = e.clientX - lastCommittedX;
         const dy = e.clientY - lastCommittedY;
@@ -536,6 +567,9 @@
     }
 
     function onWheel(e) {
+        // A frozen card can overflow its own box; let the wheel scroll it
+        // rather than walking the DOM behind it.
+        if (inspectorFrozen()) return;
         e.preventDefault();
         e.stopPropagation();
         if (!currentElement) return;
@@ -549,9 +583,17 @@
         if (e.key === "Escape") {
             e.preventDefault();
             e.stopPropagation();
+            // A frozen card is a state the user chose, so the first Esc undoes
+            // that choice and returns to picking; only the second ends the
+            // session.
+            if (mode === "design" && window.__DesignInspector?.onRelease()) {
+                return;
+            }
             destroy();
             return;
         }
+
+        if (inspectorFrozen()) return;
 
         // Enter commits the highlighted element, same as a click.
         if (e.key === "Enter") {
@@ -582,6 +624,19 @@
         if (!currentElement) return;
 
         const element = currentElement;
+
+        // Design mode commits *into the page*, not to the background: the card
+        // freezes around the element so the user can copy from it. Nothing is
+        // captured until they press the card's own Capture button, so the
+        // picker stays alive and no marker is set yet.
+        if (mode === "design" && window.__DesignInspector) {
+            window.__DesignInspector.onCommit(element, {
+                deviceMetrics,
+                screenshotSuffix,
+            });
+            return;
+        }
+
         const xpath = getXPath(element);
 
         // Positional XPath breaks when emulation crosses a responsive
@@ -608,6 +663,21 @@
     }
 
     function onClick(e) {
+        // This listener is on document in the CAPTURE phase, so it sees clicks
+        // before their target does — including clicks on the design card. The
+        // card lives in a shadow root, so the event is retargeted to its host
+        // and identifiable by id; without this check, stopPropagation below
+        // would swallow every click on the card's own swatches and buttons
+        // before they ever reached it.
+        if (e.target && e.target.id === "__ds-inspector") return;
+
+        if (inspectorFrozen()) {
+            // Clicks anywhere else are swallowed so the page underneath can't
+            // navigate out from under a card the user is still reading.
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         e.preventDefault();
         e.stopPropagation();
         commitSelection();
@@ -634,11 +704,15 @@
         document.getElementById(STYLE_ID)?.remove();
         window.removeEventListener("resize", onViewportChange, true);
         window.removeEventListener("scroll", onViewportChange, true);
+        // Drop the global before tearing the card down: the inspector's own
+        // destroy() calls back here, and this is what stops that recursing.
         delete window.__HighlighterDestroy;
+        window.__DesignInspectorDestroy?.();
     }
 
     function onViewportChange() {
         if (currentElement) paintOverlay(currentElement.getBoundingClientRect());
+        if (mode === "design") window.__DesignInspector?.onReposition();
     }
 
     window.__HighlighterDestroy = destroy;
