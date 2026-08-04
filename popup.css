@@ -32,6 +32,21 @@
     --radius-sm:  2px;
     --glow-cyan:  0 0 8px rgba(14, 202, 227, 0.55);
     --glow-red:   0 0 8px rgba(255, 0, 85, 0.55);
+    /* Header title bloom. Three stacked radii (tight core → wide haze) so
+       the falloff reads as emitted light rather than as a blurred copy of
+       the glyphs; the "-hot" variants are the top of the slow pulse and
+       the level the click burst holds. */
+    --glow-title:         0 0 6px rgba(14, 202, 227, 0.55),
+                          0 0 14px rgba(14, 202, 227, 0.32),
+                          0 0 28px rgba(14, 202, 227, 0.16);
+    --glow-title-hot:     0 0 7px rgba(255, 255, 255, 0.35),
+                          0 0 12px rgba(14, 202, 227, 0.75),
+                          0 0 24px rgba(14, 202, 227, 0.45),
+                          0 0 44px rgba(14, 202, 227, 0.22);
+    --glow-title-sub:     0 0 5px rgba(14, 202, 227, 0.42),
+                          0 0 11px rgba(14, 202, 227, 0.20);
+    --glow-title-sub-hot: 0 0 6px rgba(14, 202, 227, 0.68),
+                          0 0 16px rgba(14, 202, 227, 0.34);
     --amber:      #F59E0B;
     --glow-amber: 0 0 8px rgba(245, 158, 11, 0.55);
     --violet:      #A855F7;
@@ -59,14 +74,29 @@ body {
 .popup {
     position: relative;
     width: 360px;
-    /* Every view is sized from the main view so switching never resizes the
-       popup. popup.js measures the main view and writes both:
-         --popup-content-h : the main view's own content height (.body)
-         --popup-view-h    : that plus the status bar, which subpages drop
-       Subpages therefore end up exactly as tall as the main view overall.
-       These are only the pre-JS fallbacks. */
-    --popup-content-h: 480px;
-    --popup-view-h: 539px;
+    /* The popup is not one fixed size (see popup.js). The main view sizes to
+       its own content; every subpage takes the full height Chrome allows.
+       popup.js writes both:
+         --popup-view-h      : subpage height — everything below the header
+         --popup-content-max : the tallest .body may get before it scrolls
+       These are only the pre-JS fallbacks.
+       popup.js also sets an explicit inline height here, and the transition
+       below is what turns a view switch into a smooth window resize: Chrome
+       sizes the popup window from the document, so animating this height
+       drags the window with it. */
+    --popup-content-max: 460px;
+    --popup-view-h: 520px;
+    /* Every view — main, Settings, Legal Capture Settings, Help, Arcade —
+       opens with its title row, and that row must not move when you switch
+       between them: only the text changes, the pip stays put. So the top and
+       side padding of every view come from here rather than each view picking
+       its own, and the absolutely-positioned close buttons key off the same
+       two numbers. See .section-label for the other half (the pip is placed
+       off a fixed line box, so a 10px and a 12px label align too). */
+    --view-pad-top: 14px;
+    --view-pad-x: 14px;
+    height: auto;
+    transition: height 0.19s cubic-bezier(0.22, 0.61, 0.36, 1);
     display: flex;
     flex-direction: column;
     background:
@@ -157,6 +187,10 @@ body {
 
 header {
     position: relative;
+    /* Never squashed: while the shell's height animates between two views it
+       is briefly shorter than its content, and a shrinkable header would
+       visibly compress instead of the extra simply being clipped. */
+    flex: 0 0 auto;
     background: var(--dark-2);
     /* Extra left padding reserves room for the oversized, absolutely
        positioned brand mark. Symmetric vertical padding anchors the
@@ -174,6 +208,9 @@ header {
     flex-direction: column;
     justify-content: center;
     gap: 0;
+    /* A click replays the boot animation (popup.js), but the cursor stays
+       the plain arrow: it is a title, not a control, and nothing is lost by
+       never finding the easter egg. */
     cursor: default;
     user-select: none;
 }
@@ -184,8 +221,159 @@ header {
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    text-shadow: var(--glow-cyan);
+    text-shadow: var(--glow-title);
     line-height: 1;
+    animation: title-glow-pulse 3.6s ease-in-out infinite;
+}
+
+/* Neon bloom on both lines. Three stacked shadows rather than one so the
+   falloff reads as light rather than as a blurred copy of the glyphs. */
+@keyframes title-glow-pulse {
+    0%, 100% { text-shadow: var(--glow-title); }
+    50%      { text-shadow: var(--glow-title-hot); }
+}
+
+/* ── Title glitch ──────────────────────────────────────
+   Chromatic aberration: each line's text is duplicated into two absolutely
+   positioned pseudo-element copies (red behind, cyan in front) that are
+   invisible until a keyframe flicks them apart in clipped horizontal bands.
+   The copies read `attr(data-text)`, which popup.js keeps in sync with
+   textContent on every typewriter/scramble frame — the text is written by
+   JS, so there is nothing static for CSS to mirror otherwise.
+   The ambient animations are mostly dead time: the split only happens in
+   the last few percent of a long cycle, so the header twitches every few
+   seconds instead of vibrating constantly. Clicking swaps in the burst
+   variants below. */
+.header-title-main,
+.header-title-sub {
+    position: relative;
+    display: inline-block;
+    /* The typewriter writes partial strings; one ending on a space would
+       have that space collapsed and the next character would then jump
+       into place instead of appearing after it. */
+    white-space: pre;
+}
+
+.header-title-main::before,
+.header-title-main::after,
+.header-title-sub::before,
+.header-title-sub::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    pointer-events: none;
+    opacity: 0;
+    text-shadow: none;
+    white-space: pre;
+}
+
+.header-title-main::before,
+.header-title-sub::before {
+    color: var(--danger);
+    animation: title-glitch-red 7.3s steps(1, end) infinite;
+}
+
+.header-title-main::after,
+.header-title-sub::after {
+    color: var(--accent);
+    animation: title-glitch-cyan 9.1s steps(1, end) infinite;
+}
+
+/* Sub-line runs the same cycle out of phase so the two never twitch
+   together — a header that glitches as one block reads as a repaint. */
+.header-title-sub::before { animation-delay: 2.6s; }
+.header-title-sub::after  { animation-delay: 4.1s; }
+
+@keyframes title-glitch-red {
+    0%, 90%, 100% { opacity: 0; transform: none; }
+    91% { opacity: 0.85; transform: translate(-2px, -1px); clip-path: inset(0 0 64% 0); }
+    93% { opacity: 0.7;  transform: translate(2px, 1px);   clip-path: inset(56% 0 0 0); }
+    95% { opacity: 0.8;  transform: translate(-3px, 0);    clip-path: inset(28% 0 42% 0); }
+    97% { opacity: 0;    transform: none; }
+}
+
+@keyframes title-glitch-cyan {
+    0%, 88%, 100% { opacity: 0; transform: none; }
+    89% { opacity: 0.9; transform: translate(2px, 1px);  clip-path: inset(0 0 52% 0); }
+    92% { opacity: 0.6; transform: translate(-2px, -1px); clip-path: inset(44% 0 0 0); }
+    94% { opacity: 0.8; transform: translate(3px, 0);    clip-path: inset(18% 0 60% 0); }
+    96% { opacity: 0;   transform: none; }
+}
+
+/* ── Click burst ───────────────────────────────────────
+   popup.js adds .is-glitching for the length of the scramble reveal. Same
+   two copies, driven hard and continuously instead of once per cycle. */
+.header-title.is-glitching .header-title-main::before,
+.header-title.is-glitching .header-title-sub::before {
+    animation: title-burst-red 0.24s steps(1, end) infinite;
+}
+
+.header-title.is-glitching .header-title-main::after,
+.header-title.is-glitching .header-title-sub::after {
+    animation: title-burst-cyan 0.3s steps(1, end) infinite;
+}
+
+.header-title.is-glitching .header-title-line {
+    animation: title-burst-shake 0.18s steps(1, end) infinite;
+    text-shadow: var(--glow-title-hot);
+}
+
+/* The 17px line's bloom is far too heavy under a 10px one. */
+.header-title.is-glitching .header-title-line-sub {
+    text-shadow: var(--glow-title-sub-hot);
+}
+
+@keyframes title-burst-red {
+    0%   { opacity: 0.9; transform: translate(-3px, -1px); clip-path: inset(0 0 58% 0); }
+    33%  { opacity: 0.8; transform: translate(3px, 1px);   clip-path: inset(40% 0 22% 0); }
+    66%  { opacity: 0.9; transform: translate(-2px, 2px);  clip-path: inset(66% 0 0 0); }
+    100% { opacity: 0.7; transform: translate(1px, -2px);  clip-path: inset(12% 0 48% 0); }
+}
+
+@keyframes title-burst-cyan {
+    0%   { opacity: 0.9; transform: translate(3px, 1px);   clip-path: inset(24% 0 40% 0); }
+    40%  { opacity: 0.7; transform: translate(-3px, -2px); clip-path: inset(0 0 70% 0); }
+    80%  { opacity: 0.9; transform: translate(2px, 2px);   clip-path: inset(52% 0 0 0); }
+    100% { opacity: 0.8; transform: translate(-1px, 0);    clip-path: inset(34% 0 30% 0); }
+}
+
+@keyframes title-burst-shake {
+    0%   { transform: translateX(0)     skewX(0); }
+    25%  { transform: translateX(-1.5px) skewX(-2deg); }
+    50%  { transform: translateX(1px)    skewX(1.5deg); }
+    75%  { transform: translateX(-0.5px) skewX(0.5deg); }
+    100% { transform: translateX(1.5px)  skewX(-1deg); }
+}
+
+/* Every one of the above is decoration over text that is already fully
+   legible without it — under reduced motion the lines just sit there
+   glowing, and the click still re-prints the text instantly (popup.js). */
+@media (prefers-reduced-motion: reduce) {
+    .header-title-line,
+    .header-title.is-glitching .header-title-line {
+        animation: none;
+        text-shadow: var(--glow-title);
+    }
+    /* Two classes deep on purpose: .header-title-line-sub is declared after
+       this block and would otherwise win the tie and keep pulsing. */
+    .header-title .header-title-line-sub,
+    .header-title.is-glitching .header-title-line-sub {
+        animation: none;
+        text-shadow: var(--glow-title-sub);
+    }
+    .header-title-main::before,
+    .header-title-main::after,
+    .header-title-sub::before,
+    .header-title-sub::after,
+    .header-title.is-glitching .header-title-main::before,
+    .header-title.is-glitching .header-title-main::after,
+    .header-title.is-glitching .header-title-sub::before,
+    .header-title.is-glitching .header-title-sub::after {
+        animation: none;
+        opacity: 0;
+    }
 }
 
 /* Second line (tagline) — same layout, much smaller, not uppercased. Fixed
@@ -197,12 +385,22 @@ header {
     font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: none;
-    text-shadow: none;
-    opacity: 0.65;
+    text-shadow: var(--glow-title-sub);
+    opacity: 0.72;
     height: 9px;
     line-height: 9px;
     white-space: nowrap;
-    overflow: hidden;
+    /* Horizontal clip only. Plain `overflow: hidden` also cut the glow and
+       the glitch copies off at the 9px line box; `clip` on one axis leaves
+       the other visible, which `hidden` cannot do. */
+    overflow-x: clip;
+    overflow-y: visible;
+    animation: title-glow-pulse-sub 3.6s ease-in-out infinite;
+}
+
+@keyframes title-glow-pulse-sub {
+    0%, 100% { text-shadow: var(--glow-title-sub); }
+    50%      { text-shadow: var(--glow-title-sub-hot); }
 }
 
 /* Blinking terminal cursor. Trails the title as it types; popup.js then
@@ -237,8 +435,10 @@ header {
     display: block;
     border-radius: 7px;
     filter: drop-shadow(0 0 6px rgba(14, 202, 227, 0.5));
-    /* Targeting affordance — the mark reacts to hover/click (brandMark.js). */
-    cursor: crosshair;
+    /* Plain arrow, deliberately — the mark reacts to hover/click
+       (brandMark.js, and it opens the Arcade), but it reads as the brand
+       first and the cursor swap made the header feel like a control strip. */
+    cursor: default;
     user-select: none;
     transition: filter 0.35s ease;
 }
@@ -264,7 +464,7 @@ header {
     border-radius: 50%;
     background: transparent;
     color: var(--accent);
-    cursor: pointer;
+    cursor: default;
     line-height: 1;
     display: flex;
     align-items: center;
@@ -291,10 +491,13 @@ header {
 .help-view {
     position: relative;
     z-index: 1;
-    padding: 14px 16px 8px;
+    padding: var(--view-pad-top) var(--view-pad-x) 8px;
     font-size: 14px;
     line-height: 1.55;
     color: var(--text);
+    /* Full available height — Help is a long read, so it gets the whole
+       window rather than whatever the main view happened to measure. */
+    flex: 0 0 auto;
     height: var(--popup-view-h);
     overflow-y: auto;
 }
@@ -317,13 +520,9 @@ header {
     filter: drop-shadow(0 0 16px rgba(14, 202, 227, 0.45));
 }
 
+/* Typography comes from the shared .section-label rule — only the spacing
+   below it is Help's own. */
 .help-title {
-    font-size: 15px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--accent);
-    text-shadow: var(--glow-cyan);
     margin-bottom: 12px;
 }
 
@@ -388,13 +587,17 @@ header {
 .body {
     position: relative;
     z-index: 1;
-    padding: 22px 14px 12px;
+    padding: var(--view-pad-top) var(--view-pad-x) 12px;
     display: flex;
     flex-direction: column;
     gap: 0;
-    /* Sized to its own content by popup.js, so this never actually scrolls;
-       `auto` is only a safety valve if a translation overflows. */
-    height: var(--popup-content-h);
+    /* The main view sizes to its own content — hiding a section in Settings
+       shortens the popup for real. It only scrolls if the content can't fit
+       the tallest popup Chrome allows. flex-shrink is off so the shell's
+       animated height can't squeeze it mid-transition. */
+    flex: 0 0 auto;
+    height: auto;
+    max-height: var(--popup-content-max);
     overflow-y: auto;
 }
 
@@ -438,7 +641,24 @@ section {
 section + section { margin-top: 12px; }
 section[hidden] { display: none; }
 
-.section-label {
+/* One label treatment for the whole popup. Subpage titles (Settings, Legal
+   Capture Settings, Help) and the Arcade's topbar title are the same thing as
+   the main view's section labels — a heading with a status pip — so they are
+   styled here rather than each carrying its own size, colour and letter
+   spacing. */
+.section-label,
+.settings-header,
+.help-title {
+    /* Fixed line box, independent of font size: the subpage type scale runs
+       these at 12px and the main view at 10px, and the pip still has to land
+       on the same pixel row in both. `position: relative` anchors that pip;
+       the padding is the 6px pip plus its 7px gap. `display: block` because
+       the Arcade's title is a <span>. */
+    position: relative;
+    display: block;
+    min-height: 14px;
+    line-height: 14px;
+    padding-left: 13px;
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
@@ -447,14 +667,18 @@ section[hidden] { display: none; }
 }
 
 /* Small LED-style indicator block before each label — non-interactive,
-   reads as a status pip rather than a clickable arrow. */
-.section-label::before {
+   reads as a status pip rather than a clickable arrow. Positioned off the
+   line box above rather than sitting in the text flow, so it can't drift with
+   the font size or with a flex row's alignment. */
+.section-label::before,
+.settings-header::before,
+.help-title::before {
     content: '';
-    display: inline-block;
+    position: absolute;
+    left: 0;
+    top: 4px;
     width: 6px;
     height: 6px;
-    margin-right: 7px;
-    vertical-align: 1px;
     background: var(--accent);
     box-shadow: var(--glow-cyan);
 }
@@ -479,7 +703,7 @@ section[hidden] { display: none; }
     letter-spacing: 0.04em;
     text-align: center;
     color: var(--text-muted);
-    cursor: pointer;
+    cursor: default;
     transition: background 0.12s, color 0.12s, border-color 0.12s,
         box-shadow 0.12s;
     user-select: none;
@@ -612,7 +836,7 @@ button {
     font-weight: 700;
     border-radius: var(--radius);
     border: none;
-    cursor: pointer;
+    cursor: default;
     padding: 9px 12px;
     letter-spacing: 0.06em;
     transition: background 0.12s, color 0.12s, box-shadow 0.12s,
@@ -1024,11 +1248,14 @@ button:active { opacity: 0.75; }
 
 /* Mirrors .help-view: top-level sibling of .body that becomes its own
    scroll container, so the header (with the overshooting brand mark)
-   stays anchored while the settings list scrolls beneath it. */
+   stays anchored while the settings list scrolls beneath it. Takes the full
+   available height — it's a long list, and a short window that scrolls
+   sooner helps nobody. */
 .settings-view {
     position: relative;
     z-index: 1;
-    padding: 22px 14px 12px;
+    padding: var(--view-pad-top) var(--view-pad-x) 12px;
+    flex: 0 0 auto;
     height: var(--popup-view-h);
     overflow-y: auto;
     display: flex;
@@ -1043,26 +1270,39 @@ button:active { opacity: 0.75; }
 #view-settings[hidden],
 #view-legal-settings[hidden] { display: none; }
 
-/* Legal Capture Settings reads dense (many toggles + notes) — bump the
-   type scale for this view specifically rather than the shared Settings
-   page. */
-#view-legal-settings .settings-header { font-size: 15px; }
-#view-legal-settings .section-label { font-size: 12px; }
-#view-legal-settings .setting-row { font-size: 14px; }
-#view-legal-settings .setting-note { font-size: 12px; }
+/* ── Subpage type scale ────────────────────────────────
+   Settings, Legal Capture Settings and the Arcade are long-form panels you
+   *read*, exactly like Help — so their headings sit at Help's scale rather
+   than the main view's. The main view keeps the compact 10px label: it is a
+   dense control surface where the label is a marker, not prose. Every
+   .setting-* / .preset-* rule below is settings-only and is sized to match
+   directly. */
+.settings-view .settings-header,
+.settings-view .section-label,
+.arcade-view .section-label,
+.help-view .help-title { font-size: 12px; }
 
-.settings-header {
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--accent);
+/* A title row with a close button. It is NOT a flex row: centring a 22px
+   button against a 14px label pushed the label (and its pip) down by 4px, and
+   the whole point is that the title row sits at the same pixel in every view.
+   The button is taken out of flow instead — keyed to the same padding
+   variables as the views themselves — and the row just reserves its height.
+   Same treatment as .arcade-topbar. */
+.settings-header--row {
+    position: relative;
+    display: block;
+    min-height: 22px;
 }
 
-.settings-header--row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+/* Anchored to the title row (which is `position: relative` as a label), so
+   `right: 0` is the view's content edge. The negative offset centres the 22px
+   button on the 14px title line — (14 - 22) / 2 — rather than on the row,
+   which is 22px tall only to reserve the button's own height. */
+.settings-header--row .settings-close-btn,
+.arcade-topbar .settings-close-btn {
+    position: absolute;
+    top: -4px;
+    right: 0;
 }
 
 .settings-close-btn {
@@ -1074,7 +1314,7 @@ button:active { opacity: 0.75; }
     border-radius: 50%;
     background: transparent;
     color: var(--accent);
-    cursor: pointer;
+    cursor: default;
     font-size: 16px;
     font-weight: 800;
     line-height: 1;
@@ -1094,22 +1334,22 @@ button:active { opacity: 0.75; }
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text);
-    cursor: pointer;
+    cursor: default;
     user-select: none;
     padding: 0 2px;
 }
 
 .setting-row input[type="checkbox"] {
     margin: 0;
-    cursor: pointer;
+    cursor: default;
     accent-color: var(--accent);
 }
 
 .setting-note {
     margin: 4px 2px 0;
-    font-size: 10px;
+    font-size: 13px;
     line-height: 1.45;
     color: var(--text-muted);
 }
@@ -1126,6 +1366,8 @@ button:active { opacity: 0.75; }
 .status {
     position: relative;
     z-index: 1;
+    /* Same reason as header: no squashing mid-resize. */
+    flex: 0 0 auto;
     box-sizing: content-box;
     height: calc(1.4em * 3);
     padding: 4px 14px 9px;
@@ -1143,9 +1385,9 @@ button:active { opacity: 0.75; }
 }
 
 /* The status / tooltips bar belongs to the main view only — fully removed on
-   every subpage, not merely made invisible. Subpages still match the main
-   view's total height because they size to --popup-view-h, which already
-   accounts for this bar. */
+   every subpage, not merely made invisible. Subpages take the whole height
+   below the header (--popup-view-h) and so reclaim this bar's space; the main
+   view's own cap (--popup-content-max) is that height minus this bar. */
 .popup.is-helping .status,
 .popup.is-settings .status,
 .popup.is-legal-settings .status,
@@ -1392,7 +1634,7 @@ button:active { opacity: 0.75; }
 /* ── Settings controls ─────────────────────────────────── */
 
 .setting-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1408,7 +1650,7 @@ button:active { opacity: 0.75; }
     background: var(--void);
     color: var(--accent);
     font-family: 'Consolas', 'Menlo', monospace;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .setting-text:focus {
@@ -1431,7 +1673,7 @@ button:active { opacity: 0.75; }
 .setting-slider-label {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -1440,7 +1682,7 @@ button:active { opacity: 0.75; }
 .setting-slider input[type="range"] {
     width: 100%;
     accent-color: var(--accent);
-    cursor: pointer;
+    cursor: default;
 }
 
 /* Hairline between individual settings inside a section. */
@@ -1471,7 +1713,7 @@ button:active { opacity: 0.75; }
 }
 
 .preset-handle {
-    cursor: grab;
+    cursor: default;
     color: var(--text-muted);
     display: inline-flex;
     align-items: center;
@@ -1510,7 +1752,7 @@ button:active { opacity: 0.75; }
     background: var(--void);
     color: var(--text);
     font-family: 'Roboto Condensed', sans-serif;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .preset-row .preset-label:disabled {
@@ -1534,7 +1776,7 @@ button:active { opacity: 0.75; }
 
 .preset-dims .resolution-x {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .preset-row .preset-dim {
@@ -1545,7 +1787,7 @@ button:active { opacity: 0.75; }
     background: var(--void);
     color: var(--accent);
     font-family: 'Consolas', 'Menlo', monospace;
-    font-size: 11px;
+    font-size: 12px;
     text-align: center;
     -moz-appearance: textfield;
 }
@@ -1574,9 +1816,9 @@ button:active { opacity: 0.75; }
     border-radius: var(--radius-sm);
     background: var(--void);
     color: var(--text);
-    font-size: 11px;
+    font-size: 12px;
     font-family: 'Roboto Condensed', sans-serif;
-    cursor: pointer;
+    cursor: default;
 }
 
 .preset-row .preset-scale:focus {
@@ -1595,7 +1837,7 @@ button:active { opacity: 0.75; }
     color: var(--text-muted);
     font-size: 14px;
     line-height: 1;
-    cursor: pointer;
+    cursor: default;
     transition: color 0.12s, border-color 0.12s, background 0.12s, box-shadow 0.12s;
 }
 
@@ -1608,7 +1850,7 @@ button:active { opacity: 0.75; }
 
 .preset-row .preset-delete:disabled {
     opacity: 0.3;
-    cursor: not-allowed;
+    cursor: default;
 }
 
 .preset-row .preset-toggle {
@@ -1619,7 +1861,7 @@ button:active { opacity: 0.75; }
     border-radius: var(--radius-sm);
     background: var(--void);
     color: var(--accent);
-    cursor: pointer;
+    cursor: default;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1662,6 +1904,28 @@ button:active { opacity: 0.75; }
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
+/* ── Text selection — phosphor highlight ───────────────
+   The browser default is a flat OS blue that reads as a stray form control
+   dropped on the panel. A solid accent block with the void punched through
+   it is the same inversion the checked radio chips and hovered icon buttons
+   already use, so a selection looks like part of the terminal.
+   text-shadow is cleared: the cyan glow on headings and readouts smears
+   over an inverted fill and turns the text to mush. */
+::selection {
+    background: var(--accent);
+    color: var(--void);
+    text-shadow: none;
+}
+
+/* Anything already speaking in red keeps its own colour rather than being
+   repainted cyan mid-selection. */
+.btn-helper--danger ::selection,
+.btn-helper--danger::selection,
+.status.error::selection {
+    background: var(--danger);
+    color: var(--void);
+}
+
 /* ════════════════════════════════════════════════════════════════
    Arcade  (arcade/*.js)
    The same cabinet showing a different screen: the header brand mark
@@ -1681,15 +1945,18 @@ button:active { opacity: 0.75; }
 
 /* ── View shell ────────────────────────────────────────
    Sibling of .body, sized exactly like every other subpage. The cabinet
-   screen is a fixed 330×330 inside it. */
+   screen is 330×330 inside it. */
 .arcade-view {
     position: relative;
     z-index: 1;
-    padding: 6px 14px 8px;
-    /* Pinned to the main view's exact height, like every other subpage, so
-       opening the arcade never resizes the popup window. Every row around
-       the screen is deliberately tight: the screen is what absorbs any
-       shortfall, and it should never have to. */
+    /* Same top/side padding as every other view — the title row must not move
+       when you switch into the arcade. */
+    padding: var(--view-pad-top) var(--view-pad-x) 8px;
+    /* Full available height, like every other subpage — which is what
+       guarantees the screen its full size no matter how short the main view
+       is. Every row around it is still deliberately tight; the screen
+       absorbs any shortfall, and now it should never see one. */
+    flex: 0 0 auto;
     height: var(--popup-view-h);
     overflow-y: auto;
     display: flex;
@@ -1710,10 +1977,14 @@ button:active { opacity: 0.75; }
     flex: 0 0 auto;
 }
 
+/* Block, not flex, for the same reason as .settings-header--row: a centred
+   22px close button would drag the title row off the shared baseline. The
+   button is absolutely positioned (rule up there); this just reserves its
+   height. */
 .arcade-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    position: relative;
+    display: block;
+    min-height: 22px;
 }
 
 /* Slot for controls belonging to the active game (Typing Trainer's
@@ -1742,7 +2013,7 @@ button:active { opacity: 0.75; }
     flex: 1 1 56px;
     min-width: 0;
     padding: 4px 1px;
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0;
 }
 
@@ -1768,7 +2039,7 @@ button:active { opacity: 0.75; }
 .arcade-readout-cell--right { flex-direction: row-reverse; }
 
 .arcade-readout-label {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.16em;
@@ -1790,7 +2061,7 @@ button:active { opacity: 0.75; }
    other games' readouts are unchanged. */
 .arcade-readout-detail {
     font-family: 'Consolas', 'Menlo', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     color: var(--text-muted);
@@ -1805,17 +2076,20 @@ button:active { opacity: 0.75; }
 .arcade-screen {
     position: relative;
     align-self: center;
-    /* Square: 330 playfield + 1px bezel on every side. Sized from its
-       height and kept square by aspect-ratio, so it is the one thing in
-       the view allowed to shrink when a short main view leaves the arcade
-       less than its full height — the view is pinned to the popup's height
-       and must never scroll, or the bottom of the playfield (where every
-       game puts its prompts) would sit below the fold. The canvas fills it
-       and scales with it; pointer input is converted back to logical stage
-       units by the hub's pointer(). */
+    /* Square: 330 playfield + 1px bezel on every side. It can't usefully be
+       wider than the view's 332px content box, so 332 is also its ceiling.
+       Sized from its height and kept square by aspect-ratio, and still the
+       one thing in the view allowed to shrink — the view must never scroll,
+       or the bottom of the playfield (where every game puts its prompts)
+       would sit below the fold. The canvas fills it and scales with it;
+       pointer input is converted back to logical stage units by the hub's
+       pointer(). Auto block margins park it in the middle of whatever slack
+       the full-height view leaves, sharing it evenly with the gap above the
+       reset row rather than pooling it all in one place. */
     flex: 0 1 auto;
     min-height: 0;
     height: 332px;
+    margin-block: auto;
     aspect-ratio: 1 / 1;
     max-width: 100%;
     border: 1px solid var(--border);
@@ -1844,11 +2118,12 @@ button:active { opacity: 0.75; }
     height: 100%;
 }
 
-/* Target Practice swaps the pointer for a crosshair — it's a shooting
-   gallery, and the popup already uses crosshair for the brand mark. */
-.arcade-canvas--crosshair { cursor: crosshair; }
+/* Nothing in the popup swaps the cursor for another shape any more — not
+   the brand mark, not the buttons, not Target Practice, which used to run a
+   crosshair here. The OS arrow is the only pointer the popup shows.
 
-/* Breakout hides it entirely: the pointer steers the paddle, so leaving
+   Breakout is the one exception, and it hides rather than replaces: the
+   pointer steers the paddle, so leaving
    the OS arrow on the playfield draws a second sprite over the one it is
    moving. Scoped to the canvas, so it returns outside the screen. */
 .arcade-canvas--nocursor { cursor: none; }
@@ -1905,10 +2180,10 @@ button:active { opacity: 0.75; }
 }
 
 .arcade-overlay[hidden] { display: none; }
-.arcade-overlay.is-blocking { pointer-events: auto; cursor: pointer; }
+.arcade-overlay.is-blocking { pointer-events: auto; cursor: default; }
 
 .arcade-overlay-text {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
@@ -1917,7 +2192,7 @@ button:active { opacity: 0.75; }
 }
 
 .arcade-overlay-sub {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.4;
     color: var(--text-muted);
 }
@@ -1949,7 +2224,7 @@ button:active { opacity: 0.75; }
 }
 
 .arcade-intro-title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.2em;
@@ -1978,7 +2253,7 @@ button:active { opacity: 0.75; }
 }
 
 .arcade-intro-lines li {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.35;
     color: var(--text);
     animation: arcade-intro-line 0.4s ease both;
@@ -2000,7 +2275,7 @@ button:active { opacity: 0.75; }
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
     background: rgba(14, 202, 227, 0.12);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.13em;
@@ -2054,7 +2329,7 @@ button:active { opacity: 0.75; }
 .arcade-actions .btn-helper {
     flex: 1;
     padding: 4px 8px;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 /* Second click within 3s commits — inline, never a native confirm(),
@@ -2075,8 +2350,8 @@ button:active { opacity: 0.75; }
     background: var(--void);
     color: var(--text);
     font-family: inherit;
-    font-size: 11px;
-    cursor: pointer;
+    font-size: 12px;
+    cursor: default;
 }
 
 .arcade-select:hover,
@@ -2087,6 +2362,8 @@ button:active { opacity: 0.75; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+    /* Snap the window to its new size instead of gliding to it. */
+    .popup { transition: none; }
     .header-icon { transition: filter 0.35s ease; }
     .arcade-screen::before { animation: none; }
     /* The intro still needs to be visible, so kill the motion by

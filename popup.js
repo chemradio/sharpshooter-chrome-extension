@@ -8,72 +8,124 @@ const viewNormalEl = document.getElementById("view-normal");
 const captureLabelEl = document.getElementById("capture-label");
 const captureHintEl = document.getElementById("capture-hint");
 
-// Sizes every view from the main view so switching pages never resizes the
-// popup window. Writes two custom properties (consumed in popup.css):
+// ── Popup sizing ────────────────────────────────────────────────────────────
 //
-//   --popup-content-h  the main view's own content height  -> .body
-//   --popup-view-h     that plus the status bar            -> .settings-view,
-//                                                             .help-view
+// The popup is deliberately *not* one fixed size. Two different rules:
 //
-// Subpages drop the status bar entirely, so adding its height back is what
-// makes them come out exactly as tall as the main view overall.
+//   - the **main view sizes to its own content**, so hiding a section in
+//     Settings genuinely shortens the popup instead of leaving a dead gap;
+//   - **every subpage takes the full height Chrome allows an action popup**
+//     (Settings, Legal Capture Settings, Help, Arcade). They're long lists —
+//     an artificially short window that scrolls is strictly worse than the
+//     height simply being there. The Arcade in particular needs it: the
+//     playfield is what gives up space when the view is short.
 //
-// Called at load and wherever the main view's height can change (Legal
-// Capture toggle, preset list, runtime language switch).
+// Two custom properties are written on .popup, consumed by popup.css:
 //
-// Measuring correctly needs all three overrides below — each one silently
-// produced a wrong number when it was missing:
+//   --popup-view-h       the subpage height: everything below the header
+//   --popup-content-max  the tallest .body may get before it scrolls
+//                        (the same, minus the status bar the main view keeps)
+//
+// .popup also gets an explicit inline height, which is what makes the window
+// resize *animate*: Chrome sizes the popup window from the document, so
+// transitioning that one height (popup.css) drags the window along with it.
+//
+// Called at load, on every view switch (a MutationObserver on .popup's class
+// list, below — which also covers arcade/arcade.js opening its own view), and
+// wherever the main view's height can change (Legal Capture toggle, preset
+// list, runtime language switch).
+//
+// Measuring the main view correctly needs all four overrides below — each one
+// silently produced a wrong number when it was missing:
 //
 //   - strip the view classes: this often runs while Settings is open, where
 //     `.body` and `.status` are `display: none`. A display:none element
 //     reports zero height, which collapsed every view at once.
 //   - un-hide #view-normal: opening Settings also sets `#view-normal.hidden`,
 //     so .body would measure as its own padding and nothing else (34px).
-//   - height:auto on .body: it carries the pinned height plus
-//     `overflow-y: auto`, and scrollHeight there returns
-//     max(contentHeight, clientHeight) — so with the pin still applied a
-//     shrinking main view could never report anything smaller than what was
-//     already pinned. The value only ratcheted upward, leaving a dead gap
-//     the size of whatever had just been hidden.
-//
-// Only the content height is rounded up — it becomes .body's pinned height,
-// and flooring a fractional content height left a sub-pixel overflow that
-// showed a permanent scrollbar in the main view. The status height is added
-// raw: rounding it too would make ceil(a) + ceil(b) overshoot the main
-// view's real total by a pixel and put the subpages 1px out.
+//   - max-height:none on .body: it's capped at --popup-content-max, so a main
+//     view taller than the cap would measure as the cap.
+//   - height:auto on .popup: with an explicit height on the shell, .body is a
+//     flex item that can be *shrunk* by it, and would then report the shell's
+//     leftover space rather than its own content height.
 //
 // Everything is restored before returning and it's all synchronous, so
 // nothing paints mid-measurement and there's no flicker.
-const VIEW_CLASSES = [
+
+const headerEl = document.querySelector("header");
+
+// Chrome refuses to make an action popup taller than 600px. Sit a hair under
+// it so a fractional rounding can't push the document past the ceiling and
+// give the whole popup a scrollbar.
+const POPUP_MAX_H = 600;
+const POPUP_SAFETY = 2;
+
+// Views that take the full available height. `is-capturing` is deliberately
+// not one of them — the capture overlay is a small spinner panel and sizes
+// itself.
+const SUBPAGE_CLASSES = [
     "is-settings",
     "is-legal-settings",
     "is-helping",
-    "is-capturing",
     "is-arcade",
 ];
+const VIEW_CLASSES = [...SUBPAGE_CLASSES, "is-capturing"];
+
+// Every view switch goes through a class on .popup — including the Arcade's,
+// which arcade/arcade.js toggles itself. Watching the attribute keeps the
+// resize in one place instead of hanging a call off each toggle.
+const viewObserver = new MutationObserver(() => syncPopupContentHeight());
 
 function syncPopupContentHeight() {
     const activeViews = VIEW_CLASSES.filter((c) =>
         popupEl.classList.contains(c),
     );
-    const prevBodyHeight = bodyEl.style.height;
+    const prevPopupHeight = popupEl.style.height;
+    const prevBodyMaxHeight = bodyEl.style.maxHeight;
     const prevViewHidden = viewNormalEl.hidden;
 
     popupEl.classList.remove(...activeViews);
+    popupEl.style.height = "auto";
     viewNormalEl.hidden = false;
-    bodyEl.style.height = "auto";
-    bodyEl.style.height = "auto";
+    bodyEl.style.maxHeight = "none";
 
     const contentH = Math.ceil(bodyEl.getBoundingClientRect().height);
     const statusH = statusEl.getBoundingClientRect().height;
+    const headerH = headerEl.getBoundingClientRect().height;
+    // .popup's own border, i.e. everything of the shell that isn't a view.
+    const shellH = popupEl.getBoundingClientRect().height - popupEl.clientHeight;
 
-    bodyEl.style.height = prevBodyHeight;
+    bodyEl.style.maxHeight = prevBodyMaxHeight;
     viewNormalEl.hidden = prevViewHidden;
+    popupEl.style.height = prevPopupHeight;
     popupEl.classList.add(...activeViews);
+    // Those class strips/restores are mutations this very function made —
+    // drop them or the observer below would call us again, forever.
+    viewObserver.takeRecords();
 
-    popupEl.style.setProperty("--popup-content-h", `${contentH}px`);
-    popupEl.style.setProperty("--popup-view-h", `${contentH + statusH}px`);
+    const viewH = Math.max(
+        0,
+        Math.floor(POPUP_MAX_H - POPUP_SAFETY - shellH - headerH),
+    );
+    popupEl.style.setProperty("--popup-view-h", `${viewH}px`);
+    popupEl.style.setProperty(
+        "--popup-content-max",
+        `${Math.max(0, Math.floor(viewH - statusH))}px`,
+    );
+
+    if (popupEl.classList.contains("is-capturing")) {
+        popupEl.style.height = "";
+        return;
+    }
+    const onSubpage = SUBPAGE_CLASSES.some((c) => popupEl.classList.contains(c));
+    const inner = onSubpage ? viewH : Math.min(contentH + statusH, viewH);
+    popupEl.style.height = `${Math.ceil(shellH + headerH + inner)}px`;
 }
+
+viewObserver.observe(popupEl, {
+    attributes: true,
+    attributeFilter: ["class"],
+});
 
 // Localized-string helper. Resolves through window.__i18n (see localize.js),
 // which honors the Settings language override; positional substitutions
@@ -426,7 +478,9 @@ function startGeneralTipRotation() {
 }
 
 // Click the status bar → advance to the next general tip immediately and
-// reset the rotation timer so the new tip gets its full dwell.
+// reset the rotation timer so the new tip gets its full dwell. Deliberately
+// no pointer cursor: the bar is a readout first, and a hand over it reads as
+// a control the user is missing out on rather than a shortcut.
 statusEl.addEventListener("click", () => {
     if (!tooltipsEnabled || actionLocked) return;
     generalIdx += 1;
@@ -439,7 +493,6 @@ statusEl.addEventListener("click", () => {
             renderHintText(currentGeneralTipText());
     }, 35000);
 });
-statusEl.style.cursor = "pointer";
 
 // ─── Resolution ───────────────────────────────────────────────────────────────
 
@@ -1842,11 +1895,29 @@ const headerTitleSubEl = document.getElementById("header-title-sub");
 const headerTitleCursorEl = document.getElementById("header-title-cursor");
 const headerTitleSubLineEl = document.querySelector(".header-title-line-sub");
 
+const headerTitleEl = document.getElementById("header-title");
+
+// Both header lines are duplicated by CSS into two offset colour copies for
+// the chromatic-aberration glitch, and those copies are `content:
+// attr(data-text)`. The text itself is written by JS, so every single write
+// has to go through here or the glitch layers desync from what's on screen —
+// mid-typewriter they'd show the finished string, mid-scramble the old one.
+function setTitleText(el, text) {
+    el.textContent = text;
+    el.dataset.text = text;
+}
+
+// Held by whichever animation currently owns the two title nodes — the boot
+// typewriter or a click-triggered scramble. Declared here rather than beside
+// the click handler because runHeaderTypewriter() is *called* above that
+// point and would hit the temporal dead zone.
+let headerGlitchBusy = false;
+
 function typeInto(el, text, speed) {
     return new Promise((resolve) => {
         let i = 0;
         (function step() {
-            el.textContent = text.slice(0, i);
+            setTitleText(el, text.slice(0, i));
             if (i++ >= text.length) {
                 resolve();
                 return;
@@ -1857,24 +1928,63 @@ function typeInto(el, text, speed) {
 }
 
 async function runHeaderTypewriter() {
-    await window.__i18n.ready;
-    const title = t("popupTitle");
-    const tagline = t("appTagline");
+    headerGlitchBusy = true;
+    try {
+        await window.__i18n.ready;
+        const title = t("popupTitle");
+        const tagline = t("appTagline");
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        headerTitleMainEl.textContent = title;
-        headerTitleSubEl.textContent = tagline;
-        return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            setTitleText(headerTitleMainEl, title);
+            setTitleText(headerTitleSubEl, tagline);
+            return;
+        }
+
+        await typeInto(headerTitleMainEl, title, 32);
+        await new Promise((r) => setTimeout(r, 180));
+        headerTitleSubLineEl.appendChild(headerTitleCursorEl);
+        await new Promise((r) => setTimeout(r, 100));
+        await typeInto(headerTitleSubEl, tagline, 16);
+    } finally {
+        headerGlitchBusy = false;
     }
-
-    await typeInto(headerTitleMainEl, title, 32);
-    await new Promise((r) => setTimeout(r, 180));
-    headerTitleSubLineEl.appendChild(headerTitleCursorEl);
-    await new Promise((r) => setTimeout(r, 100));
-    await typeInto(headerTitleSubEl, tagline, 16);
 }
 
 runHeaderTypewriter();
+
+// Clicking the title replays the boot sequence: a short hard chromatic-split
+// burst over the existing text (.is-glitching), then the two lines are wiped
+// and typed back in by the same runHeaderTypewriter() the popup opens with —
+// one animation, not a second one that imitates it. Purely decorative; the
+// header is a label, not a control, so this is deliberately not focusable.
+async function replayHeaderIntro() {
+    // The typewriter writes the same two nodes and holds the same flag, so a
+    // click during the intro (or during another replay) is simply dropped
+    // rather than letting two writers fight over textContent.
+    if (headerGlitchBusy) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    headerGlitchBusy = true;
+    headerTitleEl.classList.add("is-glitching");
+    try {
+        // Glitch the text that's there before clearing it — the burst is
+        // invisible on empty lines, since its copies render `data-text`.
+        if (!reduced) await new Promise((r) => setTimeout(r, 200));
+        setTitleText(headerTitleMainEl, "");
+        setTitleText(headerTitleSubEl, "");
+        // The intro re-parents the cursor onto the sub-line as it goes, so
+        // send it back to the main line for the replay to trail again.
+        headerTitleMainEl.parentNode.appendChild(headerTitleCursorEl);
+        if (!reduced) await new Promise((r) => setTimeout(r, 90));
+    } finally {
+        headerTitleEl.classList.remove("is-glitching");
+        headerGlitchBusy = false;
+    }
+
+    await runHeaderTypewriter();
+}
+
+headerTitleEl.addEventListener("click", replayHeaderIntro);
 
 // Baseline measurement for the current synchronous DOM state (before any
 // of the async Legal Capture / preset-restore paths above have resolved —

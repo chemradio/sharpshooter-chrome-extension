@@ -29,6 +29,81 @@ Every capture control is a **segmented button**: a wide main segment (`.btn-capt
 
 A header **?** button opens an in-popup help panel, and a header **gear** button opens the **Settings** panel. Clicking the brand mark in the header opens the **Arcade** (see below) — the header itself does not move when it does.
 
+**The title block glows, twitches, and replays its boot sequence on click.**
+Both lines carry a stacked three-radius bloom (`--glow-title*`) on a slow
+pulse. **The two themes glow different colours on purpose**: cyan on the dark
+one, **white** on the light one. Both alternatives were tried and rejected —
+cyan around navy ink reads as printing misregistration rather than glow, and
+black reads as dirt, since a dark blur behind dark glyphs is indistinguishable
+from a smudged edge. White keeps the ink crisp and lifts it off the panel; it
+runs near-opaque at small radii because white on a near-white panel has very
+little contrast to spend. Don't "fix" it back to the accent colour. On top of
+that runs a
+chromatic-aberration glitch: CSS duplicates each line into two offset colour
+copies via `content: attr(data-text)` and flicks them apart in clipped bands
+every few seconds, out of phase between the two lines.
+
+Clicking `#header-title` (a decorative easter egg, not a control —
+deliberately not focusable) **replays the popup's own open animation**: a
+~200 ms hard `.is-glitching` burst over the existing text, then both lines are
+cleared, the cursor is re-parented back onto the main line, and
+`runHeaderTypewriter()` — the same function the popup boots with — types them
+in again. There is deliberately no second, imitation reveal animation here; an
+earlier per-character scramble was replaced by this. Note the burst has to
+happen *before* the wipe: its copies render `data-text`, so it is invisible on
+empty lines.
+
+**Every write to either line must go through `setTitleText()` in
+[popup.js](popup.js)** — it mirrors `textContent` into `data-text`, and the
+glitch copies read only the latter, so a direct `textContent` assignment
+desyncs the aberration layers from what's on screen. `headerGlitchBusy` is
+held by whichever animation owns the two nodes, so a click during the intro
+(or during another replay) is dropped rather than letting two writers fight.
+The spans are `white-space: pre` (a partial typewriter string ending on a
+space would otherwise have it collapsed, and the next character would jump
+into place instead of appearing after it), and `.header-title-line-sub` uses
+`overflow-x: clip` rather than `overflow: hidden` (hidden also cut the glow
+and the copies off at the 9 px line box). All of it is off under
+`prefers-reduced-motion`, where a click just re-prints the text.
+
+**There is one label treatment in the whole popup, and its pip never moves.**
+`.section-label`, `.settings-header` (Settings, Legal Capture Settings) and
+`.help-title` are the same rule — 700, muted, with the 6 px cyan status pip —
+so a subpage title reads exactly like the main view's *Resolution* label and
+the Arcade's topbar title. Subpage titles used to be their own 13–15 px
+accent-coloured headings with no pip; don't reintroduce that. Subpages run the
+label at 12 px and the main view at 10 px (the *Subpage type scale* block:
+subpages are panels you read, the main view is a dense control surface).
+
+**Switching views must change the text and nothing else — the pip stays on the
+same pixel.** Three things hold that together, and all three are load-bearing:
+
+- `--view-pad-top` / `--view-pad-x` on `.popup` are the top and side padding
+  of *every* view (`.body`, `.settings-view`, `.help-view`, `.arcade-view`).
+  Each used to pick its own — Help 14/16, the Arcade 6/14 — which is exactly
+  how the title ended up in a different place on every toggle.
+- The pip is **absolutely positioned off a fixed 14 px line box**
+  (`min-height`/`line-height: 14px`, `padding-left: 13px`, pip at `top: 4px`)
+  rather than being an inline-block in the text flow. That is what lets a
+  10 px and a 12 px label put their pip on the same row; an inline pip rides
+  the font's baseline and drifts with the size.
+- The two title rows that carry a close button (`.settings-header--row`,
+  `.arcade-topbar`) are **`display: block`, not flex**, with the button
+  absolutely positioned at `top: -4px; right: 0`. As flex rows with
+  `align-items: center`, the 22 px button dragged the 14 px label — and its
+  pip — 4 px down. Their `min-height: 22px` exists only to reserve the
+  button's height.
+
+**The popup never swaps the mouse cursor.** Not on buttons, radio chips,
+checkboxes, the drag handles in the preset editor, the brand mark, or the
+title — every one of those used to set `pointer` / `grab` / `crosshair` and
+they are all `cursor: default` now. Hover states, glows and borders carry the
+affordance instead; adding a `cursor:` back to any popup control reintroduces
+exactly what was removed. The single exception is Breakout's
+`.arcade-canvas--nocursor`, which *hides* the cursor rather than replacing it,
+and for a reason (see Arcade below). This is a deliberate, repeatedly-stated
+preference, not an oversight.
+
 The radio chips (quality multiplier, resolution presets, settings radio groups) get a prominent hover state — accent border, tinted fill, and cyan glow (`.radio-group label:hover`). The resolution row shows just the two number inputs and a `×` separator (no "px" suffix).
 
 ---
@@ -515,18 +590,21 @@ One game (Typing Trainer) fetches text over the network; see its section
 below and [PRIVACY.md](PRIVACY.md).
 
 `.arcade-view` is pinned to `--popup-view-h`, the same as Settings and
-Help, so opening the arcade never changes the popup's width or height. The
-**screen is the one item allowed to shrink** (`flex: 0 1 auto` +
-`aspect-ratio: 1/1`; everything else is `flex: 0 0 auto`), so a short main
-view scales the cabinet down instead of pushing the bottom of the
-playfield below the fold — which is where every game draws its prompts.
-The canvas therefore carries **no inline CSS size**; it fills the screen
-box at `width/height: 100%` while its backing store stays
-`STAGE_W × STAGE_H × DPR`. That shrink is a **safety net, not the plan** —
-every row around the screen is deliberately tight (5 px gaps, 3–4 px row
-padding, the game-controls slot sharing the reset row) so the arcade's
-chrome costs ~130 px and the screen keeps its full 332 px on any realistic
-main view. If you add a row here, take the height from somewhere else. Any game reading pointer coordinates must go
+Help — i.e. the **full height Chrome allows an action popup**, regardless of
+how tall the main view is (see **Popup sizing** below). That is what
+guarantees the screen its full 332 px. The **screen is still the one item
+allowed to shrink** (`flex: 0 1 auto` + `aspect-ratio: 1/1`; everything else
+is `flex: 0 0 auto`) so a squeeze scales the cabinet down instead of pushing
+the bottom of the playfield below the fold — which is where every game draws
+its prompts. The canvas therefore carries **no inline CSS size**; it fills the
+screen box at `width/height: 100%` while its backing store stays
+`STAGE_W × STAGE_H × DPR`. That shrink is now a **safety net that should never
+fire** — every row around the screen is deliberately tight (5 px gaps, 3–4 px
+row padding, the game-controls slot sharing the reset row) so the arcade's
+chrome costs ~130 px against ~520 px of view. Leftover height is absorbed by
+`margin-block: auto` on the screen plus `margin-top: auto` on the reset row,
+so the slack splits evenly instead of pooling in one gap. If you add a row
+here, take the height from somewhere else. Any game reading pointer coordinates must go
 through **`ctx.pointer(el, event)`**, which converts client coordinates
 back to logical stage units — a raw `clientX - rect.left` misses by the
 scale factor the moment the screen is not exactly 330 px (this is why
@@ -538,8 +616,9 @@ header) is now a real control: `role="button"`, `tabindex="0"`, an
 `aria-expanded` tracking the view. It was `aria-hidden` decoration before
 becoming interactive. Clicking it toggles `#view-arcade`, following the
 same view-switching pattern as `#view-settings` / `#view-legal-settings` /
-`#view-help` (`hidden` + an `is-arcade` class on `.popup`, added to
-`VIEW_CLASSES` so `syncPopupContentHeight()` measures correctly).
+`#view-help` (`hidden` + an `is-arcade` class on `.popup`, listed in
+`SUBPAGE_CLASSES` so it gets the full-height treatment; the class change
+itself is what triggers the resize, via popup.js's `MutationObserver`).
 **The header itself is left completely alone** — there was once a hero
 animation that scaled the mark up and slid it to the popup's centre while
 fading the title out, plus an `.arcade-hero-space` runway in the view; all
@@ -761,6 +840,32 @@ over the shared CRT language. No sound.
 
 ## Architecture notes
 
+- **Popup sizing** (`syncPopupContentHeight()` in [popup.js](popup.js), the
+  `--popup-view-h` / `--popup-content-max` custom properties in
+  [popup.css](popup.css)/[popup-light.css](popup-light.css)). The popup is
+  **deliberately not one fixed size** — the older rule that every view matched
+  the main view's height has been **abandoned**, don't restore it:
+  - The **main view sizes to its own content** (`.body` is `height: auto` with
+    a `max-height`), so hiding a section in Settings genuinely shortens the
+    popup instead of leaving a dead gap.
+  - **Every subpage takes the full height Chrome allows an action popup**
+    (600 px, minus a 2 px safety margin, the shell border and the header) —
+    Settings, Legal Capture Settings, Help and the Arcade are all long, and an
+    artificially short window that scrolls sooner helps nobody. `is-capturing`
+    is *not* in `SUBPAGE_CLASSES`: the capture overlay is a small panel and
+    sizes itself.
+  - **The resize is animated.** Chrome sizes the popup window from the
+    document, so `.popup` carries an explicit inline height and a ~190 ms
+    `transition: height`, and the window glides between sizes. `header`,
+    `.status`, `.body` and every view are `flex: 0 0 auto` — mid-transition the
+    shell is briefly shorter than its content, and a shrinkable child would
+    visibly compress instead of the excess simply being clipped. Killed under
+    `prefers-reduced-motion`.
+  - Recalculation hangs off a **`MutationObserver` on `.popup`'s class list**,
+    which is how every view switch is expressed — including the Arcade's, which
+    [arcade/arcade.js](arcade/arcade.js) toggles itself. The function's own
+    measurement temporarily strips those classes, so it calls
+    `takeRecords()` to discard its own mutations or it would re-enter forever.
 - **Service worker:** [backgroundScript.js](backgroundScript.js). Owns a specific set of message actions (`getPageHeight`, `getViewportSize`, `capturePage`, `captureElement`, `domKiller`, `stopDomKiller`, `imageExtractor`, `imageExtractorDownload`, `imageExtractorCropUrl`, `startLegalCapture`, `extractDesign`, `designSampleRaster`, `designCapture`) and always responds with `{ok: true, ...}` or `{ok: false, error}`. Other listeners own their own actions to avoid channel conflicts: the element-click handler in [screenshots/elementSelect/elementClickListener.js](screenshots/elementSelect/elementClickListener.js) claims `elementClicked`; [support/legalCapture/geoPermissionRelay.js](support/legalCapture/geoPermissionRelay.js) claims `openGeolocationPermissionWindow` and `legalGeolocationPermissionResult`. `domKillerEnded` (broadcast by [contentScripts/domKiller.js](contentScripts/domKiller.js) when a Remove/Blur Elements session ends) is only listened for by [popup.js](popup.js) — the service worker doesn't claim it.
 - **Geolocation permission relay:** [support/legalCapture/geoPermissionRelay.js](support/legalCapture/geoPermissionRelay.js) + [support/legalCapture/geoPermission.html](support/legalCapture/geoPermission.html)/`.js`. Exists solely because an undecided geolocation permission prompt closes the toolbar action popup (focus steals to the native prompt, Chrome dismisses `action` popups on blur). `geoPermissionRelay.js` opens `geoPermission.html` as a real `chrome.windows.create` window (not an action popup, so it isn't subject to that auto-close), which calls `navigator.geolocation.getCurrentPosition` itself and reports the grant/deny back via a message the relay persists into `legalCaptureOptions.geolocation`, then closes its own window. `popup.js` only takes this path when `navigator.permissions.query({name:"geolocation"})` reports an undecided state; an already-resolved (`granted`/`denied`) state is read in the popup directly since no prompt — and therefore no close-on-blur risk — is involved. **Known benign console warning:** when `geoPermission.html` calls `navigator.geolocation.getCurrentPosition`, Chromium logs "Is the 'geolocation' permission appropriate? See https://developer.chrome.com/extensions/manifest.html#permissions." to that page's console (visible via the extension's "Errors" button in `chrome://extensions`). This is a built-in Chromium advisory triggered by any extension page calling the Geolocation Web API — it fires regardless of what's declared in `manifest.json` and is unrelated to the actual permission grant flow (which works correctly). It can only be silenced by adding `"geolocation"` to `manifest.json`'s standing `permissions` array, which would grant geolocation access unconditionally at install instead of the current opt-in-per-toggle design — a deliberate tradeoff not worth making. Leave the warning as-is.
 - **Debugger lifecycle:** [support/debugerAttachment.js](support/debugerAttachment.js). Idempotent attach/detach tracked in a `Set`. Auto-recovers from "already attached" via detach+retry, but only when that retry succeeds — if it fails too (a real external client, i.e. native DevTools, genuinely holds the slot), it throws a distinguishable `DevToolsAttachedError` rather than retrying forever or surfacing a generic Chrome error. Hooks `chrome.debugger.onDetach` to clear stale state.

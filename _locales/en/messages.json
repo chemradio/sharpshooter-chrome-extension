@@ -219,7 +219,9 @@
         "message": "Reloading the page and recording the network exchange — this can take a little longer than a normal capture."
     },
     "stLegalCaptureDone": { "message": "Legal Capture package downloaded" },
-    "stDevToolsOpen": { "message": "DevTools is open on this tab. Close it and try again." },
+    "stDevToolsOpen": {
+        "message": "DevTools is open on this tab. Close it and try again."
+    },
     "ovImageExtractorHint": {
         "message": "Hover to target · Click or Enter to extract images\nWheel / ↑ ↓ = depth · ← → = siblings · ESC to cancel"
     },
@@ -434,7 +436,7 @@
     "designExtract": { "message": "Extract Design" },
     "designExtractEnabled": { "message": "Enable Extract Design" },
     "designExtractEnabledNote": {
-        "message": "Adds a helper that reads an element's fonts and colours into a live card next to it. Hover to inspect, click to freeze the card and copy from it, or download the element and its spec as one image. Everything is read locally — no new permissions, nothing sent anywhere."
+        "message": "Adds a helper that reads an element's fonts and colours into a live card next to it. Hover to inspect, click to freeze the card and copy from it, or download the element and its spec as one image."
     },
     "tipDesignExtract": {
         "message": "Extract Design: hover an element to see its fonts and colours, click to freeze the card and copy from it"
@@ -459,7 +461,9 @@
     },
     "dcRasterNone": { "message": "Nothing to sample." },
     "dcRasterFailed": { "message": "Could not sample pixels." },
-    "dcRasterOffscreen": { "message": "Element is off-screen — scroll it into view." },
+    "dcRasterOffscreen": {
+        "message": "Element is off-screen — scroll it into view."
+    },
     "dcNoText": { "message": "No text in this element." },
     "dcNoColors": { "message": "No colours declared." },
     "dcSrcWebfont": { "message": "webfont" },
@@ -477,9 +481,17 @@
     "dcRemove": { "message": "Remove from card" },
     "dcAllRemoved": { "message": "All removed." },
     "dcPicked": { "message": "User pick" },
-    "dcPickedNote": { "message": "Picked with the eyedropper. Saved with the card when you capture." },
-    "dcFrozenHint": { "message": "Click a swatch to copy · hover an item to remove it · Esc to pick another" },
+    "dcPickedNote": {
+        "message": "Picked with the eyedropper. Saved with the card when you capture."
+    },
+    "dcFrozenHint": {
+        "message": "Click a swatch to copy · hover an item to remove it · Esc to pick another"
+    },
 
-    "errRestrictedPage": { "message": "Chrome blocks extensions on this page. Open a normal website and try again — the Web Store, chrome:// pages and the new-tab page can't be captured." },
-    "errDevToolsAttached": { "message": "DevTools is open on this tab. Close it and try again." }
+    "errRestrictedPage": {
+        "message": "Chrome blocks extensions on this page. Open a normal website and try again — the Web Store, chrome:// pages and the new-tab page can't be captured."
+    },
+    "errDevToolsAttached": {
+        "message": "DevTools is open on this tab. Close it and try again."
+    }
 }

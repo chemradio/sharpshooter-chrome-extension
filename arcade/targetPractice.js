@@ -253,7 +253,6 @@
                 const made = ctx.canvas();
                 el = made.el;
                 g  = made.g;
-                el.classList.add("arcade-canvas--crosshair");
                 container.appendChild(el);
 
                 freshRound();
