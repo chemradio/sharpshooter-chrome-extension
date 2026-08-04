@@ -133,6 +133,25 @@ and are never transmitted anywhere, including to the timestamping
 authorities above (which only ever receive the manifest's hash, regardless
 of which of these toggles are on).
 
+## Extract Design
+
+The **Extract Design** helper reads an element's styling — colours,
+typography, spacing, corner radii, shadows, layout, CSS custom properties,
+and its hover/focus/active states — and turns it into a spec card, a Markdown
+sheet, and a JSON file saved to your Downloads folder.
+
+**This feature makes no network requests at all**, and needs no permission
+the extension does not already hold. Everything is read from the page already
+open in your browser, using the same `debugger` and `scripting` permissions
+the normal screenshot modes use, and every file it produces is assembled
+locally and handed to Chrome's downloads API. Nothing about the element, the
+page, or the styles read from it is transmitted anywhere.
+
+Reading interaction states works by asking the browser to temporarily apply
+`:hover`, `:focus` and `:active` to the element you selected, then reading
+back what changed. This affects only the rendering of that one element for a
+fraction of a second and is cleared before the capture ends.
+
 ## Screenshots
 
 Screenshots you capture are saved directly to your computer's Downloads folder

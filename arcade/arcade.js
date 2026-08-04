@@ -498,6 +498,7 @@
         if (popupEl.classList.contains("is-settings")) window.setSettings?.(false);
         if (popupEl.classList.contains("is-helping")) window.setHelp?.(false);
         if (popupEl.classList.contains("is-legal-settings")) window.setLegalSettingsView?.(false);
+        if (popupEl.classList.contains("is-design-settings")) window.setDesignSettingsView?.(false);
 
         viewArcade.hidden = false;
         popupEl.classList.add("is-arcade");
@@ -607,6 +608,15 @@
         " ", "Spacebar",
     ]);
 
+    // The numpad's steering block (Snake reads it by e.code, so it works
+    // with NumLock either way). With NumLock off these arrive as Home / End /
+    // PageUp / PageDown / Clear, every one of which scrolls or jumps the
+    // view, so they need the same suppression the arrows get.
+    const GAME_CODES = new Set([
+        "Numpad1", "Numpad2", "Numpad3", "Numpad4",
+        "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9",
+    ]);
+
     function onKeyDown(e) {
         if (!isOpen()) return;
         if (e.key === "Escape") { close(); return; }
@@ -624,7 +634,11 @@
         // the worse trade.
         if (tag === "SELECT" && GAME_KEYS.has(e.key)) return;
         // Arrows/space would otherwise scroll the view or re-click a button.
+        // The numpad only when NumLock is off, i.e. when it is producing a
+        // navigation key rather than a digit — a digit is a character the
+        // Typing Trainer is owed.
         if (GAME_KEYS.has(e.key)) e.preventDefault();
+        else if (GAME_CODES.has(e.code) && e.key.length !== 1) e.preventDefault();
         // The key that dismisses the pause prompt is consumed by it — it
         // must not also count as a move in the game underneath.
         if (awaitingResume) { dismissResumePrompt(); return; }

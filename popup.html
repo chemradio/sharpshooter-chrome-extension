@@ -446,6 +446,70 @@
                                 >
                             </button>
                         </div>
+
+                        <!-- Extract Design - element style dossier (card +
+                             spec sheet + JSON). Segmented like Legal Capture:
+                             the narrow segment is a gear opening Design
+                             Settings, NOT a crop variant, so it uses
+                             btn-capture--sub and highlights alone. Hidden by
+                             the "Enable Extract Design" setting; starts
+                             visible so first paint matches the default (the
+                             storage read is async). -->
+                        <div id="design-extract-section">
+                            <div class="capture-segmented">
+                                <button
+                                    id="design-extract"
+                                    class="btn-capture btn-capture--main btn-capture--violet"
+                                >
+                                    <svg
+                                        class="btn-icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.75"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                                        <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                                        <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                                        <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                                        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+                                    </svg>
+                                    <span data-i18n="designExtract"
+                                        >Extract Design</span
+                                    >
+                                </button>
+                                <button
+                                    type="button"
+                                    id="design-settings-toggle"
+                                    class="btn-capture btn-capture--sub btn-capture--violet"
+                                    title="Design Settings"
+                                    data-i18n-title="designSettingsBtnTitle"
+                                    aria-label="Design Settings"
+                                >
+                                    <svg
+                                        class="btn-icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.75"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                    </svg>
+                                    <span
+                                        class="crop-segment-label"
+                                        data-i18n="designSettingsSegmentLabel"
+                                        >settings</span
+                                    >
+                                </button>
+                            </div>
+                        </div>
                     </section>
                 </div>
             </div>
@@ -689,6 +753,24 @@
                         evidence package (WACZ archive + independent RFC 3161
                         timestamp) for legal / investigative use. Off by default
                         to keep the main popup simple.
+                    </p>
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="design-extract-enabled">
+                        <input
+                            type="checkbox"
+                            id="design-extract-enabled"
+                            checked
+                        />
+                        <span data-i18n="designExtractEnabled"
+                            >Enable Extract Design</span
+                        >
+                    </label>
+                    <p class="setting-note" data-i18n="designExtractEnabledNote">
+                        Adds a helper that reads an element's colours,
+                        typography, spacing, radii, shadows and hover states,
+                        and produces a shareable spec card plus a Markdown
+                        sheet and JSON. Everything is read locally — no new
+                        permissions, nothing sent anywhere.
                     </p>
                 </section>
 
@@ -1152,6 +1234,196 @@
                 </section>
             </div>
 
+            <!-- Design Settings. Same subpage pattern as Legal Capture
+                 Settings: each artifact is individually switchable, and the
+                 package assembles from whatever is left on. A single enabled
+                 artifact downloads bare rather than as a one-item zip. -->
+            <div id="view-design-settings" class="settings-view" hidden>
+                <section>
+                    <div class="settings-header settings-header--row">
+                        <span data-i18n="designSettingsTitle"
+                            >Design Settings</span
+                        >
+                        <button
+                            type="button"
+                            id="design-settings-close"
+                            class="settings-close-btn"
+                            title="Close Design Settings"
+                            data-i18n-title="designSettingsCloseBtnTitle"
+                            aria-label="Close Design Settings"
+                        >
+                            ×
+                        </button>
+                    </div>
+                    <p class="setting-note" data-i18n="designSettingsIntro">
+                        Pick what a design extraction produces. With one
+                        artifact selected you get that file on its own; with
+                        several you get a zip.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div class="section-label" data-i18n="designArtifacts">
+                        Artifacts
+                    </div>
+
+                    <label class="setting-row" for="design-opt-card">
+                        <input type="checkbox" id="design-opt-card" checked />
+                        <span data-i18n="designOptCard">Spec card (card.png)</span>
+                    </label>
+                    <p class="setting-note" data-i18n="designOptCardNote">
+                        A shareable image: the element, its palette as real
+                        swatches, a type specimen, drawn padding and corner
+                        radius, hover changes, and any contrast failures. This
+                        is the one to paste into Slack or a deck.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="design-opt-screenshot">
+                        <input type="checkbox" id="design-opt-screenshot" checked />
+                        <span data-i18n="designOptScreenshot"
+                            >Screenshot (screenshot.png)</span
+                        >
+                    </label>
+                    <p class="setting-note" data-i18n="designOptScreenshotNote">
+                        The element on its own, captured exactly as Element
+                        Capture would. Also used as the card's hero image — with
+                        this off the card still renders, without the preview.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="design-opt-spec">
+                        <input type="checkbox" id="design-opt-spec" checked />
+                        <span data-i18n="designOptSpec">Spec sheet (design.md)</span>
+                    </label>
+                    <p class="setting-note" data-i18n="designOptSpecNote">
+                        Every value as Markdown tables — palette, type scale,
+                        spacing, radii, shadows, layout, states, contrast and
+                        tokens. Pastes into Notion, Linear or a GitHub issue
+                        with its formatting intact.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="design-opt-json">
+                        <input type="checkbox" id="design-opt-json" checked />
+                        <span data-i18n="designOptJson">Raw data (design.json)</span>
+                    </label>
+                    <p class="setting-note" data-i18n="designOptJsonNote">
+                        The complete dossier, including per-element computed
+                        styles. This is what the card and the spec sheet are
+                        both rendered from.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div class="section-label" data-i18n="designCollection">
+                        What gets read
+                    </div>
+
+                    <label class="setting-row" for="design-opt-states">
+                        <input type="checkbox" id="design-opt-states" checked />
+                        <span data-i18n="designOptStates"
+                            >Hover, focus and active states</span
+                        >
+                    </label>
+                    <p class="setting-note" data-i18n="designOptStatesNote">
+                        Forces each pseudo-class in turn and records only what
+                        changes. A button's hover style is half its spec, and
+                        it can't be read any other way. Adds a moment to the
+                        capture and briefly flickers the element.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="design-opt-tokens">
+                        <input type="checkbox" id="design-opt-tokens" checked />
+                        <span data-i18n="designOptTokens"
+                            >CSS custom properties</span
+                        >
+                    </label>
+                    <p class="setting-note" data-i18n="designOptTokensNote">
+                        Reads the CSS variables in scope on the element. If the
+                        site is built on design tokens these are its actual
+                        system, which is worth more than the flattened values
+                        they resolve to.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="design-opt-contrast">
+                        <input type="checkbox" id="design-opt-contrast" checked />
+                        <span data-i18n="designOptContrast"
+                            >Contrast ratios (WCAG)</span
+                        >
+                    </label>
+                    <p class="setting-note" data-i18n="designOptContrastNote">
+                        Grades each text colour against the surface it is
+                        actually painted on, using the 3:1 threshold for large
+                        text and 4.5:1 otherwise.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div class="section-label" data-i18n="designCardTheme">
+                        Card theme
+                    </div>
+                    <div class="radio-group" id="design-card-theme-group">
+                        <input
+                            type="radio"
+                            name="design-card-theme"
+                            id="design-card-theme-light"
+                            value="light"
+                            checked
+                        />
+                        <label for="design-card-theme-light" data-i18n="themeLight"
+                            >Light</label
+                        >
+                        <input
+                            type="radio"
+                            name="design-card-theme"
+                            id="design-card-theme-dark"
+                            value="dark"
+                        />
+                        <label for="design-card-theme-dark" data-i18n="themeDark"
+                            >Dark</label
+                        >
+                    </div>
+                    <p class="setting-note" data-i18n="designCardThemeNote">
+                        Light reproduces better in decks, docs and print, so
+                        it's the default regardless of the popup's own theme.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div class="section-label" data-i18n="designHowTitle">
+                        How Extract Design works
+                    </div>
+                    <p class="setting-note" data-i18n="designHowBody">
+                        Pick an element the same way as Element Capture — hover
+                        to highlight, wheel or arrow keys to walk the DOM, Esc
+                        to cancel. On click the extension screenshots it, then
+                        reads the computed styles of every element inside it and
+                        compares them against browser defaults, so you get the
+                        values the site's authors actually set rather than a
+                        dump of everything.
+                    </p>
+                    <p class="setting-note" data-i18n="designHowLimits">
+                        One thing worth knowing: browsers resolve CSS before it
+                        can be read, so clamp(), percentages, em and vw all
+                        arrive as pixels measured at the capture width. Styles
+                        inside shadow DOM, iframes and canvas can't be read at
+                        all and are listed as gaps. Font files are referenced,
+                        never embedded.
+                    </p>
+                </section>
+            </div>
+
             <div id="view-help" class="help-view" hidden>
                 <!-- Large animated brand mark at the top of the help
                      panel — same runtime source as the header icon. -->
@@ -1275,14 +1547,20 @@
                     </div>
                 </div>
 
-                <!-- Below the screen: the two reset buttons, plus the slot
-                     for controls belonging to whichever game is active
-                     (the hub's setControls()) pushed to the right of them.
-                     Sharing this row rather than taking one of its own is
-                     what keeps the cabinet screen at full size — the view is
-                     pinned to the popup's height, and every row spent here
-                     is height the playfield loses. Empty for every game but
-                     Typing Trainer, and collapsed then. -->
+                <!-- Slot for controls belonging to whichever game is active
+                     (the hub's setControls()), on its own row between the
+                     screen and the reset buttons, right-aligned. Empty for
+                     every game but Typing Trainer, and fully collapsed then
+                     — so the four games that register no controls lose no
+                     height to it and the cabinet screen keeps full size. -->
+                <div
+                    class="arcade-game-controls"
+                    id="arcade-game-controls"
+                ></div>
+
+                <!-- Pinned to the bottom of the view (margin-top: auto), so
+                     the reset buttons sit on the popup's bottom edge however
+                     tall the rows above end up. -->
                 <div class="arcade-actions">
                     <button
                         type="button"
@@ -1328,10 +1606,6 @@
                             >Reset highscore</span
                         >
                     </button>
-                    <div
-                        class="arcade-game-controls"
-                        id="arcade-game-controls"
-                    ></div>
                 </div>
             </div>
 

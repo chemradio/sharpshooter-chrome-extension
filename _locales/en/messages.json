@@ -424,5 +424,78 @@
     },
     "legalSettingsSegmentLabel": {
         "message": "settings"
-    }
+    },
+
+    "designExtract": { "message": "Extract Design" },
+    "designSettingsBtnTitle": { "message": "Design Settings" },
+    "designSettingsSegmentLabel": { "message": "settings" },
+    "designSettingsTitle": { "message": "Design Settings" },
+    "designSettingsCloseBtnTitle": { "message": "Close Design Settings" },
+    "designSettingsIntro": {
+        "message": "Pick what a design extraction produces. With one artifact selected you get that file on its own; with several you get a zip."
+    },
+    "designExtractEnabled": { "message": "Enable Extract Design" },
+    "designExtractEnabledNote": {
+        "message": "Adds a helper that reads an element's colours, typography, spacing, radii, shadows and hover states, and produces a shareable spec card plus a Markdown sheet and JSON. Everything is read locally — no new permissions, nothing sent anywhere."
+    },
+    "designArtifacts": { "message": "Artifacts" },
+    "designOptCard": { "message": "Spec card (card.png)" },
+    "designOptCardNote": {
+        "message": "A shareable image: the element, its palette as real swatches, a type specimen, drawn padding and corner radius, hover changes, and any contrast failures. This is the one to paste into a chat or a deck."
+    },
+    "designOptScreenshot": { "message": "Screenshot (screenshot.png)" },
+    "designOptScreenshotNote": {
+        "message": "The element on its own, captured exactly as Element Capture would. Also used as the card's hero image — with this off the card still renders, without the preview."
+    },
+    "designOptSpec": { "message": "Spec sheet (design.md)" },
+    "designOptSpecNote": {
+        "message": "Every value as Markdown tables — palette, type scale, spacing, radii, shadows, layout, states, contrast and tokens. Pastes into a document or issue tracker with its formatting intact."
+    },
+    "designOptJson": { "message": "Raw data (design.json)" },
+    "designOptJsonNote": {
+        "message": "The complete dossier, including per-element computed styles. This is what the card and the spec sheet are both rendered from."
+    },
+    "designCollection": { "message": "What gets read" },
+    "designOptStates": { "message": "Hover, focus and active states" },
+    "designOptStatesNote": {
+        "message": "Forces each pseudo-class in turn and records only what changes. A button's hover style is half its spec, and it can't be read any other way. Adds a moment to the capture and briefly flickers the element."
+    },
+    "designOptTokens": { "message": "CSS custom properties" },
+    "designOptTokensNote": {
+        "message": "Reads the CSS variables in scope on the element. If the site is built on design tokens these are its actual system, which is worth more than the flattened values they resolve to."
+    },
+    "designOptContrast": { "message": "Contrast ratios (WCAG)" },
+    "designOptContrastNote": {
+        "message": "Grades each text colour against the surface it is actually painted on, using the 3:1 threshold for large text and 4.5:1 otherwise."
+    },
+    "designCardTheme": { "message": "Card theme" },
+    "designCardThemeNote": {
+        "message": "Light reproduces better in decks, docs and print, so it's the default regardless of the popup's own theme."
+    },
+    "designHowTitle": { "message": "How Extract Design works" },
+    "designHowBody": {
+        "message": "Pick an element the same way as Element Capture — hover to highlight, wheel or arrow keys to walk the DOM, Esc to cancel. On click the extension screenshots it, then reads the computed styles of every element inside it and compares them against browser defaults, so you get the values the site's authors actually set rather than a dump of everything."
+    },
+    "designHowLimits": {
+        "message": "One thing worth knowing: browsers resolve CSS before it can be read, so clamp(), percentages, em and vw all arrive as pixels measured at the capture width. Styles inside shadow DOM, iframes and canvas can't be read at all and are listed as gaps. Font files are referenced, never embedded."
+    },
+    "designNoArtifactsTitle": {
+        "message": "Turn on at least one artifact in Design Settings"
+    },
+    "tipDesignExtract": {
+        "message": "Extract Design: hover an element, click to read its colours, type, spacing and hover states into a shareable spec card"
+    },
+    "tipDesignSettings": {
+        "message": "Choose which files a design extraction produces"
+    },
+    "ovDesignExtractHint": {
+        "message": "Move mouse to highlight · Click or Enter to extract\nWheel / ↑ ↓ = depth · ← → = siblings"
+    },
+    "pickerNavHint": {
+        "message": "<b>Wheel</b> / <b>↑ ↓</b> = parent / child · <b>← →</b> = previous / next sibling."
+    },
+    "pickerDesignCommitHint": {
+        "message": "<b>Click</b> or <b>Enter</b> to extract the design of the highlighted element · <b>Esc</b> to cancel."
+    },
+    "stDesignExtractDone": { "message": "Design extracted" }
 }

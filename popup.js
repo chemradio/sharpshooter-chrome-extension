@@ -47,6 +47,7 @@ const captureHintEl = document.getElementById("capture-hint");
 const VIEW_CLASSES = [
     "is-settings",
     "is-legal-settings",
+    "is-design-settings",
     "is-helping",
     "is-capturing",
     "is-arcade",
@@ -286,6 +287,8 @@ const BUTTON_TIPS = [
     ["#dom-killer", "tipRemoveElements"],
     ["#image-extractor", "tipImageExtractor"],
     ["#image-extractor-crop", "tipCropSegment"],
+    ["#design-extract", "tipDesignExtract"],
+    ["#design-settings-toggle", "tipDesignSettings"],
     ["#legal-capture", "tipLegalCapture"],
     ["#help-toggle", "tipHelp"],
     ["#settings-toggle", "tipSettings"],
@@ -629,7 +632,11 @@ chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.action !== "elementCaptureResult") return false;
     stopCapturing();
     if (msg.ok) {
-        setStatus(t("stDone"), "ok", 4000);
+        setStatus(
+            t(msg.mode === "design" ? "stDesignExtractDone" : "stDone"),
+            "ok",
+            4000,
+        );
     } else {
         setStatus(msg.error || t("stElementCaptureFailed"), "error", 5000);
     }
@@ -668,6 +675,38 @@ document
     .getElementById("image-extractor-crop")
     .addEventListener("click", () => runImageExtractor(true));
 
+// ─── Extract Design ───────────────────────────────────────────────────────────
+//
+// Shares the element picker with Element Capture, distinguished by a violet
+// accent and a `mode` that travels back on click. Tooltip copy is localized
+// here and passed through the injection message: a content script only sees
+// chrome.i18n's browser-UI locale and would ignore the Settings override.
+
+async function runDesignExtract() {
+    stopDomKillerSession();
+    showCapturing(t("ovSelectElement"), t("ovDesignExtractHint"));
+    try {
+        // Same one-click fix as element capture — close the popup only after
+        // the highlighter is listening.
+        await sendMessage({
+            action: "extractDesign",
+            settings: getSettings({ manualCrop: false }),
+            strings: {
+                nav: t("pickerNavHint"),
+                commit: t("pickerDesignCommitHint"),
+            },
+        });
+        window.close();
+    } catch (e) {
+        stopCapturing();
+        setStatus(e.message ?? t("stError"), "error", 5000);
+    }
+}
+
+document
+    .getElementById("design-extract")
+    .addEventListener("click", runDesignExtract);
+
 // ─── Legal Capture ────────────────────────────────────────────────────────────
 //
 // Specialist mode, shown by default and hideable via Settings (see
@@ -684,6 +723,19 @@ const legalCaseReference = document.getElementById("legal-case-reference");
 
 function applyLegalCaptureVisible(enabled) {
     legalCaptureSection.hidden = !enabled;
+    syncPopupContentHeight();
+}
+
+// Extract Design's section visibility. Same shape as the legal one: the
+// markup starts visible so first paint matches the default, since the
+// chrome.storage.local read that resolves the real setting is async.
+const designExtractSection = document.getElementById("design-extract-section");
+const designExtractEnabledCb = document.getElementById(
+    "design-extract-enabled",
+);
+
+function applyDesignExtractVisible(enabled) {
+    designExtractSection.hidden = !enabled;
     syncPopupContentHeight();
 }
 
@@ -791,6 +843,7 @@ chrome.storage.local
         "showNavTooltip",
         "showPopupTooltips",
         "legalCaptureEnabled",
+        "designExtractEnabled",
     ])
     .then((s) => {
         reencodeOpaqueCb.checked = s.reencodeOpaquePng !== false;
@@ -835,6 +888,12 @@ chrome.storage.local
         const legalCaptureEnabled = s.legalCaptureEnabled !== false;
         legalCaptureEnabledCb.checked = legalCaptureEnabled;
         applyLegalCaptureVisible(legalCaptureEnabled);
+
+        // Also defaults ON: it needs no permissions and costs nothing when
+        // unused, so there's no reason to make users find it first.
+        const designExtractEnabled = s.designExtractEnabled !== false;
+        designExtractEnabledCb.checked = designExtractEnabled;
+        applyDesignExtractVisible(designExtractEnabled);
         if (legalCaptureEnabled) {
             sendMessage({ action: "getTabCaptureFlags" })
                 .then((flags) => {
@@ -900,6 +959,14 @@ legalCaptureEnabledCb.addEventListener("change", () => {
     applyLegalCaptureVisible(legalCaptureEnabledCb.checked);
     chrome.storage.local.set({
         legalCaptureEnabled: legalCaptureEnabledCb.checked,
+    });
+    setStatus(t("stSettingSaved"), "ok", 1500);
+});
+
+designExtractEnabledCb.addEventListener("change", () => {
+    applyDesignExtractVisible(designExtractEnabledCb.checked);
+    chrome.storage.local.set({
+        designExtractEnabled: designExtractEnabledCb.checked,
     });
     setStatus(t("stSettingSaved"), "ok", 1500);
 });
@@ -979,6 +1046,8 @@ settingsToggle.addEventListener("click", () => {
     if (popupEl.classList.contains("is-helping")) setHelp(false);
     if (popupEl.classList.contains("is-legal-settings"))
         setLegalSettingsView(false);
+    if (popupEl.classList.contains("is-design-settings"))
+        setDesignSettingsView(false);
     window.__Arcade?.close?.();
     setSettings(!popupEl.classList.contains("is-settings"));
 });
@@ -999,6 +1068,8 @@ helpToggleBtn.addEventListener("click", () => {
     if (popupEl.classList.contains("is-settings")) setSettings(false);
     if (popupEl.classList.contains("is-legal-settings"))
         setLegalSettingsView(false);
+    if (popupEl.classList.contains("is-design-settings"))
+        setDesignSettingsView(false);
     window.__Arcade?.close?.();
     setHelp(!popupEl.classList.contains("is-helping"));
 });
@@ -1217,12 +1288,122 @@ legalSettingsToggleBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     if (popupEl.classList.contains("is-helping")) setHelp(false);
     if (popupEl.classList.contains("is-settings")) setSettings(false);
+    if (popupEl.classList.contains("is-design-settings"))
+        setDesignSettingsView(false);
     window.__Arcade?.close?.();
     setLegalSettingsView(!popupEl.classList.contains("is-legal-settings"));
 });
 
 legalSettingsCloseBtn.addEventListener("click", () =>
     setLegalSettingsView(false),
+);
+
+// ─── Design Settings ─────────────────────────────────────────────────────────
+//
+// Mirrors the Legal Capture Settings pattern. These defaults must stay in
+// sync with DESIGN_OPTION_DEFAULTS in
+// support/designExtract/designExtractOptions.js — popup.js is a classic
+// script and can't import that module. Unlike Legal Capture, no option here
+// needs a Chrome permission, so there's no permission-request branch.
+const DESIGN_OPTION_DEFAULTS = {
+    screenshot: true,
+    card: true,
+    specSheet: true,
+    designJson: true,
+    elementHtml: false,
+    sampleStates: true,
+    customProperties: true,
+    contrastRatios: true,
+    cardTheme: "light",
+};
+
+const DESIGN_OPTION_CHECKBOXES = {
+    card: document.getElementById("design-opt-card"),
+    screenshot: document.getElementById("design-opt-screenshot"),
+    specSheet: document.getElementById("design-opt-spec"),
+    designJson: document.getElementById("design-opt-json"),
+    sampleStates: document.getElementById("design-opt-states"),
+    customProperties: document.getElementById("design-opt-tokens"),
+    contrastRatios: document.getElementById("design-opt-contrast"),
+};
+
+// The four artifact toggles. If every one is off there is nothing to produce,
+// so the capture button is disabled rather than failing after the user has
+// already picked an element.
+const DESIGN_ARTIFACT_KEYS = ["card", "screenshot", "specSheet", "designJson"];
+
+let designExtractOptions = { ...DESIGN_OPTION_DEFAULTS };
+
+const designExtractBtn = document.getElementById("design-extract");
+
+function syncDesignArtifactGuard() {
+    const any = DESIGN_ARTIFACT_KEYS.some((k) => designExtractOptions[k]);
+    designExtractBtn.disabled = !any;
+    designExtractBtn.title = any ? "" : t("designNoArtifactsTitle");
+}
+
+function saveDesignOptions() {
+    chrome.storage.local.set({ designExtractOptions });
+    syncDesignArtifactGuard();
+}
+
+chrome.storage.local.get(["designExtractOptions"]).then((s) => {
+    designExtractOptions = {
+        ...DESIGN_OPTION_DEFAULTS,
+        ...(s.designExtractOptions || {}),
+    };
+    for (const [key, cb] of Object.entries(DESIGN_OPTION_CHECKBOXES)) {
+        if (cb) cb.checked = !!designExtractOptions[key];
+    }
+    const themeRadio = document.getElementById(
+        `design-card-theme-${designExtractOptions.cardTheme}`,
+    );
+    if (themeRadio) themeRadio.checked = true;
+    syncDesignArtifactGuard();
+});
+
+for (const [key, cb] of Object.entries(DESIGN_OPTION_CHECKBOXES)) {
+    if (!cb) continue;
+    cb.addEventListener("change", () => {
+        designExtractOptions[key] = cb.checked;
+        saveDesignOptions();
+        setStatus(t("stSettingSaved"), "ok", 1500);
+    });
+}
+
+for (const r of document.getElementsByName("design-card-theme")) {
+    r.addEventListener("change", () => {
+        if (!r.checked) return;
+        designExtractOptions.cardTheme = r.value;
+        saveDesignOptions();
+        setStatus(t("stSettingSaved"), "ok", 1500);
+    });
+}
+
+const viewDesignSettings = document.getElementById("view-design-settings");
+const designSettingsToggleBtn = document.getElementById(
+    "design-settings-toggle",
+);
+const designSettingsCloseBtn = document.getElementById("design-settings-close");
+
+function setDesignSettingsView(open) {
+    viewDesignSettings.hidden = !open;
+    viewNormal.hidden = open;
+    popupEl.classList.toggle("is-design-settings", open);
+}
+
+designSettingsToggleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (popupEl.classList.contains("is-helping")) setHelp(false);
+    if (popupEl.classList.contains("is-settings")) setSettings(false);
+    if (popupEl.classList.contains("is-legal-settings"))
+        setLegalSettingsView(false);
+    window.__Arcade?.close?.();
+    setDesignSettingsView(!popupEl.classList.contains("is-design-settings"));
+});
+
+designSettingsCloseBtn.addEventListener("click", () =>
+    setDesignSettingsView(false),
 );
 
 chrome.runtime.onMessage.addListener((msg) => {

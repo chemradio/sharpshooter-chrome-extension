@@ -1,9 +1,17 @@
 // Arcade · Breakout — paddle, ball, brick rows, three lives.
 //
-// The paddle follows the pointer inside the cabinet screen (the natural
-// input for a popup), with arrow keys as a fallback for anyone playing
-// keyboard-only. Score = bricks broken; clearing the wall starts a faster
-// level and keeps the score.
+// The paddle follows the pointer (the natural input for a popup), with
+// arrow keys as a fallback for anyone playing keyboard-only. Score =
+// bricks broken; clearing the wall starts a faster level and keeps the
+// score.
+//
+// Tracking is bound to the document, not the canvas: the screen is only
+// 330px of a 360px popup, so a fast swipe that overshoots the bezel would
+// otherwise abandon the paddle mid-travel. Coordinates outside the canvas
+// convert fine (pointer() is pure arithmetic on its rect) and clamp to the
+// wall, so the paddle stays pinned to the edge the pointer left by and
+// picks the motion straight back up. Clicks stay on the canvas — a
+// document-wide mousedown would launch the ball from the reset buttons.
 (function () {
     const COLS = 8;
     const ROWS = 6;   // one more than the 270px-tall stage carried
@@ -271,7 +279,7 @@
         // ── Pointer input ──────────────────────────────────────────────────
 
         function onPointerMove(e) {
-            if (paused || over) return;
+            if (paused || over || !el) return;
             const { x } = ctx.pointer(el, e);
             paddleX = clamp(x, PADDLE_W / 2, ctx.STAGE_W - PADDLE_W / 2);
         }
@@ -299,7 +307,14 @@
                 freshRun();
                 if (saved) restore(saved);
 
-                el.addEventListener("mousemove", onPointerMove);
+                // Hides the OS cursor over the playfield only — an arrow
+                // sitting on top of the paddle it is steering reads as a
+                // second, lagging sprite. It reappears the moment the
+                // pointer leaves the screen, and over the intro/pause
+                // overlay, which is its own element above the canvas.
+                el.classList.add("arcade-canvas--nocursor");
+
+                document.addEventListener("mousemove", onPointerMove);
                 el.addEventListener("mousedown", onPointerDown);
 
                 scoreCb?.(score);
@@ -336,7 +351,7 @@
             destroy() {
                 loop?.stop();
                 loop = null;
-                el?.removeEventListener("mousemove", onPointerMove);
+                document.removeEventListener("mousemove", onPointerMove);
                 el?.removeEventListener("mousedown", onPointerDown);
                 el?.remove();
                 el = null; g = null;

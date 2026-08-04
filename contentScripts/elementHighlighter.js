@@ -11,9 +11,17 @@
     let screenshotSuffix = null;
     let manualCrop = false;
     let currentElement = null;
+    // Which feature opened the picker. Travels back with elementClicked so the
+    // background routes the same selection to screenshot capture or to design
+    // extraction. Drives the accent colour and frame treatment below.
+    let mode = "capture";
 
     const STYLE_ID   = "__hl-style";
     const OVERLAY_ID = "__hl-overlay";
+    // Default accent (Element Capture). Overridden per-mode via the
+    // --hl-accent custom property when sendDeviceMetrics arrives — every
+    // colour in the stylesheet derives from it through color-mix(), so one
+    // property assignment re-themes the whole overlay.
     const COLOR      = "#0ECAE3";
     const Z          = 2147483646;
 
@@ -46,16 +54,49 @@
             deviceMetrics = message.deviceMetrics;
             screenshotSuffix = message.screenshotSuffix;
             manualCrop = !!message.manualCrop;
+            mode = message.mode || "capture";
+            applyAccent(message.accent);
+            applyTipStrings(message.strings);
+            overlay.classList.toggle("__hl-mode-design", mode === "design");
         }
     };
     chrome.runtime.onMessage.addListener(metricsListener);
 
+    // The stylesheet is injected before this message can arrive (executeScript
+    // then sendMessage are two round-trips), so the accent is applied after the
+    // fact rather than baked into the CSS text. Setting it on documentElement
+    // rather than the overlay lets the cursor rule inherit it too.
+    function applyAccent(accent) {
+        if (!accent) return;
+        document.documentElement.style.setProperty("--hl-accent", accent);
+    }
+
+    // Tooltip copy is localized by the popup (which owns the language-override
+    // table) and passed through, rather than resolved here — a content script
+    // sees only chrome.i18n's browser-UI locale and would ignore the override.
+    function applyTipStrings(strings) {
+        if (!strings) return;
+        const nav = strings.nav || "";
+        const commit = strings.commit || "";
+        if (!nav && !commit) return;
+        tipEl.innerHTML = `${nav}<br>${commit}`;
+        if (currentElement) paintOverlay(currentElement.getBoundingClientRect());
+    }
+
     // ─── Highlight styles ─────────────────────────────────────────────────────
+
+    // Every colour below resolves through --hl-accent so a single property
+    // assignment (applyAccent) re-themes the overlay. color-mix() replaces the
+    // literal rgba() tints that used to hardcode the cyan channel values —
+    // supported since Chrome 111, well under this extension's 127 floor.
+    const A = `var(--hl-accent, ${COLOR})`;
+    const tint = (pct) => `color-mix(in srgb, ${A} ${pct}%, transparent)`;
 
     if (!document.getElementById(STYLE_ID)) {
         const style = document.createElement("style");
         style.id = STYLE_ID;
         style.textContent = `
+            :root { --hl-accent: ${COLOR}; }
             #${OVERLAY_ID}, #${OVERLAY_ID} * {
                 pointer-events: none !important;
                 box-sizing: border-box !important;
@@ -68,16 +109,16 @@
             }
             #${OVERLAY_ID}.__hl-on { display: block; }
             @keyframes __hlPulseFrame {
-                0%, 100% { box-shadow: 0 0 6px ${COLOR},  inset 0 0 6px  rgba(14, 202, 227, 0.12); }
-                50%      { box-shadow: 0 0 18px ${COLOR}, inset 0 0 12px rgba(14, 202, 227, 0.28); }
+                0%, 100% { box-shadow: 0 0 6px ${A},  inset 0 0 6px  ${tint(12)}; }
+                50%      { box-shadow: 0 0 18px ${A}, inset 0 0 12px ${tint(28)}; }
             }
             @keyframes __hlPulseGlow {
-                0%, 100% { box-shadow: 0 0 4px  ${COLOR}; }
-                50%      { box-shadow: 0 0 12px ${COLOR}; }
+                0%, 100% { box-shadow: 0 0 4px  ${A}; }
+                50%      { box-shadow: 0 0 12px ${A}; }
             }
             @keyframes __hlPulseLabel {
-                0%, 100% { box-shadow: 0 0 4px  rgba(14, 202, 227, 0.5); }
-                50%      { box-shadow: 0 0 12px rgba(14, 202, 227, 0.9); }
+                0%, 100% { box-shadow: 0 0 4px  ${tint(50)}; }
+                50%      { box-shadow: 0 0 12px ${tint(90)}; }
             }
             @keyframes __hlMarch {
                 to {
@@ -95,15 +136,15 @@
             }
             .__hl-frame {
                 position: absolute !important;
-                border: 1px solid ${COLOR} !important;
+                border: 1px solid ${A} !important;
                 background-image:
                     repeating-linear-gradient(45deg,
                         transparent 0 7px,
-                        rgba(14, 202, 227, 0.10) 7px 9px),
-                    linear-gradient(90deg, ${COLOR} 50%, transparent 50%),
-                    linear-gradient(90deg, ${COLOR} 50%, transparent 50%),
-                    linear-gradient(0deg,  ${COLOR} 50%, transparent 50%),
-                    linear-gradient(0deg,  ${COLOR} 50%, transparent 50%) !important;
+                        ${tint(10)} 7px 9px),
+                    linear-gradient(90deg, ${A} 50%, transparent 50%),
+                    linear-gradient(90deg, ${A} 50%, transparent 50%),
+                    linear-gradient(0deg,  ${A} 50%, transparent 50%),
+                    linear-gradient(0deg,  ${A} 50%, transparent 50%) !important;
                 background-position: 0 0, 0 0, 0 100%, 0 0, 100% 0;
                 background-repeat: repeat, repeat-x, repeat-x, repeat-y, repeat-y !important;
                 background-size: auto, 14px 1px, 14px 1px, 1px 14px, 1px 14px !important;
@@ -117,8 +158,8 @@
                 position: absolute !important;
                 width: 14px !important;
                 height: 14px !important;
-                border: 2px solid ${COLOR} !important;
-                background: rgba(14, 202, 227, 0.18) !important;
+                border: 2px solid ${A} !important;
+                background: ${tint(18)} !important;
                 animation: __hlPulseGlow 1.6s ease-in-out infinite !important;
             }
             .__hl-c-tl { top: -2px;    left: -2px;    border-right: 0 !important; border-bottom: 0 !important; }
@@ -127,7 +168,7 @@
             .__hl-c-br { bottom: -2px; right: -2px;   border-left:  0 !important; border-top:    0 !important; }
             .__hl-handle {
                 position: absolute !important;
-                background: ${COLOR} !important;
+                background: ${A} !important;
                 animation: __hlPulseGlow 1.6s ease-in-out infinite !important;
                 transition: left 240ms ease-out, top 240ms ease-out,
                             width 240ms ease-out, height 240ms ease-out !important;
@@ -135,13 +176,13 @@
             .__hl-label {
                 position: absolute !important;
                 font: 700 10px/1 "Courier New", ui-monospace, monospace !important;
-                color: ${COLOR} !important;
-                text-shadow: 0 0 4px ${COLOR} !important;
+                color: ${A} !important;
+                text-shadow: 0 0 4px ${A} !important;
                 background: rgba(0, 0, 0, 0.7) !important;
                 padding: 3px 6px !important;
                 letter-spacing: 0.12em !important;
                 white-space: nowrap !important;
-                border: 1px solid ${COLOR} !important;
+                border: 1px solid ${A} !important;
                 animation: __hlPulseLabel 1.6s ease-in-out infinite !important;
             }
             .__hl-l-w { left: 50%; bottom: 100%; transform: translate(-50%, -18px); }
@@ -154,16 +195,30 @@
                 font: 600 11.5px/1.45 -apple-system, "Segoe UI", Arial, sans-serif !important;
                 color: #fff !important;
                 background: rgba(0, 0, 0, 0.86) !important;
-                border: 1px solid ${COLOR} !important;
+                border: 1px solid ${A} !important;
                 border-radius: 5px !important;
                 padding: 7px 10px !important;
-                box-shadow: 0 0 12px rgba(14, 202, 227, 0.65) !important;
+                box-shadow: 0 0 12px ${tint(65)} !important;
                 white-space: normal !important;
                 transition: left 240ms ease-out, top 240ms ease-out !important;
             }
             .__hl-tip.__hl-tip-on { display: block; }
-            .__hl-tip b { color: ${COLOR} !important; font-weight: 700 !important; }
+            .__hl-tip b { color: ${A} !important; font-weight: 700 !important; }
             html.__hl-cursor, html.__hl-cursor * { cursor: crosshair !important; }
+
+            /* Design-extract mode reads as a measuring tool rather than a
+               capture reticle: solid rule, no marching ants, no diagonal
+               hatch — the element's own colours stay legible through it,
+               which matters when the frame's whole job is to sit around
+               something you're about to sample colours from. */
+            #${OVERLAY_ID}.__hl-mode-design .__hl-frame {
+                background-image: none !important;
+                animation: __hlPulseFrame 1.6s ease-in-out infinite !important;
+                border-width: 2px !important;
+            }
+            #${OVERLAY_ID}.__hl-mode-design .__hl-dim {
+                background: rgba(0, 0, 0, 0.55) !important;
+            }
         `;
         document.head.appendChild(style);
         document.documentElement.classList.add("__hl-cursor");
@@ -548,6 +603,7 @@
             deviceMetrics,
             screenshotSuffix,
             manualCrop,
+            mode,
         });
     }
 
@@ -571,6 +627,9 @@
 
         currentElement = null;
         document.documentElement.classList.remove("__hl-cursor");
+        // Drop the inline accent too — it's set on documentElement, so leaving
+        // it behind would leak a custom property into the page's own cascade.
+        document.documentElement.style.removeProperty("--hl-accent");
         document.getElementById(OVERLAY_ID)?.remove();
         document.getElementById(STYLE_ID)?.remove();
         window.removeEventListener("resize", onViewportChange, true);

@@ -78,6 +78,12 @@ function stripCdnSuffix(urlStr) {
     return null;
 }
 
+// Picker accents. Cyan is Element Capture's established identity; violet marks
+// Extract Design as a third distinct action (amber already belongs to Extract
+// Image), so the frame colour alone tells the user which mode they're in.
+const CAPTURE_ACCENT = "#0ECAE3";
+const DESIGN_ACCENT  = "#A855F7";
+
 // Best-guess SVG detection for URLs whose Content-Type is missing or wrong
 // (some CDNs serve .svg as application/octet-stream or text/plain).
 const SVG_URL_RE = /\.svgz?(\?|#|$)/i;
@@ -172,7 +178,14 @@ async function handleAction(request) {
             return {};
         }
 
-        case "captureElement": {
+        // Both element-driven features share one picker. They differ only in
+        // accent colour, frame treatment, and the `mode` that travels back on
+        // elementClicked to pick a handler — so forking the highlighter would
+        // mean maintaining two copies of the DOM walk, same-rect collapsing,
+        // and keyboard handling for a colour change.
+        case "captureElement":
+        case "extractDesign": {
+            const design = request.action === "extractDesign";
             // Element capture handles zoom on its own (resets to 1 for
             // accurate crop coordinates, restores after), so pass the
             // un-adjusted device metrics through.
@@ -184,7 +197,12 @@ async function handleAction(request) {
                 action: "sendDeviceMetrics",
                 deviceMetrics: baseMetrics,
                 screenshotSuffix,
-                manualCrop: !!settings.manualCrop,
+                manualCrop: !design && !!settings.manualCrop,
+                mode: design ? "design" : "capture",
+                accent: design ? DESIGN_ACCENT : CAPTURE_ACCENT,
+                // Localized in the popup, which owns the language-override
+                // table; a content script would only see the browser UI locale.
+                strings: request.strings || null,
             });
             return {};
         }
@@ -312,6 +330,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "getViewportSize",
         "capturePage",
         "captureElement",
+        "extractDesign",
         "domKiller",
         "stopDomKiller",
         "imageExtractor",

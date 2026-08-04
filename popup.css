@@ -34,6 +34,8 @@
     --glow-red:   0 0 8px rgba(255, 0, 85, 0.55);
     --amber:      #F59E0B;
     --glow-amber: 0 0 8px rgba(245, 158, 11, 0.55);
+    --violet:      #A855F7;
+    --glow-violet: 0 0 8px rgba(168, 85, 247, 0.55);
 }
 
 *, *::before, *::after {
@@ -402,6 +404,7 @@ header {
 .popup.is-helping .body,
 .popup.is-settings .body,
 .popup.is-legal-settings .body,
+.popup.is-design-settings .body,
 .popup.is-capturing .body,
 .popup.is-arcade .body {
     display: none;
@@ -698,6 +701,45 @@ button:active { opacity: 0.75; }
     transform: scale(1.05);
 }
 
+/* Violet capture buttons — used for Extract Design. Cyan already means
+   Element Capture and amber means Extract Image, so violet marks this as a
+   third distinct action; the picker overlay uses the same hue so the frame
+   colour alone tells you which mode you're in.
+
+   Note there is deliberately no `:has(--crop:hover)` pairing here: Extract
+   Design's narrow segment is a `--sub` (a gear opening Design Settings), not
+   a crop variant. It highlights alone, exactly like Legal Capture's, so it
+   can never imply it will run the capture beside it. */
+.btn-capture--violet {
+    border-color: var(--violet);
+    box-shadow: inset 0 0 20px rgba(168, 85, 247, 0.1);
+}
+
+.btn-capture--violet::after {
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(168, 85, 247, 0.07) 0px,
+        rgba(168, 85, 247, 0.07) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+}
+
+.btn-capture--violet .btn-icon {
+    color: var(--violet);
+}
+
+.btn-capture--violet:hover {
+    background: var(--violet);
+    color: var(--void);
+    border-color: var(--violet);
+    box-shadow: 0 0 14px rgba(168, 85, 247, 0.6);
+}
+
+.btn-capture--violet:hover .btn-icon {
+    color: var(--void);
+}
+
 /* ── Segmented capture button ─────────────────────────────
    Two siblings rendered as one big control: a main capture
    action on the left + a narrow "crop" segment on the right
@@ -802,6 +844,40 @@ button:active { opacity: 0.75; }
 .popup.is-legal-settings .btn-capture--sub .btn-icon {
     color: var(--white);
     transform: scale(1.05);
+}
+
+/* Extract Design's gear is a --sub too, so the cyan rules above would claim
+   it. Re-assert violet here, after them, for both the hover and the
+   "subpage is open" states. Like Legal Capture's gear it highlights alone —
+   there is deliberately no rule pairing it with the main button. */
+.capture-segmented .btn-capture--sub.btn-capture--violet:hover,
+.popup.is-design-settings .btn-capture--sub.btn-capture--violet {
+    background: var(--violet);
+    color: var(--white);
+    border-color: var(--violet);
+    box-shadow: 0 0 14px rgba(168, 85, 247, 0.6);
+}
+
+.capture-segmented .btn-capture--sub.btn-capture--violet:hover .btn-icon,
+.popup.is-design-settings .btn-capture--sub.btn-capture--violet .btn-icon {
+    color: var(--white);
+    transform: scale(1.05);
+}
+
+/* Disabled when every artifact toggle is off — the click would only ever
+   raise "nothing to produce", so the button says so before it's pressed. */
+.btn-capture--violet:disabled,
+.btn-capture--violet:disabled:hover {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    color: var(--text-muted);
+    border-color: var(--border);
+    box-shadow: none;
+}
+
+.btn-capture--violet:disabled .btn-icon {
+    color: var(--text-muted);
 }
 
 /* crop-default hides the crop segments and re-rounds the main button. The
@@ -925,9 +1001,12 @@ button:active { opacity: 0.75; }
 
 .popup.is-legal-settings .settings-view { display: flex; }
 
+.popup.is-design-settings .settings-view { display: flex; }
+
 #view-normal[hidden],
 #view-settings[hidden],
-#view-legal-settings[hidden] { display: none; }
+#view-legal-settings[hidden],
+#view-design-settings[hidden] { display: none; }
 
 /* Legal Capture Settings reads dense (many toggles + notes) — bump the
    type scale for this view specifically rather than the shared Settings
@@ -1035,6 +1114,7 @@ button:active { opacity: 0.75; }
 .popup.is-helping .status,
 .popup.is-settings .status,
 .popup.is-legal-settings .status,
+.popup.is-design-settings .status,
 .popup.is-capturing .status,
 .popup.is-arcade .status {
     display: none;
@@ -1591,6 +1671,7 @@ button:active { opacity: 0.75; }
 .arcade-topbar,
 .arcade-games,
 .arcade-readout,
+.arcade-game-controls,
 .arcade-actions {
     flex: 0 0 auto;
 }
@@ -1602,14 +1683,15 @@ button:active { opacity: 0.75; }
 }
 
 /* Slot for controls belonging to the active game (Typing Trainer's
-   language picker). Sits under the screen, pushed to the right — never
-   over the playfield — and collapses entirely when unused, so the four
-   games that register no controls lose no height to it. */
+   language picker). Its own row between the screen and the reset buttons,
+   right-aligned — never over the playfield — and collapses entirely when
+   unused, so the four games that register no controls lose no height to
+   it. */
 .arcade-game-controls {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px;
-    margin-left: auto;
 }
 
 .arcade-game-controls:empty { display: none; }
@@ -1731,6 +1813,11 @@ button:active { opacity: 0.75; }
 /* Target Practice swaps the pointer for a crosshair — it's a shooting
    gallery, and the popup already uses crosshair for the brand mark. */
 .arcade-canvas--crosshair { cursor: crosshair; }
+
+/* Breakout hides it entirely: the pointer steers the paddle, so leaving
+   the OS arrow on the playfield draws a second sprite over the one it is
+   moving. Scoped to the canvas, so it returns outside the screen. */
+.arcade-canvas--nocursor { cursor: none; }
 
 /* Scanlines + vignette over the playfield, above the canvas but
    click-through so pointer games still get their events. */
@@ -1920,10 +2007,14 @@ button:active { opacity: 0.75; }
 
 /* ── Per-game controls ─────────────────────────────────── */
 
+/* Pinned to the bottom edge of the view: any slack the rows above leave
+   collects here rather than between them, so the resets sit on the
+   popup's bottom whatever the active game's chrome adds. */
 .arcade-actions {
     display: flex;
     align-items: center;
     gap: 6px;
+    margin-top: auto;
 }
 
 .arcade-actions .btn-helper {

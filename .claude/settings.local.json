@@ -44,7 +44,15 @@
       "Bash(node --check support/legalCapture/networkRecorder.js)",
       "Bash(node verify.js)",
       "Bash(sed -i 's|rows\\\\[0\\\\]\\\\[1\\\\].statusVisible && rows.slice\\(1\\).every\\(r => !r\\\\[1\\\\].statusVisible\\)|rows.every\\(r => r[1].statusVisible === r[0].startsWith\\(\"main\"\\)\\)|' verify.js)",
-      "Bash(node --check screenshots/elementSelect/elementClickListener.js)"
+      "Bash(node --check screenshots/elementSelect/elementClickListener.js)",
+      "Bash(sed -n '14,323p' screenshots/elementSelect/elementClickListener.js)",
+      "Read(//tmp/**)",
+      "Bash(node --check arcade/snake.js)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/en/messages.json','utf8'\\)\\);JSON.parse\\(require\\('fs'\\).readFileSync\\('_locales/ru/messages.json','utf8'\\)\\);console.log\\('ok'\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
+      "Bash(node --check arcade/breakout.js)",
+      "Bash(PYTHONIOENCODING=utf-8 python \"C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/d3ea78e6-6110-41d7-8f0f-7203c6136145/scratchpad/verify.py\")",
+      "Bash(PYTHONIOENCODING=utf-8 python \"C:/Users/TimaevT/AppData/Local/Temp/claude/c--Users-TimaevT-Desktop-Code-sharpshooter-chrome-extension/d3ea78e6-6110-41d7-8f0f-7203c6136145/scratchpad/addCss.py\")"
     ]
   }
 }

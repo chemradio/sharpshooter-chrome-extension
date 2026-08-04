@@ -1,10 +1,10 @@
 // Arcade · Snake — grid snake on the shared cabinet canvas.
 //
-// Keyboard only (arrows + WASD), so a fresh run opens on the hub's
-// attract screen: the popup gives no other hint that it wants key input.
-// The playfield is a torus — leaving one edge re-enters from the
-// opposite one — so only the snake's own tail ends a run. Score = food
-// eaten.
+// Keyboard only (arrows, WASD, and the numpad — 8/4/6/2 plus the
+// diagonals 7/9/1/3), so a fresh run opens on the hub's attract screen:
+// the popup gives no other hint that it wants key input. The playfield is
+// a torus — leaving one edge re-enters from the opposite one — so only
+// the snake's own tail ends a run. Score = food eaten.
 (function () {
     const CELL = 15;
     const COLS = 22;   // 22 * 15 = 330 = STAGE_W
@@ -25,10 +25,38 @@
         d: { x:  1, y: 0 }, D: { x:  1, y: 0 },
     };
 
+    // Numpad, keyed by e.code so it works with NumLock either way (with it
+    // off the browser reports e.key as "ArrowUp"/"Home"/…, with it on as
+    // "8"/"7"/… — the code is the same both times).
+    const NUMPAD = {
+        Numpad8: { x:  0, y: -1 },
+        Numpad2: { x:  0, y:  1 },
+        Numpad4: { x: -1, y:  0 },
+        Numpad6: { x:  1, y:  0 },
+    };
+
+    // Numpad corners are two-way turns rather than directions of their own:
+    // each names a pair of axes and resolves to whichever of them is
+    // perpendicular to where the snake is already heading. 7 = up+left, so
+    // it turns a horizontal snake up and a vertical one left. Exactly one
+    // of the pair is ever perpendicular, so there is nothing to tie-break.
+    const NUMPAD_DIAGONALS = {
+        Numpad7: [{ x: -1, y: 0 }, { x: 0, y: -1 }],
+        Numpad9: [{ x:  1, y: 0 }, { x: 0, y: -1 }],
+        Numpad1: [{ x: -1, y: 0 }, { x: 0, y:  1 }],
+        Numpad3: [{ x:  1, y: 0 }, { x: 0, y:  1 }],
+    };
+
+    // At most this many turns may be banked ahead of the simulation. Two is
+    // enough for a deliberate U-turn (one turn per tick, so right → up →
+    // left comes out as a lane change) without letting a mashed keyboard
+    // steer several ticks into the future.
+    const MAX_QUEUED_TURNS = 2;
+
     function create(ctx) {
         let el = null, g = null, loop = null, scoreCb = null;
 
-        let snake, dir, pendingDir, food, score, tickMs;
+        let snake, dir, turnQueue, food, score, tickMs;
         let started = false, over = false, paused = false;
         let acc = 0, phase = 0;
 
@@ -38,7 +66,7 @@
             const cy = Math.floor(ROWS / 2);
             snake = [{ x: 6, y: cy }, { x: 5, y: cy }, { x: 4, y: cy }];
             dir = { x: 1, y: 0 };
-            pendingDir = null;
+            turnQueue = [];
             score = 0;
             tickMs = TICK_START;
             started = false;
@@ -65,7 +93,7 @@
             food   = { x: saved.food.x | 0, y: saved.food.y | 0 };
             score  = saved.score | 0;
             tickMs = Number(saved.tickMs) || TICK_START;
-            pendingDir = null;
+            turnQueue = [];
             started = true;
             over = false;
         }
@@ -73,7 +101,11 @@
         // ── Simulation ─────────────────────────────────────────────────────
 
         function step() {
-            if (pendingDir) { dir = pendingDir; pendingDir = null; }
+            // One banked turn per step — the queue is what makes a fast
+            // U-turn legal: each leg is validated against the one before it
+            // and applied on its own tick, so the snake never doubles back
+            // into its own neck.
+            if (turnQueue.length) dir = turnQueue.shift();
 
             // Wrap-around walls: the grid is a torus, so an edge is a
             // doorway rather than a hazard. JS's % keeps the sign of the
@@ -105,6 +137,15 @@
             // and leaves the highscore (already written on the way up) alone.
             ctx.saveNow();
             ctx.setOverlay(ctx.t("arcadeGameOver"), ctx.t("arcadeRestartHint"));
+        }
+
+        // Resolves a numpad corner against the direction it is turning from:
+        // of its two axes, the perpendicular one is the turn being asked for
+        // (the parallel one is either "keep going" or a suicidal reversal).
+        function resolveDiagonal(code, cur) {
+            const pair = NUMPAD_DIAGONALS[code];
+            if (!pair) return null;
+            return pair.find((d) => d.x * cur.x + d.y * cur.y === 0) || null;
         }
 
         // ── Rendering ──────────────────────────────────────────────────────
@@ -262,7 +303,12 @@
                     return;
                 }
 
-                const next = KEYS[e.key];
+                // Where the snake will be heading once everything already
+                // banked has been applied — every new turn is judged against
+                // that, not against the direction currently on screen.
+                const cur = turnQueue.length ? turnQueue[turnQueue.length - 1] : dir;
+
+                const next = KEYS[e.key] || NUMPAD[e.code] || resolveDiagonal(e.code, cur);
                 if (!next) return;
 
                 if (!started) {
@@ -271,10 +317,13 @@
                     ctx.clearOverlay();
                 }
                 // Reversing straight into the neck is an instant self-collision;
-                // treat it as no input rather than a death sentence.
-                const cur = pendingDir || dir;
+                // treat it as no input rather than a death sentence. Holding a
+                // direction the snake is already taking is likewise a no-op —
+                // it would otherwise burn a queue slot per repeat.
                 if (next.x === -cur.x && next.y === -cur.y) return;
-                pendingDir = next;
+                if (next.x === cur.x && next.y === cur.y) return;
+                if (turnQueue.length >= MAX_QUEUED_TURNS) return;
+                turnQueue.push(next);
             },
         };
     }
