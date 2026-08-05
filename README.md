@@ -94,12 +94,41 @@ Instead of a single image, it produces a downloaded zip containing:
   for the page (all requests/responses, headers, and bodies), replayable
   independently of this extension at [replayweb.page](https://replayweb.page).
 - **`screenshot.png`** — a visual capture taken during the same session.
-- **`capture.tsr`** — an RFC 3161 timestamp token from the public FreeTSA
-  authority, requested automatically for every capture, proving the capture's
-  hash existed at a given time independent of this tool's own clock. Verify it
-  yourself with `openssl ts -reply -in capture.tsr -text`.
+- **`capture-<authority>.tsr`** — RFC 3161 timestamp tokens from public
+  authorities (FreeTSA, DigiCert, Sectigo — individually switchable), proving
+  the capture's hash existed at a given time independent of this tool's own
+  clock. Verify one yourself with:
+
+  ```
+  openssl ts -verify -digest <sha256 of manifest.json> \
+      -in capture-sectigo.tsr -CAfile /path/to/ca-bundle.crt
+  ```
+
+  Use `-verify`, not `-reply -text` — the latter only prints a token's
+  contents and checks neither its signature nor its trust chain.
 - **`manifest.json`** / **`report.txt`** — the capture's hash, TLS summary, and
   a plain-language explanation of what the package does and doesn't prove.
+  `report.txt` opens with a step-by-step verification procedure.
+
+- **`start-<authority>.tsr`** — timestamps taken *before* the page was touched,
+  over a hash of the URL, a random nonce and the start time. The seal
+  timestamps prove when the package was finished; these prove when it began, so
+  the capture is bracketed from both ends by third parties.
+- **`manifest.sig`** / **`operator-key.pem`** — an ECDSA signature over the
+  manifest from a key belonging to this installation. Verify with
+  `openssl dgst -sha256 -verify operator-key.pem -signature manifest.sig manifest.json`.
+  This proves **continuity, not identity**: nobody vouched for the key, but a
+  matching fingerprint links captures made by the same installation.
+
+Each manifest also records its position in this installation's capture sequence
+(`chain.sequence`) and the hash of the previous capture's manifest, so captures
+made and not disclosed leave visible gaps.
+
+**Only `manifest.json` and the files it lists are sealed.** The chain runs
+`.tsr` → `sha256(manifest.json)` → the evidentiary files. `report.txt`,
+`timestamps.json` and `SHA256SUMS.txt` are written afterwards and carry no
+integrity of their own — check hashes against `manifest.json`, never against
+the report.
 
 Before recording, Legal Capture always force-reloads the page (bypassing the
 cache) — this both ensures the network recording reflects the real page load

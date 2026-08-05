@@ -1199,6 +1199,7 @@ const LEGAL_OPTION_DEFAULTS = {
     domSnapshot: true,
     mhtmlSnapshot: true,
     timestampsEnabled: true,
+    startTimestamp: true,
     tsaFreeTSA: true,
     tsaDigiCert: true,
     tsaSectigo: true,
@@ -1207,7 +1208,15 @@ const LEGAL_OPTION_DEFAULTS = {
     browserPageInfo: true,
     geolocation: false,
     accountEmail: false,
+    postLoadWaitSeconds: 0,
 };
+
+// Not a toggle, so it isn't in LEGAL_OPTION_CHECKBOXES below — it rides in
+// the same options object (and so into the sealed manifest) but is rendered
+// and read as a number. Bound must match MAX_POST_LOAD_WAIT_SECONDS in
+// support/legalCapture/legalCaptureOptions.js, which clamps it again on the
+// capture side — this input is only the first line of defence.
+const MAX_POST_LOAD_WAIT_SECONDS = 120;
 
 // option key -> chrome optional_permissions it needs before it can be
 // switched on (see manifest.json's optional_permissions). Kept in sync with
@@ -1231,6 +1240,7 @@ const LEGAL_OPTION_CHECKBOXES = {
     domSnapshot: document.getElementById("legal-opt-dom"),
     mhtmlSnapshot: document.getElementById("legal-opt-mhtml"),
     timestampsEnabled: document.getElementById("legal-opt-timestamps"),
+    startTimestamp: document.getElementById("legal-opt-start-timestamp"),
     tsaFreeTSA: document.getElementById("legal-opt-tsa-freetsa"),
     tsaDigiCert: document.getElementById("legal-opt-tsa-digicert"),
     tsaSectigo: document.getElementById("legal-opt-tsa-sectigo"),
@@ -1247,6 +1257,14 @@ function saveLegalCaptureOptions() {
     chrome.storage.local.set({ legalCaptureOptions });
 }
 
+const legalPostLoadWait = document.getElementById("legal-post-load-wait");
+
+function clampPostLoadWait(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(Math.round(n), MAX_POST_LOAD_WAIT_SECONDS);
+}
+
 chrome.storage.local.get(["legalCaptureOptions"]).then((s) => {
     legalCaptureOptions = {
         ...LEGAL_OPTION_DEFAULTS,
@@ -1255,6 +1273,21 @@ chrome.storage.local.get(["legalCaptureOptions"]).then((s) => {
     for (const [key, cb] of Object.entries(LEGAL_OPTION_CHECKBOXES)) {
         if (cb) cb.checked = !!legalCaptureOptions[key];
     }
+    if (legalPostLoadWait) {
+        legalPostLoadWait.value = clampPostLoadWait(
+            legalCaptureOptions.postLoadWaitSeconds,
+        );
+    }
+});
+
+legalPostLoadWait?.addEventListener("change", () => {
+    // Normalized on commit rather than on every keystroke: rewriting the
+    // field while it's being typed in fights the user (clearing it to type a
+    // new number would snap it back to 0 under the cursor).
+    const seconds = clampPostLoadWait(legalPostLoadWait.value);
+    legalPostLoadWait.value = seconds;
+    legalCaptureOptions.postLoadWaitSeconds = seconds;
+    saveLegalCaptureOptions();
 });
 
 // Calling navigator.geolocation.getCurrentPosition() directly from this

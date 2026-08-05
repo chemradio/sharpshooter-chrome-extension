@@ -20,6 +20,7 @@ export const LEGAL_CAPTURE_OPTION_DEFAULTS = {
     domSnapshot: true,
     mhtmlSnapshot: true,
     timestampsEnabled: true,
+    startTimestamp: true,
     tsaFreeTSA: true,
     tsaDigiCert: true,
     tsaSectigo: true,
@@ -28,7 +29,32 @@ export const LEGAL_CAPTURE_OPTION_DEFAULTS = {
     browserPageInfo: true,
     geolocation: false,
     accountEmail: false,
+    // Not a toggle: seconds to keep waiting after the forced reload reports
+    // "complete", before anything is measured or captured. See
+    // MAX_POST_LOAD_WAIT_SECONDS below for why it's bounded.
+    postLoadWaitSeconds: 0,
 };
+
+// The load event fires when the document and its subresources have loaded —
+// which on a client-rendered page is often *before* the content exists.
+// Framework hydration, lazy images, and post-load XHR all land after it, and
+// the mutation-settle pass that follows can legitimately conclude a page is
+// quiet while it is merely waiting on a request that hasn't returned yet.
+// This wait is the operator's manual override for that: it costs nothing on a
+// server-rendered page (default 0) and is the difference between capturing a
+// skeleton and capturing the page on an app that hydrates slowly.
+//
+// Bounded at two minutes. Chrome caps a single service-worker task at five
+// minutes no matter what keeps the worker alive (see workerKeepalive.js), and
+// the wait is only one phase of the capture — the reload, snapshots, TSA
+// requests and packaging all have to fit in the same budget.
+export const MAX_POST_LOAD_WAIT_SECONDS = 120;
+
+export function resolvePostLoadWaitSeconds(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(Math.round(n), MAX_POST_LOAD_WAIT_SECONDS);
+}
 
 // option key -> chrome optional_permissions entries it needs (see
 // manifest.json). Requested via chrome.permissions.request() at the moment
@@ -49,5 +75,10 @@ export const LEGAL_CAPTURE_OPTION_PERMISSIONS = {
 };
 
 export function resolveLegalCaptureOptions(stored) {
-    return { ...LEGAL_CAPTURE_OPTION_DEFAULTS, ...(stored ?? {}) };
+    const merged = { ...LEGAL_CAPTURE_OPTION_DEFAULTS, ...(stored ?? {}) };
+    // Normalized here rather than at the call site: this object is written
+    // verbatim into manifest.json's captureOptions, so the sealed record has
+    // to show the value the capture actually used, not what was typed.
+    merged.postLoadWaitSeconds = resolvePostLoadWaitSeconds(merged.postLoadWaitSeconds);
+    return merged;
 }

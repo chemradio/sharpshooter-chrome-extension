@@ -10,7 +10,10 @@
 // mean the report is only as trustworthy as our own from-scratch validator.
 // Instead the raw response token is saved untouched (capture.tsr) so anyone
 // can independently verify it with a standard tool:
-//   openssl ts -reply -in capture.tsr -text
+//   openssl ts -verify -digest <sha256 of manifest.json> -in capture.tsr \
+//       -CAfile <ca-bundle>
+// (`ts -reply -text` only PRINTS a token — it checks neither the signature nor
+// the trust chain, so it must not be offered as the verification step.)
 //
 // We DO, however, verify the unsigned parts we can check cheaply and that
 // matter most for not silently trusting a broken/wrong response: that the
@@ -36,12 +39,48 @@ import { concatBytes } from "../binary.js";
 // (rather than two) means the capture survives any single authority being
 // unavailable, compromised, or later distrusted, and gives a stronger
 // evidentiary "multiple witness" story.
+//
+// `publiclyTrustedRoot` records whether the authority's signing chain ends at
+// a root in the standard public trust stores — i.e. whether a third party can
+// verify the token with stock tooling and nothing else:
+//
+//   openssl ts -verify -digest <manifest sha256> -in capture-<a>.tsr -CAfile <ca-bundle>
+//
+// Verified empirically against a stock CA bundle: Sectigo returns
+// "Verification: OK"; FreeTSA returns "self-signed certificate in certificate
+// chain" because its root is in no public store. That is a real difference in
+// evidential weight — verifying a FreeTSA token requires obtaining freetsa.org's
+// own root and electing to trust it, which is the same party that issued the
+// token — so the package grades each token rather than presenting them as
+// equals. FreeTSA is still worth having (an additional independent witness,
+// and its genTime still corroborates the others' clocks); it just cannot carry
+// a contested capture on its own.
 export const TSA_PROVIDERS = [
-    { name: "FreeTSA", url: "https://freetsa.org/tsr" },
-    { name: "DigiCert", url: "https://timestamp.digicert.com" },
-    { name: "Sectigo", url: "https://timestamp.sectigo.com" },
+    {
+        name: "FreeTSA",
+        url: "https://freetsa.org/tsr",
+        publiclyTrustedRoot: false,
+        rootNote: "root is not in public trust stores — verifier must obtain freetsa.org's CA separately",
+    },
+    {
+        name: "DigiCert",
+        url: "https://timestamp.digicert.com",
+        publiclyTrustedRoot: true,
+        rootNote: "chains to a publicly trusted root",
+    },
+    {
+        name: "Sectigo",
+        url: "https://timestamp.sectigo.com",
+        publiclyTrustedRoot: true,
+        rootNote: "chains to a publicly trusted root",
+    },
 ];
 const SHA256_OID = "2.16.840.1.101.3.4.2.1";
+
+// Per-authority ceiling. Well under the MV3 service worker's 30s idle
+// budget (see requestTimestamp), and generous next to a reachable authority:
+// FreeTSA and Sectigo both answer in under a second on a working connection.
+const TSA_TIMEOUT_MS = 12000;
 
 // ─── Minimal DER encoder ────────────────────────────────────────────────────
 
@@ -275,11 +314,39 @@ export async function requestTimestamp(hashBytes, provider = TSA_PROVIDERS[0]) {
     const { reqBytes, nonceBytes } = buildTimeStampReq(hashBytes);
     const localTimeBeforeSend = new Date();
 
-    const res = await fetch(provider.url, {
-        method: "POST",
-        headers: { "Content-Type": "application/timestamp-query" },
-        body: reqBytes,
-    });
+    // Bounded deliberately. Callers run these concurrently under
+    // Promise.allSettled and therefore wait for the slowest — so an
+    // unreachable authority sets the floor on the whole phase. A blackholed
+    // host (a firewall dropping SYNs rather than refusing them, which is how
+    // corporate networks typically treat these) is measurably ~21s before
+    // Chrome's own stack gives up, and that stretch contains no chrome.* API
+    // call, so it burns most of the MV3 service worker's 30s idle budget
+    // while a capture is mid-flight. A timeout here is the difference between
+    // losing one witness and losing the whole package.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TSA_TIMEOUT_MS);
+    let res;
+    try {
+        res = await fetch(provider.url, {
+            method: "POST",
+            headers: { "Content-Type": "application/timestamp-query" },
+            body: reqBytes,
+            signal: controller.signal,
+        });
+    } catch (error) {
+        // An abort is reported as what it is: the report distinguishes "this
+        // authority was unreachable from this network" from "this authority
+        // rejected the request", and only the first is worth retrying from
+        // somewhere else.
+        if (controller.signal.aborted) {
+            throw new Error(
+                `${provider.name}: no response within ${Math.round(TSA_TIMEOUT_MS / 1000)}s — unreachable from this network`
+            );
+        }
+        throw new Error(`${provider.name}: ${error?.message ?? String(error)}`);
+    } finally {
+        clearTimeout(timer);
+    }
     if (!res.ok) {
         throw new Error(`${provider.name} returned HTTP ${res.status}`);
     }
@@ -334,5 +401,7 @@ export async function requestTimestamp(hashBytes, provider = TSA_PROVIDERS[0]) {
         hashVerified: true,
         nonceVerified,
         clockSkewSeconds,
+        publiclyTrustedRoot: provider.publiclyTrustedRoot === true,
+        rootNote: provider.rootNote ?? null,
     };
 }

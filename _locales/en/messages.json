@@ -76,10 +76,20 @@
         "message": "A complete, self-contained snapshot of the rendered page — markup, stylesheets, scripts, images, and fonts bundled into one file, built by Chrome itself (Page.captureSnapshot), not this extension's own code. Opens directly in Chrome/Edge or any MHTML-capable tool, independent of Sharpshooter — the strongest \"the whole page, everything\" artifact in the package."
     },
 
+    "legalSettingsGroupTiming": { "message": "Capture Timing" },
+    "legalPostLoadWait": { "message": "Extra wait after page load (seconds)" },
+    "legalPostLoadWaitNote": {
+        "message": "After the forced reload reports the page as loaded, wait this long before measuring or capturing anything. The load event fires when the document and its files have arrived — which on a JavaScript-rendered page is often before the content exists, so a capture taken at that moment can show a skeleton or half-built page. Network recording keeps running for the whole wait, so anything the page fetches during it is still recorded, and the page stays locked against input. Leave at 0 for ordinary server-rendered pages. The value used is recorded in the sealed manifest."
+    },
+
     "legalSettingsGroupIntegrity": { "message": "Timestamping & Integrity" },
     "legalOptTimestamps": { "message": "Independent RFC 3161 timestamps" },
     "legalOptTimestampsNote": {
         "message": "Sends manifest.json's SHA-256 hash (never the page content itself) to independent public timestamping authorities, who sign back proof that hash existed at that moment. This is what lets you prove the capture wasn't put together after the fact — without it, the package is still hash-sealed, but the only clock backing the capture time is this computer's own."
+    },
+    "legalOptStartTimestamp": { "message": "Also timestamp before capturing" },
+    "legalOptStartTimestampNote": {
+        "message": "Registers a hash of the URL, a random nonce and the start time with the same authorities before the page is touched. The normal timestamp proves when the finished package was sealed; this one proves when the capture began, so the whole operation is bracketed from both ends by third parties. Without it, nothing rules out a package assembled at leisure and sealed whenever convenient. Costs one extra round trip and sends only a hash."
     },
     "legalOptTsaFreeTsa": { "message": "Use FreeTSA" },
     "legalOptTsaDigiCert": { "message": "Use DigiCert" },

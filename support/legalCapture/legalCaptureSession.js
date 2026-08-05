@@ -34,7 +34,13 @@
 //   (nothing can attest to its own future). A verifier: recompute
 //   sha256(manifest.json), check it against manifest.json's own recorded
 //   per-file hashes, then check each capture-*.tsr's messageImprint against
-//   that same manifest hash with `openssl ts -reply -in capture-*.tsr -text`.
+//   that same manifest hash with
+//     openssl ts -verify -digest <manifest sha256> -in capture-*.tsr -CAfile <bundle>
+//   NOT with `openssl ts -reply -in ... -text`, which only prints a token and
+//   checks neither its signature nor its trust chain, and not with the -data
+//   form, which hashes the file you point it at — the token seals
+//   manifest.json's hash, so -data is the wrong check and fails on a sound
+//   package.
 //   SHA256SUMS.txt additionally lists the sha256 of every file physically in
 //   the zip (including report.txt and the .tsr files) purely as a
 //   convenience integrity check — unlike manifest.json, it isn't itself
@@ -48,7 +54,11 @@ import {
     detachDebugger,
 } from "../debugerAttachment.js";
 import { withZoomReset } from "../zoomReset.js";
-import { showCaptureOverlay, hideCaptureOverlay } from "../captureOverlay.js";
+import {
+    showCaptureOverlay,
+    hideCaptureOverlay,
+    setCaptureOverlayMessage,
+} from "../captureOverlay.js";
 import { suppressPageInput, restorePageInput } from "../inputSuppression.js";
 import {
     hideScrollbars,
@@ -57,6 +67,8 @@ import {
 } from "../../screenshots/captureSession.js";
 import { enableEmulation, clearEmulation } from "../../screenshots/emulation/emulationEnabler.js";
 import { injectMutationWatcher, waitForMutationSettle } from "../mutationObserver.js";
+import { traceStart, traceStep, traceError } from "./captureTrace.js";
+import { withWorkerKeepalive } from "./workerKeepalive.js";
 import { takeScreenshotClip } from "../../screenshots/capture/captureScreenshot.js";
 import { measurePageHeight, measureViewportSize } from "../pageMeasure.js";
 import { startRecording, stopRecording } from "./networkRecorder.js";
@@ -65,6 +77,71 @@ import { buildWacz, buildZip } from "./zipWriter.js";
 import { requestTimestamp, TSA_PROVIDERS } from "./tsaClient.js";
 import { sha256Bytes, sha256Hex, bytesToBase64, base64ToBytes } from "../binary.js";
 import { resolveLegalCaptureOptions } from "./legalCaptureOptions.js";
+import { getOperatorKeyInfo, signBytes } from "./operatorKey.js";
+import { readChainState, commitChainState } from "./captureChain.js";
+import { collectCodeIntegrity } from "./codeIntegrity.js";
+
+// Progress banner copy. Deliberately in English and not routed through
+// chrome.i18n: a content script (and the service worker) only ever sees the
+// browser-UI locale, so it would silently ignore the Settings language
+// override and disagree with the popup that launched the capture. Same
+// reasoning as the design card's cardStrings, which the popup localizes and
+// passes in — worth doing here too if this ever needs translating.
+const BANNER = {
+    committing: "Legal Capture — registering the capture with timestamp authorities…",
+    starting: "Legal Capture in progress — please do not interact with this page",
+    reloading: "Legal Capture — reloading the page and recording network traffic…",
+    reloaded: "Legal Capture in progress — please do not interact with this page",
+    measuring: "Legal Capture — measuring the page…",
+    screenshot: "Legal Capture — taking the screenshot…",
+    packaging: "Legal Capture — building the evidence package…",
+    timestamps: "Legal Capture — requesting independent timestamps…",
+    saving: "Legal Capture — saving the package…",
+};
+
+// Pre-capture commitment: a hash published to third-party authorities BEFORE
+// the page is touched, naming what is about to be captured.
+//
+// Everything else in the package is sealed at the end, which bounds the
+// capture from one side only — nothing establishes that the work began when it
+// claims to. A forger can assemble artifacts at leisure and seal them whenever
+// they like, and the resulting package is internally perfect. Timestamping a
+// commitment first brackets the operation: it began no earlier than T1 and was
+// sealed no later than T2, both attested by parties with no stake in it. To
+// backdate a capture the forger would need a token they never requested.
+//
+// The commitment is over sha256(url ‖ nonce ‖ startedAt), and all three inputs
+// are recorded in the sealed manifest so a verifier can recompute the hash and
+// check it against the token themselves. The nonce is what stops the
+// commitment from being precomputable for every URL in advance.
+async function buildStartCommitment(url, startedAtIso) {
+    const nonce = [...crypto.getRandomValues(new Uint8Array(16))]
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    const preimage = `sharpshooter-legal-capture-start\n${url}\n${nonce}\n${startedAtIso}\n`;
+    const bytes = new TextEncoder().encode(preimage);
+    return {
+        nonce,
+        preimageFormat: "sharpshooter-legal-capture-start\\n<url>\\n<nonce>\\n<startedAt>\\n",
+        sha256: await sha256Hex(bytes),
+        hashBytes: await sha256Bytes(bytes),
+    };
+}
+
+// Operator-set settling time after the load event (see
+// legalCaptureOptions.js's MAX_POST_LOAD_WAIT_SECONDS for what this is for).
+// Counts down on the banner rather than sitting on one static message: a
+// silent 60-second pause on a page that already looks loaded reads as a hang,
+// and this is the phase most likely to be long.
+async function waitAfterLoad(tabId, seconds) {
+    for (let remaining = seconds; remaining > 0; remaining--) {
+        await setCaptureOverlayMessage(
+            tabId,
+            `Legal Capture — waiting ${remaining}s for the page to finish updating…`
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+}
 
 const RELOAD_TIMEOUT_MS = 20000;
 
@@ -465,6 +542,13 @@ function buildReport({
     options,
     timestampsRequestedCount,
     pageInputSuppressed,
+    operatorKey,
+    signed,
+    chainState,
+    startCommitment,
+    startTsaResults = [],
+    startTsaErrors = [],
+    codeIntegrity,
 }) {
     const lines = [
         "SHARPSHOOTER LEGAL CAPTURE — CAPTURE REPORT",
@@ -500,6 +584,15 @@ function buildReport({
         `  Browser/page environment info:           ${options.browserPageInfo ? "ON" : "OFF"}`,
         `  Operator geolocation:                    ${options.geolocation ? "ON" : "OFF"}`,
         `  Operator Chrome account email:           ${options.accountEmail ? "ON" : "OFF"}`,
+        // Recorded because it changes what the package contains: a page
+        // captured after a settling wait can hold content that did not exist
+        // at the load event, and an examiner comparing this package against
+        // another capture of the same URL needs to know that.
+        `  Extra wait after page load:              ${
+            options.postLoadWaitSeconds > 0
+                ? `${options.postLoadWaitSeconds}s (network recording continued throughout)`
+                : "none"
+        }`,
         ""
     );
 
@@ -721,7 +814,15 @@ function buildReport({
                     `       Hash verified:      yes`,
                     `       Nonce verified:     ${r.nonceVerified ? "yes" : "authority did not echo a nonce"}`,
                     `       Local clock skew:   ${r.clockSkewSeconds != null ? `${r.clockSkewSeconds.toFixed(2)}s (local minus authority)` : "could not compute"}`,
-                    `       Saved as:           ${r.filename}`
+                    `       Saved as:           ${r.filename}`,
+                    // Graded rather than listed flat: these tokens are not
+                    // equally checkable by a third party, and a package that
+                    // says so is worth more than one that implies they are.
+                    `       Third-party check:  ${
+                        r.publiclyTrustedRoot
+                            ? "verifiable with a standard public CA bundle (see below)"
+                            : "NOT verifiable against public trust stores — " + (r.rootNote ?? "authority's root is not publicly trusted")
+                    }`
                 );
             }
             if (tsaResults.length > 1) {
@@ -761,8 +862,9 @@ function buildReport({
             );
         }
         lines.push(
-            "  Verify independently with standard tools, without trusting this report:",
-            "    openssl ts -reply -in capture-<authority>.tsr -text",
+            "  See HOW TO VERIFY THIS PACKAGE below for the exact commands. Note that",
+            "  `openssl ts -reply -in <file> -text` only PRINTS a token's contents — it",
+            "  checks no signature and no trust chain. Use `openssl ts -verify`.",
             ""
         );
     }
@@ -799,6 +901,237 @@ function buildReport({
             ""
         );
     }
+
+    lines.push(
+        "CAPTURE WINDOW (bracketed by third parties):",
+        `  Capture began (local clock):  ${startCommitment?.startedAt ?? startedAt}`,
+        ...(startTsaResults.length
+            ? [
+                  "  Before the page was touched, a commitment naming what was about to",
+                  "  be captured was registered with independent authorities:",
+                  `    Commitment SHA-256: ${startCommitment.sha256}`,
+                  `    Preimage format:    ${startCommitment.preimageFormat}`,
+                  `    Nonce:              ${startCommitment.nonce}`,
+                  ...startTsaResults.map(
+                      (r) => `    [OK] ${r.tsaName} — token time ${r.genTime ?? "(unread)"} — ${r.filename}`
+                  ),
+                  ...startTsaErrors.map((e) => `    [FAILED] ${e.provider}: ${e.error}`),
+                  "",
+                  "  Together with the seal timestamp further below, this brackets the",
+                  "  capture from BOTH ends: it began no earlier than the start token's",
+                  "  time and was sealed no later than the seal token's. A package",
+                  "  assembled after the fact cannot produce a start token it never",
+                  "  requested. Recompute the commitment yourself as",
+                  "    sha256(\"sharpshooter-legal-capture-start\\n\" + url + \"\\n\" + nonce + \"\\n\" + startedAt + \"\\n\")",
+                  "  using the values in manifest.json's startCommitment block, then:",
+                  "    openssl ts -verify -digest <that hash> -in start-<authority>.tsr \\",
+                  "        -CAfile <ca-bundle>",
+                  "",
+              ]
+            : [
+                  "  No pre-capture commitment was registered (the option was off, or no",
+                  "  authority responded). The capture is therefore bounded on one side",
+                  "  only — nothing here establishes when the work began, only when the",
+                  "  finished package was sealed.",
+                  "",
+              ])
+    );
+
+    lines.push(
+        "CAPTURE SEQUENCE (this installation's record):",
+        ...(chainState
+            ? [
+                  `  Chain ID:            ${chainState.chainId}`,
+                  `  Capture number:      ${chainState.sequence}`,
+                  `  Previous manifest:   ${chainState.previousManifestSha256 ?? "(none — first capture in this chain)"}`,
+                  ...(chainState.chainRestarted
+                      ? [
+                            `  NOTE: this chain was RESTARTED (previous chain ${chainState.previousChainId ?? "unknown"}).`,
+                            "  A restart happens when the signing key changed or stored state was",
+                            "  cleared. It is disclosed here rather than hidden, and is a fair",
+                            "  question to put to the operator.",
+                        ]
+                      : []),
+                  "",
+                  "  Each capture records its position and the hash of the manifest before",
+                  "  it. Two things follow. Captures made and not disclosed leave visible",
+                  "  gaps in the numbering — this does not prevent selective disclosure,",
+                  "  but it stops it being invisible. And a package forged wholesale (see",
+                  "  LIMITS) cannot be slotted into an existing series without producing a",
+                  "  hash collision, rather than merely an edit.",
+                  "",
+                  "  What it does NOT establish: that this chain contains every capture the",
+                  "  operator ever made. The chain lives in this browser profile and the",
+                  "  operator controls it — it can be cleared (visibly, as above), and a",
+                  "  second profile would keep a separate chain entirely.",
+                  "",
+              ]
+            : ["  Not available for this capture.", ""])
+    );
+
+    if (operatorKey) {
+        lines.push(
+            "SIGNING KEY (continuity, NOT identity):",
+            `  Public key fingerprint (SHA-256 of SPKI): ${operatorKey.fingerprint}`,
+            `  manifest.json signed: ${signed ? "yes — see manifest.sig" : "no (signing failed)"}`,
+            "  Public key included as operator-key.pem. Verify with:",
+            "    openssl dgst -sha256 -verify operator-key.pem \\",
+            "        -signature manifest.sig manifest.json",
+            "",
+            "  This key was generated by this extension on this machine and is bound",
+            "  to no person, organisation or certificate authority. NOBODY VOUCHED",
+            "  FOR IT. It proves only that the same installation produced this",
+            "  capture and any other capture bearing the same fingerprint — which is",
+            "  what links a series of captures into one verifiable thread. The",
+            "  operator name above remains unverified text somebody typed.",
+            ""
+        );
+    }
+
+    if (codeIntegrity?.files && Object.keys(codeIntegrity.files).length) {
+        lines.push(
+            "TOOL CODE INTEGRITY:",
+            `  SHA-256 of ${Object.keys(codeIntegrity.files).length} source file(s) that produced this`,
+            "  package are recorded in manifest.json (provenance.codeIntegrity).",
+            "  They cover the capture pipeline, not the whole extension.",
+            "",
+            "  Purpose: the install type reported above is asserted by the very code",
+            "  in question, and a modified build can lie about it. These hashes make",
+            "  the claim checkable against an outside source — obtain the published",
+            "  build of the recorded version and hash the same paths. Agreement means",
+            "  the published build produced this package. A modified build could of",
+            "  course also report false hashes here, which is precisely why the check",
+            "  is only meaningful when performed against the published build rather",
+            "  than read off this report.",
+            ""
+        );
+    }
+
+    // Placed before WHAT THIS PROVES deliberately: a reader should be able to
+    // check the claims before reading them.
+    lines.push(
+        "HOW TO VERIFY THIS PACKAGE (do not take this report's word for anything):",
+        "",
+        "  READ THIS FIRST — what is and is not sealed.",
+        "  Only these files are covered by the sealed hash:",
+        ...[
+            ...(waczSha256 ? ["capture.wacz"] : []),
+            ...(screenshotSha256 ? ["screenshot.png"] : []),
+            ...(domSha256 ? ["page.html"] : []),
+            ...(mhtmlSha256 ? ["page.mhtml"] : []),
+        ].map((f) => `    - ${f}`),
+        "  They are sealed because manifest.json records their SHA-256, and",
+        "  manifest.json's own SHA-256 is what the timestamp authorities signed.",
+        "",
+        "  This file (report.txt), SHA256SUMS.txt and timestamps.json are NOT",
+        "  sealed. They are written after manifest.json is frozen, so nothing",
+        "  can vouch for them. Anyone holding this zip can edit them freely.",
+        "  manifest.sig, operator-key.pem and the .tsr tokens are also outside",
+        "  the seal, but unlike the three above they are self-authenticating:",
+        "  each verifies cryptographically against manifest.json on its own, so",
+        "  editing them makes them fail rather than lie.",
+        "  Checking a file's hash against report.txt or SHA256SUMS.txt therefore",
+        "  proves NOTHING: someone who swapped a file and updated the report",
+        "  produces a package that agrees with itself perfectly. The chain below",
+        "  is the only one that cannot be forged without the authority's private",
+        "  key, and every step of it must be followed for the result to mean",
+        "  anything:",
+        "",
+        "      capture-<authority>.tsr   (signed by a third party)",
+        "               |  seals",
+        "               v",
+        "         manifest.json          (its SHA-256 is the signed value)",
+        "               |  records SHA-256 of",
+        "               v",
+        "      the evidentiary files listed above",
+        "",
+        "  STEP 1 — recompute each file's hash and compare it to manifest.json's",
+        "  `files` block (NOT to this report):",
+        "    sha256sum capture.wacz screenshot.png page.html page.mhtml",
+        "    (macOS: shasum -a 256 ...   Windows: certutil -hashfile <file> SHA256)",
+        "",
+        "  STEP 2 — recompute manifest.json's own hash:",
+        "    sha256sum manifest.json",
+        `    Expected: ${manifestSha256}`,
+        "    (that expected value is printed here for convenience only — step 3",
+        "     is what proves it, and step 3 does not rely on this report)",
+        "",
+        "  STEP 3 — verify a timestamp token actually covers that hash. This is",
+        "  the step that anchors everything; without it the package is merely",
+        "  internally consistent, which a forger can also achieve:",
+        "    openssl ts -verify -digest <hash from step 2> \\",
+        "        -in capture-<authority>.tsr -CAfile /path/to/ca-bundle.crt",
+        "    Expect exactly: Verification: OK",
+        "",
+        "    Use -digest, not -data: the token seals manifest.json's HASH, so the",
+        "    -data form (which hashes the file you point it at) is the wrong",
+        "    check and will look like tampering even on a sound package.",
+        "    `openssl ts -reply -in <file> -text` only prints a token — it",
+        "    verifies nothing. A mismatch anywhere reports:",
+        "      'message imprint mismatch' (wrong/edited manifest), or",
+        "      'certificate verify error' (root not trusted — see below).",
+        "",
+        ...(tsaResults.some((r) => !r.publiclyTrustedRoot)
+            ? [
+                  "    NOTE on this package's tokens: at least one authority above is",
+                  "    marked NOT verifiable against public trust stores. Its token is",
+                  "    real and its signature is valid, but openssl will report a",
+                  "    certificate verify error unless you separately obtain that",
+                  "    authority's own root certificate and elect to trust it — from",
+                  "    the same party that issued the token. Prefer a token marked",
+                  "    verifiable with a public CA bundle when one is present.",
+                  "",
+              ]
+            : []),
+        ...(tsaResults.length
+            ? []
+            : [
+                  "    THIS PACKAGE HAS NO TIMESTAMP TOKEN. Step 3 cannot be performed,",
+                  "    so there is no external anchor: the hashes prove the files have",
+                  "    not changed since manifest.json was written, but nothing",
+                  "    establishes when that was, or that it was not written from",
+                  "    fabricated inputs. Weigh it accordingly.",
+                  "",
+              ]),
+        ...(signed
+            ? [
+                  "  STEP 3b — verify the installation signature over the same manifest:",
+                  "    openssl dgst -sha256 -verify operator-key.pem \\",
+                  "        -signature manifest.sig manifest.json",
+                  "    Expect: Verified OK",
+                  "    Then compare the key fingerprint above against other captures in",
+                  "    the same matter — a differing fingerprint means a different",
+                  "    installation produced it. The signature attests continuity, not",
+                  "    identity: no authority vouched for this key.",
+                  "",
+              ]
+            : []),
+        ...(startTsaResults.length
+            ? [
+                  "  STEP 3c — verify the pre-capture commitment (see CAPTURE WINDOW",
+                  "  above for the recomputation), which is what bounds when the capture",
+                  "  BEGAN rather than when it was sealed:",
+                  "    openssl ts -verify -digest <recomputed commitment hash> \\",
+                  "        -in start-<authority>.tsr -CAfile <ca-bundle>",
+                  "",
+              ]
+            : []),
+        ...(waczSha256
+            ? [
+                  "  STEP 4 — replay the recorded exchange independently: open",
+                  "  capture.wacz at https://replayweb.page (client-side; it does not",
+                  "  upload the file) and compare what it renders against",
+                  "  screenshot.png and page.html.",
+                  "",
+              ]
+            : []),
+        "  STEP 5 — check the claims that point outside this package, which is",
+        "  what distinguishes a genuine capture from a locally fabricated one:",
+        "  the server IP against passive-DNS history, the leaf certificate",
+        "  fingerprint against public CT logs (e.g. crt.sh), and the install type",
+        "  above. See LIMITS below for why these matter and what they can't do.",
+        ""
+    );
 
     lines.push("WHAT THIS PROVES:");
     if (waczSha256) {
@@ -938,8 +1271,76 @@ export async function startLegalCapture({
     const options = resolveLegalCaptureOptions(rawOptions);
     const startedAt = new Date();
 
-    return withZoomReset(tabId, async () => {
-        await showCaptureOverlay(tabId);
+    // On-page progress banner. Legal Capture is the long capture — a forced
+    // reload, an operator-set settling wait, snapshots, then timestamps and
+    // packaging — and the popup that started it has usually closed by the
+    // time any of that finishes. Without a banner naming the current phase,
+    // a capture that is working is indistinguishable from one that has hung,
+    // which is how a slow capture gets abandoned halfway through.
+    //
+    // Pinned to the top of the viewport rather than centred: it stays up for
+    // the whole session, and the middle of the page is exactly the content
+    // the operator is capturing and wants to keep watching.
+    const banner = (message) =>
+        showCaptureOverlay(tabId, { message, placement: "top" });
+
+    // Names the step currently in flight, so a throw is reported against the
+    // phase it happened in rather than a bare stack. See captureTrace.js.
+    let phase = "init";
+    const step = (name, detail) => {
+        phase = name;
+        return traceStep(name, detail);
+    };
+    await traceStart({ url, options, presetType, deviceMetrics });
+
+    try {
+    // Guards the whole capture, not just the network phase: the tail after
+    // the debugger detaches (WACZ assembly, zip, base64) makes no chrome.*
+    // call either, and on a heavy page that is easily long enough on its own.
+    return await withWorkerKeepalive(async () => {
+        // ── Pre-capture, before the page is touched at all ──────────────
+        // Identity, position in the chain, and the timestamped commitment
+        // that bounds the start of the capture. All best-effort: none of
+        // them may cost the operator a capture if the platform or the
+        // network refuses.
+        await step("operator-key");
+        const operatorKey = await getOperatorKeyInfo();
+        const chainState = await readChainState(operatorKey?.fingerprint ?? null);
+
+        const startCommitment = await buildStartCommitment(url, startedAt.toISOString());
+        let startTsaResults = [];
+        let startTsaErrors = [];
+        if (options.timestampsEnabled && options.startTimestamp) {
+            await step("start-timestamp");
+            await banner(BANNER.committing);
+            const providers = TSA_PROVIDERS.filter(
+                (p) => options[TSA_OPTION_KEY[p.name]] !== false
+            );
+            const settled = await Promise.allSettled(
+                providers.map((p) => requestTimestamp(startCommitment.hashBytes, p))
+            );
+            settled.forEach((r, i) => {
+                if (r.status === "fulfilled") {
+                    startTsaResults.push({
+                        ...r.value,
+                        filename: `start-${slugForProvider(providers[i].name)}.tsr`,
+                    });
+                } else {
+                    startTsaErrors.push({
+                        provider: providers[i].name,
+                        error: r.reason?.message ?? String(r.reason),
+                    });
+                }
+            });
+            await traceStep("start-timestamp-done", {
+                ok: startTsaResults.length,
+                failed: startTsaErrors.length,
+            });
+        }
+
+        return await withZoomReset(tabId, async () => {
+        await step("attach-debugger");
+        await banner(BANNER.starting);
         await attachDebugger(tabId); // throws DevToolsAttachedError if native DevTools holds the tab
 
         let exchanges = [];
@@ -957,9 +1358,11 @@ export async function startLegalCapture({
             // nothing the operator does (deliberately or by accident) can
             // alter the page between here and the snapshots. Survives the
             // reload below, unlike the DOM overlay.
+            await step("suppress-input");
             inputSuppressed = await suppressPageInput(tabId);
 
             if (options.networkRecording) {
+                await step("start-network-recording");
                 await startRecording(tabId, {
                     captureWebSockets: options.webSocketCapture,
                     captureServiceWorker: options.serviceWorkerCapture,
@@ -969,6 +1372,8 @@ export async function startLegalCapture({
             // it also restores the original HTML (undoing any Remove
             // Elements edit) regardless of whether recording is enabled, so
             // it always runs.
+            await step("reload");
+            await banner(BANNER.reloading);
             await reloadAndWaitForComplete(tabId);
 
             // The reload destroyed the document the overlay lived in — put
@@ -976,9 +1381,22 @@ export async function startLegalCapture({
             // it has stopped responding. Re-assert the input flag too: it is
             // session-scoped and expected to survive the navigation, but
             // re-asserting is idempotent and cheap next to being wrong.
-            await showCaptureOverlay(tabId);
+            await banner(BANNER.reloaded);
             inputSuppressed = (await suppressPageInput(tabId)) || inputSuppressed;
 
+            // Operator-set settling time on top of the load event. Deliberately
+            // placed here — before re-measurement, emulation and every
+            // snapshot, and while network recording is still running, so
+            // whatever the page fetches during it lands in the WARC like any
+            // other traffic. Input stays suppressed throughout, so the extra
+            // time on the page is not an extra window to alter it.
+            if (options.postLoadWaitSeconds > 0) {
+                await step("post-load-wait", { seconds: options.postLoadWaitSeconds });
+                await waitAfterLoad(tabId, options.postLoadWaitSeconds);
+            }
+
+            await step("re-measure");
+            await banner(BANNER.measuring);
             const effectiveMetrics = await reMeasureForPreset(
                 tabId,
                 deviceMetrics,
@@ -986,13 +1404,20 @@ export async function startLegalCapture({
                 fullPageHeightCap
             );
 
+            await step("emulate", effectiveMetrics);
             await hideScrollbars(tabId);
             await enableEmulation(tabId, effectiveMetrics);
             await postEmulationBreather(tabId);
             await injectMutationWatcher(tabId);
+            await step("settle");
             await waitForMutationSettle(tabId);
 
-            if (options.screenshot) screenshotBase64 = await takeScreenshotClip(tabId);
+            if (options.screenshot) {
+                await step("screenshot");
+                await banner(BANNER.screenshot);
+                screenshotBase64 = await takeScreenshotClip(tabId);
+                await traceStep("screenshot-done", { base64Length: screenshotBase64?.length ?? 0 });
+            }
 
             // Strip this extension's own injected nodes — the capture overlay
             // and the scrollbar-hiding <style> — before serializing the DOM.
@@ -1009,12 +1434,17 @@ export async function startLegalCapture({
 
             // Taken immediately after the screenshot, same emulated/settled
             // page state, so all of these describe the same moment.
+            await step("dom-snapshot");
             ({ html: domSnapshotHtml, environment: pageEnvironment } = await captureDomAndEnvironment(
                 tabId,
                 options.domSnapshot,
                 options.browserPageInfo
             ));
-            if (options.mhtmlSnapshot) mhtmlText = await captureMhtmlSnapshot(tabId);
+            if (options.mhtmlSnapshot) {
+                await step("mhtml-snapshot");
+                mhtmlText = await captureMhtmlSnapshot(tabId);
+                await traceStep("mhtml-done", { chars: mhtmlText?.length ?? 0 });
+            }
 
             // Needs the debugger still attached, so it happens here rather
             // than alongside the other TLS bookkeeping after teardown. The
@@ -1024,6 +1454,7 @@ export async function startLegalCapture({
                 .get(tabId)
                 .then((t) => t?.url ?? url)
                 .catch(() => url);
+            await step("certificate-chain");
             certificateChain = await collectCertificateChain(
                 tabId,
                 (() => {
@@ -1035,6 +1466,10 @@ export async function startLegalCapture({
                 })()
             );
         } finally {
+            // traceStep, not step(): this runs on the error path too, and
+            // clobbering `phase` here would blame teardown for a throw that
+            // happened upstream.
+            await traceStep("teardown");
             ({ exchanges, webSockets, stats, mainDocumentRequestId } =
                 await stopRecording(tabId).catch(() => ({ exchanges: [], webSockets: [], stats: null, mainDocumentRequestId: null })));
             // restorePageInput must run while the debugger is still attached.
@@ -1048,6 +1483,15 @@ export async function startLegalCapture({
             await detachDebugger(tabId);
             await hideCaptureOverlay(tabId);
         }
+        // Back up for the packaging phase, which has no debugger attached and
+        // no page interaction but can run for tens of seconds (TSA requests,
+        // WACZ assembly, base64). Evidentially safe to re-inject here and
+        // nowhere earlier: page.html and page.mhtml were serialized above and
+        // nothing reads the DOM again, so this can't reach an artifact. It
+        // also keeps the page covered while it is once more interactive —
+        // input suppression ends with the debugger session.
+        await banner(BANNER.packaging);
+
         stats = stats ?? {
             bodyFailures: 0,
             loadFailures: 0,
@@ -1062,6 +1506,7 @@ export async function startLegalCapture({
         let waczBytes = null;
         let waczSha256 = null;
         if (options.networkRecording) {
+            await step("build-wacz", { exchanges: exchanges.length, webSockets: webSockets.length });
             const { bytes: warcBytes, index } = await buildWarc(exchanges, webSockets, {
                 url,
                 startedAt: startedAtIso,
@@ -1070,6 +1515,7 @@ export async function startLegalCapture({
             const warcSha256 = await sha256Hex(warcBytes);
             waczBytes = await buildWacz({ warcBytes, index, url, startedAt: startedAtIso, warcSha256 });
             waczSha256 = await sha256Hex(waczBytes);
+            await traceStep("wacz-done", { bytes: waczBytes.length });
         }
 
         const screenshotBytes = screenshotBase64 ? base64ToBytes(screenshotBase64) : null;
@@ -1086,7 +1532,9 @@ export async function startLegalCapture({
         const tlsSummary = tlsSummaryFrom(mainExchange);
         const connectionSummary = connectionSummaryFrom(mainExchange);
         const redirectChain = options.networkRecording ? redirectChainFor(exchanges, mainDocumentRequestId) : [];
+        await step("provenance");
         const toolProvenance = await collectToolProvenance(startedAt);
+        const codeIntegrity = await collectCodeIntegrity();
         const machineInfo = options.machineInfo ? await collectMachineInfo() : null;
         const accountEmail = options.accountEmail ? await collectAccountEmail() : null;
 
@@ -1097,7 +1545,9 @@ export async function startLegalCapture({
             // 5: added connection (server IP), certificateChain fingerprints,
             // CT/SCT detail on tls, and provenance.installType /
             // provenance.pageInputSuppressed.
-            formatVersion: 5,
+            // 6: added the sealed `verification` block (what this manifest's
+            // hash does and does not cover) and captureOptions.postLoadWaitSeconds.
+            formatVersion: 6,
             url,
             finalUrl,
             startedAt: startedAtIso,
@@ -1108,11 +1558,45 @@ export async function startLegalCapture({
                 caseReference: caseReference || null,
                 accountEmail,
                 geolocation: geolocation ?? null,
+                // Continuity, not identity — see operatorKey.js. Named inside
+                // the sealed bytes so the signature over those bytes and the
+                // key it was made with cannot be pointed at each other after
+                // the fact.
+                signingKeyFingerprint: operatorKey?.fingerprint ?? null,
+            },
+            // Position in this installation's capture sequence. Makes gaps
+            // (suppressed captures) and rebuilds visible — see captureChain.js
+            // for what this does and does not establish.
+            chain: {
+                chainId: chainState.chainId,
+                sequence: chainState.sequence,
+                previousManifestSha256: chainState.previousManifestSha256,
+                chainRestarted: chainState.chainRestarted,
+                previousChainId: chainState.previousChainId,
+            },
+            // The commitment published to third parties before the page was
+            // touched. Inputs recorded so a verifier can recompute the hash
+            // and check it against start-<authority>.tsr themselves.
+            startCommitment: {
+                sha256: startCommitment.sha256,
+                nonce: startCommitment.nonce,
+                preimageFormat: startCommitment.preimageFormat,
+                startedAt: startedAtIso,
+                timestamped: startTsaResults.map((r) => ({
+                    authority: r.tsaName,
+                    genTime: r.genTime,
+                    filename: r.filename,
+                    publiclyTrustedRoot: r.publiclyTrustedRoot,
+                })),
+                errors: startTsaErrors,
             },
             provenance: {
                 ...toolProvenance,
                 machine: machineInfo,
                 page: pageEnvironment,
+                // Makes installType checkable against the published build
+                // instead of purely self-asserted — see codeIntegrity.js.
+                codeIntegrity,
                 // Recorded rather than asserted: if the browser refused the
                 // command, the package says so instead of report.txt claiming
                 // a protection that wasn't in force.
@@ -1123,6 +1607,38 @@ export async function startLegalCapture({
                 ...(screenshotSha256 ? { "screenshot.png": { sha256: screenshotSha256 } } : {}),
                 ...(domSha256 ? { "page.html": { sha256: domSha256 } } : {}),
                 ...(mhtmlSha256 ? { "page.mhtml": { sha256: mhtmlSha256 } } : {}),
+            },
+            // Which files this manifest's hash actually covers, stated inside
+            // the sealed bytes so the statement can't be edited either.
+            //
+            // The point it exists to make: the evidentiary chain runs
+            // .tsr -> manifest.json -> the files listed above, and NOTHING
+            // else in the package carries integrity. report.txt,
+            // SHA256SUMS.txt and timestamps.json are all written after this
+            // object is frozen, so none of them can be inside it — they are
+            // human-readable copies, freely editable by anyone holding the
+            // zip. Checking a hash against report.txt proves nothing: an
+            // altered file and an altered report agree with each other
+            // perfectly. Only the timestamped manifest breaks that tie.
+            verification: {
+                anchor: "capture-<authority>.tsr -> sha256(manifest.json) -> files listed in .files",
+                sealedByThisManifest: Object.keys({
+                    ...(waczSha256 ? { "capture.wacz": 1 } : {}),
+                    ...(screenshotSha256 ? { "screenshot.png": 1 } : {}),
+                    ...(domSha256 ? { "page.html": 1 } : {}),
+                    ...(mhtmlSha256 ? { "page.mhtml": 1 } : {}),
+                }),
+                notSealed: ["report.txt", "timestamps.json", "SHA256SUMS.txt"],
+                // Outside the seal but cryptographically self-authenticating
+                // against manifest.json — editing them breaks them rather
+                // than making them lie, unlike the three above.
+                selfAuthenticating: ["capture-*.tsr", "start-*.tsr", "manifest.sig", "operator-key.pem"],
+                note:
+                    "Verify against manifest.json only, and verify manifest.json against a .tsr token. " +
+                    "A .tsr is self-authenticating (it carries a third party's signature) but must be " +
+                    "checked with: openssl ts -verify -digest <sha256 of manifest.json> -in capture-<authority>.tsr -CAfile <ca-bundle>. " +
+                    "If no timestamp was obtained, this package has no external anchor and its internal " +
+                    "consistency proves only that it is internally consistent.",
             },
             tls: tlsSummary,
             certificateChain,
@@ -1147,6 +1663,15 @@ export async function startLegalCapture({
         const manifestSha256 = await sha256Hex(manifestBytes);
         const manifestHashBytes = await sha256Bytes(manifestBytes);
 
+        // Signed over the frozen bytes, in DER so `openssl dgst -verify`
+        // works with no conversion. The signature can't live inside the
+        // manifest (it signs it), so like the .tsr files it is
+        // self-authenticating rather than sealed: it verifies against the
+        // public key shipped beside it, and the manifest names that key's
+        // fingerprint from inside the seal.
+        await step("sign-manifest");
+        const manifestSignature = operatorKey ? await signBytes(manifestBytes) : null;
+
         // ── Independent public TSAs (see TSA_PROVIDERS), filtered to the
         // ones the operator left enabled, queried concurrently. None
         // succeeding doesn't abort the capture (the hash-seal stands on its
@@ -1154,9 +1679,15 @@ export async function startLegalCapture({
         const enabledProviders = options.timestampsEnabled
             ? TSA_PROVIDERS.filter((p) => options[TSA_OPTION_KEY[p.name]] !== false)
             : [];
+        await step("timestamps", { providers: enabledProviders.map((p) => p.name) });
+        if (enabledProviders.length) await banner(BANNER.timestamps);
         const tsaSettled = await Promise.allSettled(
             enabledProviders.map((provider) => requestTimestamp(manifestHashBytes, provider))
         );
+        await traceStep("timestamps-done", {
+            ok: tsaSettled.filter((r) => r.status === "fulfilled").length,
+            failed: tsaSettled.filter((r) => r.status === "rejected").length,
+        });
         const tsaResults = [];
         const tsaErrors = [];
         tsaSettled.forEach((result, i) => {
@@ -1177,8 +1708,15 @@ export async function startLegalCapture({
                 nonceVerified: r.nonceVerified,
                 clockSkewSeconds: r.clockSkewSeconds,
                 filename: r.filename,
+                publiclyTrustedRoot: r.publiclyTrustedRoot,
+                rootNote: r.rootNote,
             })),
             errors: tsaErrors,
+            // This file is written after manifest.json is frozen and is
+            // therefore NOT covered by the sealed hash (see manifest.json's
+            // `verification` block). It is a convenience index of the .tsr
+            // files, which are self-authenticating on their own.
+            sealed: false,
         };
         const timestampsBytes = encoder.encode(JSON.stringify(timestamps, null, 2));
 
@@ -1210,6 +1748,13 @@ export async function startLegalCapture({
             options,
             timestampsRequestedCount: enabledProviders.length,
             pageInputSuppressed: inputSuppressed,
+            operatorKey,
+            signed: Boolean(manifestSignature),
+            chainState,
+            startCommitment,
+            startTsaResults,
+            startTsaErrors,
+            codeIntegrity,
         });
         const reportBytes = encoder.encode(report);
 
@@ -1218,6 +1763,11 @@ export async function startLegalCapture({
             { name: "timestamps.json", data: timestampsBytes },
             { name: "report.txt", data: reportBytes },
         ];
+        if (manifestSignature && operatorKey) {
+            packageEntries.push({ name: "manifest.sig", data: manifestSignature });
+            packageEntries.push({ name: "operator-key.pem", data: encoder.encode(operatorKey.publicKeyPem) });
+        }
+        for (const r of startTsaResults) packageEntries.push({ name: r.filename, data: r.tsrBytes });
         if (waczBytes) packageEntries.push({ name: "capture.wacz", data: waczBytes });
         if (screenshotBytes) packageEntries.push({ name: "screenshot.png", data: screenshotBytes });
         if (domBytes) packageEntries.push({ name: "page.html", data: domBytes });
@@ -1234,9 +1784,16 @@ export async function startLegalCapture({
             packageEntries.push({ name: "SHA256SUMS.txt", data: encoder.encode(sumsLines.join("\n") + "\n") });
         }
 
+        await step("build-zip", packageEntries.map((e) => ({ name: e.name, bytes: e.data.length })));
         const zipBytes = buildZip(packageEntries);
         const suffix = startedAtIso.replace(/[:.]/g, "-");
 
+        // The zip is handed to chrome.downloads as a base64 data: URL (an MV3
+        // worker has no URL.createObjectURL), so the string handed over is
+        // ~1.33x the zip. Logged because that size is the prime suspect if the
+        // download is what fails.
+        await step("download", { zipBytes: zipBytes.length });
+        await banner(BANNER.saving);
         await new Promise((resolve, reject) => {
             chrome.downloads.download(
                 {
@@ -1253,6 +1810,13 @@ export async function startLegalCapture({
             );
         });
 
+        // Only now — the download has started, so this capture exists. Moving
+        // this earlier would burn a sequence number on a failed capture and
+        // leave a permanent gap that no package accounts for, which is exactly
+        // the signal the chain is meant to make meaningful.
+        await commitChainState(chainState, manifestSha256);
+
+        await traceStep("done", { manifestSha256, sequence: chainState.sequence });
         return {
             exchangeCount: exchanges.length,
             waczSha256,
@@ -1260,5 +1824,19 @@ export async function startLegalCapture({
             timestamped: tsaResults.length > 0,
             timestampCount: tsaResults.length,
         };
+        });
     });
+    } catch (error) {
+        // Recorded, then rethrown unchanged — the popup still gets the same
+        // rejection it always did. This only guarantees the failure is written
+        // somewhere that outlives a closed popup.
+        await traceError(phase, error);
+        throw error;
+    } finally {
+        // The banner now outlives the debugger session (it stays up through
+        // packaging), so its removal can no longer be left to the inner
+        // teardown. A failure anywhere must not strand a full-viewport,
+        // pointer-events:auto overlay on the operator's page.
+        await hideCaptureOverlay(tabId);
+    }
 }

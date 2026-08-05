@@ -995,6 +995,43 @@
                 <section>
                     <div
                         class="section-label"
+                        data-i18n="legalSettingsGroupTiming"
+                    >
+                        Capture Timing
+                    </div>
+
+                    <div class="setting-label" data-i18n="legalPostLoadWait">
+                        Extra wait after page load (seconds)
+                    </div>
+                    <input
+                        type="number"
+                        id="legal-post-load-wait"
+                        class="setting-text setting-number"
+                        min="0"
+                        max="120"
+                        step="1"
+                        value="0"
+                    />
+                    <p class="setting-note" data-i18n="legalPostLoadWaitNote">
+                        After the forced reload reports the page as loaded, wait
+                        this long before measuring or capturing anything. The
+                        load event fires when the document and its files have
+                        arrived — which on a JavaScript-rendered page is often
+                        before the content exists, so a capture taken at that
+                        moment can show a skeleton or half-built page. Network
+                        recording keeps running for the whole wait, so anything
+                        the page fetches during it is still recorded, and the
+                        page stays locked against input. Leave at 0 for ordinary
+                        server-rendered pages. The value used is recorded in the
+                        sealed manifest.
+                    </p>
+                </section>
+
+                <div class="divider"></div>
+
+                <section>
+                    <div
+                        class="section-label"
                         data-i18n="legalSettingsGroupIntegrity"
                     >
                         Timestamping &amp; Integrity
@@ -1018,6 +1055,32 @@
                         wasn't put together after the fact — without it, the
                         package is still hash-sealed, but the only clock backing
                         the capture time is this computer's own.
+                    </p>
+
+                    <div class="setting-divider"></div>
+                    <label class="setting-row" for="legal-opt-start-timestamp">
+                        <input
+                            type="checkbox"
+                            id="legal-opt-start-timestamp"
+                            checked
+                        />
+                        <span data-i18n="legalOptStartTimestamp"
+                            >Also timestamp before capturing</span
+                        >
+                    </label>
+                    <p
+                        class="setting-note"
+                        data-i18n="legalOptStartTimestampNote"
+                    >
+                        Registers a hash of the URL, a random nonce and the
+                        start time with the same authorities before the page is
+                        touched. The normal timestamp proves when the finished
+                        package was sealed; this one proves when the capture
+                        began, so the whole operation is bracketed from both
+                        ends by third parties. Without it, nothing rules out a
+                        package assembled at leisure and sealed whenever
+                        convenient. Costs one extra round trip and sends only a
+                        hash.
                     </p>
 
                     <div class="setting-divider"></div>

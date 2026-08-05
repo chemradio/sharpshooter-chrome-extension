@@ -2,6 +2,11 @@
 // session. The emulated viewport jumps around (resize, zoom reset, expansion
 // up to 16384 px) and that visual churn is alarming without context.
 //
+// The message and its placement are both callers' choice. Legal Capture uses
+// this as a running progress banner — it reloads the page, waits, snapshots,
+// then spends time on timestamps and packaging, and without a banner naming
+// the current phase a long capture is indistinguishable from a hung one.
+//
 // The overlay lives in the page DOM (the popup closes the moment focus
 // leaves it, so we can't host UI there). It must be invisible to
 // `Page.captureScreenshot` — `withHidden` toggles `display:none` via the
@@ -9,9 +14,22 @@
 // CDP channel as the screenshot itself.
 
 const OVERLAY_ID = "__sharpshooter-capture-overlay";
+const LABEL_ID = "__sharpshooter-capture-overlay-label";
 
-const installOverlay = (id) => {
-    if (document.getElementById(id)) return;
+// `placement` is "center" (Page/Element capture — a brief flash, and the
+// middle is where the eye already is) or "top" (Legal Capture, which runs
+// long enough that the operator will want to watch the page underneath while
+// it works; a centred pill sits over exactly the content they're checking).
+const installOverlay = (id, labelId, message, placement) => {
+    const existing = document.getElementById(id);
+    if (existing) {
+        // Re-injection is normal here — Legal Capture reloads the page out
+        // from under the overlay and puts it back. Treat it as an update so a
+        // second call can't leave a stale phase message on screen.
+        const label = document.getElementById(labelId);
+        if (label && message) label.textContent = message;
+        return;
+    }
     const root = document.createElement("div");
     root.id = id;
     root.setAttribute("data-sharpshooter", "overlay");
@@ -23,14 +41,18 @@ const installOverlay = (id) => {
         "backdrop-filter:blur(2px)",
         "-webkit-backdrop-filter:blur(2px)",
         "display:flex",
-        "align-items:center",
+        placement === "top" ? "align-items:flex-start" : "align-items:center",
         "justify-content:center",
+        placement === "top" ? "padding-top:24px" : "",
+        "box-sizing:border-box",
         "font:600 14px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
         "color:#e6f7ff",
         "pointer-events:auto",
         "cursor:wait",
         "user-select:none",
-    ].join(";");
+    ]
+        .filter(Boolean)
+        .join(";");
     const pill = document.createElement("div");
     pill.style.cssText = [
         "padding:14px 22px",
@@ -53,7 +75,8 @@ const installOverlay = (id) => {
         "animation:__sharpshooterPulse 1s ease-in-out infinite",
     ].join(";");
     const label = document.createElement("span");
-    label.textContent = "Capturing… please wait";
+    label.id = labelId;
+    label.textContent = message || "Capturing… please wait";
     pill.appendChild(dot);
     pill.appendChild(label);
     root.appendChild(pill);
@@ -69,12 +92,28 @@ const installOverlay = (id) => {
 
 const removeOverlay = (id) => document.getElementById(id)?.remove();
 
-export const showCaptureOverlay = (tabId) =>
+export const showCaptureOverlay = (tabId, { message = "", placement = "center" } = {}) =>
     chrome.scripting
         .executeScript({
             target: { tabId },
             func: installOverlay,
-            args: [OVERLAY_ID],
+            args: [OVERLAY_ID, LABEL_ID, message, placement],
+        })
+        .catch(() => {});
+
+// Updates the message in place. A no-op if the overlay isn't currently
+// installed, which is deliberate: Legal Capture removes it before serializing
+// page.html/page.mhtml (it must not appear in that markup), and a phase
+// message arriving in that window must not resurrect it.
+export const setCaptureOverlayMessage = (tabId, message) =>
+    chrome.scripting
+        .executeScript({
+            target: { tabId },
+            func: (labelId, text) => {
+                const label = document.getElementById(labelId);
+                if (label) label.textContent = text;
+            },
+            args: [LABEL_ID, message],
         })
         .catch(() => {});
 
